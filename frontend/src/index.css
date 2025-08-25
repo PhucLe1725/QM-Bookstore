@@ -1,0 +1,118 @@
+@import url("https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+html,
+body,
+#root,
+.app,
+.content {
+  height: 100%;
+  min-height: 100vh;
+  width: 100%;
+  font-family: "Source Sans Pro", sans-serif;
+}
+.app {
+  display: flex;
+  position: relative;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: #e0e0e0;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #888;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+
+@layer utilities {  
+  .duration-high {
+    @apply transition-all duration-300 ease-in-out;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: spin 40s linear infinite;
+}
+
+/* smooth scroll*/
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  @apply bg-primary text-white;
+}
+
+
+@layer base {
+  .order-input {
+    @apply w-full rounded-full border border-gray-300 dark:border-gray-500 dark:bg-gray-800 px-2 py-1 mb-4;
+  }
+  .search-input {
+    @apply w-full border border-gray-300 dark:border-gray-500 dark:bg-gray-800 px-2 py-1 mb-4;
+  }
+  .input{
+    @apply w-full border rounded-full border-gray-300 dark:border-gray-500 dark:bg-gray-800 dark:text-white;
+  }
+  .input-label {
+    @apply  dark:text-white;
+  }
+}
+@layer components {
+  .primary-btn {
+    @apply bg-gradient-to-r from-primary to-secondary hover:scale-105 duration-200 text-white py-1 px-4 rounded-full ;
+  }
+}
+
+/* Fix màu chữ input MUI khi dark mode */
+.dark input,
+.dark textarea,
+.dark .MuiInputBase-input,
+.dark .MuiOutlinedInput-input {
+  color: #e5e7eb !important; /* text-gray-200 */
+  background: transparent !important;
+}
+
+.dark .MuiInputLabel-root {
+  color: #e5e7eb !important;
+}
+
+.dark .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255,255,255,0.23) !important;
+}
+
+/* Fix nền input khi dùng autocomplete ở dark mode */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #1e293b inset !important; /* bg-gray-800 hoặc màu nền dark */
+  box-shadow: 0 0 0 1000px #1e293b inset !important;
+  -webkit-text-fill-color: #e5e7eb !important; /* text-gray-200 */
+  caret-color: #e5e7eb !important;
+  color: #e5e7eb !important;
+  background-color: #1e293b !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
