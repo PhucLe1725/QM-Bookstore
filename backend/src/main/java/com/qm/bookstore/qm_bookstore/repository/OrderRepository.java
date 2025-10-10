@@ -9,15 +9,19 @@ import org.springframework.stereotype.Repository;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByUser(User user);
-    List<Order> findByUserId(Long userId);
+    
+    @Query("SELECT o FROM Order o WHERE o.user.id = :userId")
+    List<Order> findByUserId(@Param("userId") UUID userId);
+    
     List<Order> findByStatus(Order.Status status);
     
     @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.status = :status")
-    List<Order> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") Order.Status status);
+    List<Order> findByUserIdAndStatus(@Param("userId") UUID userId, @Param("status") Order.Status status);
     
     @Query("SELECT o FROM Order o WHERE o.createdAt BETWEEN :startDate AND :endDate")
     List<Order> findOrdersByDateRange(@Param("startDate") OffsetDateTime startDate, 

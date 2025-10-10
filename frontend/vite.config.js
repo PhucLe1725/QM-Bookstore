@@ -7,7 +7,7 @@ export default defineConfig({
   optimizeDeps: {
     esbuildOptions: {
       define: {
-        global: 'globalThis', // 👈 fix lỗi ở trình duyệt
+        global: 'globalThis',
       },
       plugins: [
         NodeGlobalsPolyfillPlugin({
@@ -18,7 +18,7 @@ export default defineConfig({
     },
   },
   server: {
-    historyApiFallback: true, // 👈 Fix reload 404 for SPA in dev
+    historyApiFallback: true,
   },
   // Nếu deploy lên subpath, thêm base: '/ten-thu-muc/'
   base: '/',

@@ -1,57 +1,39 @@
-import React from "react";
-import Navbar from "./components/Navbar/Navbar";
-import Footer from "./components/Footer/Footer.jsx";
-import AOS from "aos";
-import "aos/dist/aos.css";
-import OrderPopup from "./components/OrderPopup/OrderPopup.jsx";
-import LoginPopup from "./components/LoginPopup/LoginPopup";
-import { Outlet } from "react-router-dom";
-import ChatButton from "./components/ChatButton/ChatButton.jsx";
-import Cookies from "js.cookie";
+import React from 'react'
+import { WebSocketProvider, MessageProvider, ChatProvider, AuthProvider, useAuth } from './store'
+import { AppRoutes } from './routes'
+import ChatButton from './components/ChatButton'
+import ChatModal from './components/ChatModal'
 
-const App = () => {
-  const [orderPopup, setOrderPopup] = React.useState(false);
-
-  const handleOrderPopup = () => {
-    setOrderPopup(!orderPopup);
-  };
-  const [loginPopup, setLoginPopup] = React.useState(false);
-  const handleLoginPopup = () => {
-    setLoginPopup(!loginPopup);
-  };
-
-  React.useEffect(() => {
-    AOS.init({
-      offset: 100,
-      duration: 800,
-      easing: "ease-in-sine",
-      delay: 100,
-    });
-    AOS.refresh();
-  }, []);
+const AppContent = () => {
+  const { isAuthenticated } = useAuth()
+  
   return (
-    <div className="bg-white dark:bg-gray-900 dark:text-white duration-200">
-      {/*Cookies.remove('authToken')}
-      {Cookies.remove("userId")*/}
-      <Navbar handleOrderPopup={handleOrderPopup} handleLoginPopup ={handleLoginPopup} />
-      {/* <BookCategoryList/> */}
-      {/* <Cart/> */}
-        <Outlet/>
-      { (Cookies.get('authToken') && Cookies.get('userId')!=16)?
-      <>
-        <ChatButton />
-      </>
-      :<></>
+    <div className="App">
+      <AppRoutes />
       
-      }
-      <>
-      </>  
-      <Footer />
-      <OrderPopup orderPopup={orderPopup} setOrderPopup={setOrderPopup} />
-      <LoginPopup loginPopup={loginPopup} handleLoginPopup={handleLoginPopup} />
-
+      {/* Chat System - Only show when authenticated */}
+      {isAuthenticated && (
+        <>
+          <ChatButton />
+          <ChatModal />
+        </>
+      )}
     </div>
-  );
-};
+  )
+}
 
-export default App;
+function App() {
+  return (
+    <AuthProvider>
+      <WebSocketProvider>
+        <MessageProvider>
+          <ChatProvider>
+            <AppContent />
+          </ChatProvider>
+        </MessageProvider>
+      </WebSocketProvider>
+    </AuthProvider>
+  )
+}
+
+export default App
