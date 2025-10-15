@@ -5,8 +5,8 @@ import com.qm.bookstore.qm_bookstore.dto.auth.request.LogoutRequest;
 import com.qm.bookstore.qm_bookstore.dto.auth.request.RefreshTokenRequest;
 import com.qm.bookstore.qm_bookstore.dto.auth.response.AuthResponse;
 import com.qm.bookstore.qm_bookstore.dto.auth.response.LoginResponse;
-import com.qm.bookstore.qm_bookstore.dto.auth.response.UserResponse;
 import com.qm.bookstore.qm_bookstore.dto.base.response.ApiResponse;
+import com.qm.bookstore.qm_bookstore.dto.user.response.UserResponse;
 import com.qm.bookstore.qm_bookstore.entity.User;
 import com.qm.bookstore.qm_bookstore.exception.AppException;
 import com.qm.bookstore.qm_bookstore.exception.ErrorCode;
@@ -45,7 +45,7 @@ public class AuthController {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         String refreshToken = authService.createRefreshToken(user.getId());
-        UserResponse userResponse = userMapper.toAuthUserResponse(user);
+        UserResponse userResponse = userMapper.toUserResponse(user);
 
         LoginResponse loginResponse = new LoginResponse(accessToken, refreshToken, userResponse);
 

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import Cookies from 'js-cookie'
 
 // Base API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
@@ -15,7 +16,8 @@ const api = axios.create({
 // Request interceptor để thêm token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    // Ưu tiên lấy token từ cookie, fallback localStorage
+    const token = Cookies.get('token') || localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -32,8 +34,12 @@ api.interceptors.response.use(
     return response.data
   },
   (error) => {
+    console.log('🔍 API Response interceptor caught error:', error)
+    
     if (error.response?.status === 401) {
-      // Token hết hạn hoặc không hợp lệ
+      // Token hết hạn hoặc không hợp lệ - xóa cả cookies và localStorage
+      Cookies.remove('token', { path: '/' })
+      Cookies.remove('refreshToken', { path: '/' })
       localStorage.removeItem('token')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
@@ -41,9 +47,19 @@ api.interceptors.response.use(
       window.dispatchEvent(new CustomEvent('auth:logout'))
     }
     
-    // Xử lý lỗi và trả về message phù hợp
+    // Preserve original error object with response/config details
+    // Just add a more user-friendly message
     const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra'
-    return Promise.reject(new Error(errorMessage))
+    error.userMessage = errorMessage
+    
+    console.log('🔍 Preserved error details:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      config: error.config?.url,
+      userMessage: errorMessage
+    })
+    
+    return Promise.reject(error)
   }
 )
 

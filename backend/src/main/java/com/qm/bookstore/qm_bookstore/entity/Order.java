@@ -25,8 +25,8 @@ public class Order {
     private BigDecimal totalAmount;
 
     @Column(nullable = false, length = 20)
-    @Enumerated(EnumType.STRING)
-    private Status status;
+    // @Enumerated(EnumType.STRING)
+    private String status;
 
     @ManyToOne
     @JoinColumn(name = "voucher_id")
@@ -42,7 +42,7 @@ public class Order {
     @ToString.Exclude
     private List<OrderItem> orderItems;
 
-    public enum Status {
-        PENDING, PAID, SHIPPED, COMPLETED, CANCELLED
-    }
+    // public enum Status {
+    //     PENDING, PAID, SHIPPED, COMPLETED, CANCELLED
+    // }
 }

@@ -13,5 +13,5 @@ public class UserUpdateRequest {
     String username;
     String password;
     String email;
-    Integer roleId;
+    Long roleId;
 }

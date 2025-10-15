@@ -1,4 +1,5 @@
 import { json } from 'react-router-dom'
+import Cookies from 'js-cookie'
 import api from './api'
 
 export const authService = {
@@ -19,14 +20,29 @@ export const authService = {
         const { accessToken, refreshToken, userResponse } = response.result
         
         if (accessToken) {
+          // Lưu accessToken vào secure cookie (7 ngày)
+          Cookies.set('token', accessToken, { 
+            expires: 7,
+            secure: window.location.protocol === 'https:',
+            sameSite: 'strict',
+            path: '/'
+          })
+          
+          // Backup trong localStorage cho compatibility
           localStorage.setItem('token', accessToken)
           
-          // Lưu refreshToken nếu có
+          // Lưu refreshToken vào secure cookie (30 ngày)
           if (refreshToken) {
+            Cookies.set('refreshToken', refreshToken, {
+              expires: 30,
+              secure: window.location.protocol === 'https:',
+              sameSite: 'strict',
+              path: '/'
+            })
             localStorage.setItem('refreshToken', refreshToken)
           }
           
-          // Lưu thông tin user
+          // Lưu thông tin user trong localStorage (không sensitive)
           if (userResponse) {
             localStorage.setItem('user', JSON.stringify(userResponse))
           }
@@ -52,10 +68,25 @@ export const authService = {
 
   // Đăng xuất
   logout: () => {
+    // Xóa cookies
+    Cookies.remove('token', { path: '/' })
+    Cookies.remove('refreshToken', { path: '/' })
+    
+    // Xóa localStorage backup
     localStorage.removeItem('token')
     localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')
     // Bỏ auto redirect - để component tự handle
+  },
+
+  // Lấy token (ưu tiên cookie, fallback localStorage)
+  getToken: () => {
+    return Cookies.get('token') || localStorage.getItem('token')
+  },
+
+  // Lấy refresh token
+  getRefreshToken: () => {
+    return Cookies.get('refreshToken') || localStorage.getItem('refreshToken')
   },
 
   // Lấy thông tin user hiện tại
@@ -66,7 +97,7 @@ export const authService = {
 
   // Kiểm tra xem user đã đăng nhập chưa
   isAuthenticated: () => {
-    return !!localStorage.getItem('token')
+    return !!(Cookies.get('token') || localStorage.getItem('token'))
   },
 
   // Refresh token
@@ -74,6 +105,13 @@ export const authService = {
     try {
       const response = await api.post('/auth/refresh')
       if (response.token) {
+        // Cập nhật token mới vào cookie và localStorage
+        Cookies.set('token', response.token, { 
+          expires: 7,
+          secure: window.location.protocol === 'https:',
+          sameSite: 'strict',
+          path: '/'
+        })
         localStorage.setItem('token', response.token)
       }
       return response

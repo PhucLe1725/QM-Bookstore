@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Kiểm tra authentication khi component mount
-    const token = localStorage.getItem('token')
+    const token = authService.getToken() // Sử dụng method mới để lấy token từ cookie/localStorage
     const userData = authService.getCurrentUser()
     
     if (token && userData) {
@@ -36,10 +36,50 @@ export const AuthProvider = ({ children }) => {
       window.location.href = '/'
     }
 
+    // Listen for browser navigation events (back/forward)
+    const handlePopState = () => {
+      // Re-check authentication state when browser navigation occurs
+      const currentToken = authService.getToken()
+      const currentUser = authService.getCurrentUser()
+      
+      if (currentToken && currentUser) {
+        setUser(currentUser)
+        setIsAuthenticated(true)
+      } else {
+        setUser(null)
+        setIsAuthenticated(false)
+      }
+      
+      // Force a small delay to ensure state is updated
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('auth:stateChanged'))
+      }, 100)
+    }
+
+    // Listen for storage changes (when user data changes in another tab)
+    const handleStorageChange = (e) => {
+      if (e.key === 'user' || e.key === 'token') {
+        const token = authService.getToken()
+        const userData = authService.getCurrentUser()
+        
+        if (token && userData) {
+          setUser(userData)
+          setIsAuthenticated(true)
+        } else {
+          setUser(null)
+          setIsAuthenticated(false)
+        }
+      }
+    }
+
     window.addEventListener('auth:logout', handleAuthLogout)
+    window.addEventListener('popstate', handlePopState)
+    window.addEventListener('storage', handleStorageChange)
 
     return () => {
       window.removeEventListener('auth:logout', handleAuthLogout)
+      window.removeEventListener('popstate', handlePopState)
+      window.removeEventListener('storage', handleStorageChange)
     }
   }, [])
 

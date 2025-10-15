@@ -27,8 +27,8 @@ public class Product {
     private BigDecimal price;
 
     @Column(nullable = false, length = 20)
-    @Enumerated(EnumType.STRING)
-    private Type type;
+    // @Enumerated(EnumType.STRING)
+    private String type;
 
     @Column
     private Integer stock = 0;
@@ -51,7 +51,7 @@ public class Product {
     @ToString.Exclude
     private List<ProductCombo> comboItems;
 
-    public enum Type {
-        BOOK, STATIONERY, COMBO
-    }
+    // public enum Type {
+    //     BOOK, STATIONERY, COMBO
+    // }
 }

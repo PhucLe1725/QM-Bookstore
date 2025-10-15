@@ -13,8 +13,8 @@ public class UserResponse {
     UUID id;
     String username;
     String email;
-    Integer roleId;
+    Long roleId;
     String roleName;
     OffsetDateTime createdAt;
-    OffsetDateTime UpdatedAt;
+    OffsetDateTime updatedAt;
 }

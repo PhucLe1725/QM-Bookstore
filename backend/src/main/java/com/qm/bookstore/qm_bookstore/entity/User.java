@@ -1,39 +1,44 @@
 package com.qm.bookstore.qm_bookstore.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import org.hibernate.annotations.GenericGenerator;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
 @Entity
 @Table(name = "users")
-@Data
 public class User {
 
     @Id
-    @GeneratedValue(generator = "uuid2")
-    @GenericGenerator(name = "uuid2", strategy = "uuid2")
-    @Column(name = "id", columnDefinition = "UUID", updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    UUID id;
 
     @Column(nullable = false, unique = true, length = 50)
-    private String username;
+    String username;
 
     @Column(name = "password_hash", nullable = false, length = 255)
-    private String passwordHash;
+    String passwordHash;
 
     @Column(nullable = false, unique = true, length = 100)
-    private String email;
+    String email;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", nullable = false)
-    private Role role;
+    Role role;
 
+    @Builder.Default
     @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt = OffsetDateTime.now();
+    OffsetDateTime createdAt = OffsetDateTime.now();
 
+    @Builder.Default
     @Column(name = "updated_at", nullable = false)
-    private OffsetDateTime updatedAt = OffsetDateTime.now();
+    OffsetDateTime updatedAt = OffsetDateTime.now();
 }

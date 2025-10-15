@@ -1,23 +1,54 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useChat } from '../store/ChatContext'
+import { useWebSocket } from '../store/WebSocketContext'
+import { useAuth } from '../hooks/useAuth'
+import { chatService } from '../services'
 
 const AdminChat = () => {
+  const { user } = useAuth()
   const { 
-    adminMessages, 
-    sendAdminMessage, 
-    clearAdminChat, 
-    isConnected 
-  } = useChat()
+    isConnected,
+    adminMessages,
+    privateMessages,
+    sendPrivateMessage,
+    sendUserMessage, // Add sendUserMessage for user-to-admin messages
+    subscribeToConversation,
+    unsubscribeFromConversation,
+    sendTypingIndicator,
+    sendStatusUpdate
+  } = useWebSocket()
   
   const [message, setMessage] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [chatHistory, setChatHistory] = useState([])
+  const [loading, setLoading] = useState(true)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+  const conversationSubscriptionRef = useRef(null)
+  
+  // Load conversation and subscribe when component mounts
+  useEffect(() => {
+    if (user?.id) {
+      loadConversation()
+      
+      // Subscribe to conversation updates for current user
+      if (subscribeToConversation) {
+        conversationSubscriptionRef.current = subscribeToConversation(user.id)
+      }
+    }
+    
+    // Cleanup subscription on unmount
+    return () => {
+      if (conversationSubscriptionRef.current && unsubscribeFromConversation) {
+        unsubscribeFromConversation(conversationSubscriptionRef.current)
+        conversationSubscriptionRef.current = null
+      }
+    }
+  }, [user?.id, subscribeToConversation, unsubscribeFromConversation])
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
     scrollToBottom()
-  }, [adminMessages])
+  }, [chatHistory])
 
   // Focus input when component mounts
   useEffect(() => {
@@ -26,22 +57,115 @@ const AdminChat = () => {
     }
   }, [])
 
+  // Listen for real-time WebSocket messages and reload conversation (like admin)
+  useEffect(() => {
+    if (user?.id) {
+      const reloadConversation = async () => {
+        try {
+
+          await loadConversation()
+        } catch (error) {
+          console.error('Error reloading conversation:', error)
+        }
+      }
+
+      // Check if there are new messages related to current user
+      const userMessages = [
+        ...(Array.isArray(adminMessages) ? adminMessages : []).filter(msg => 
+          msg.receiverId === user.id // Messages sent to this user
+        ),
+        ...(Array.isArray(privateMessages) ? privateMessages : []).filter(msg => 
+          (msg.senderType === 'admin' && msg.receiverId === user.id) || // From admin to user
+          (msg.senderId === user.id)    // From user (to admin)
+        )
+      ]
+
+      if (userMessages.length > 0) {
+
+        reloadConversation()
+      }
+    }
+  }, [user?.id, adminMessages, privateMessages])
+
+  const loadConversation = async () => {
+    if (!user?.id) return
+    
+    setLoading(true)
+    
+    try {
+
+      
+      // Try to load chat history with error handling
+      const response = await chatService.getChatHistory(user.id)
+      
+      let conversationData = []
+      if (response.success && response.result && response.result.content) {
+        conversationData = response.result.content
+      } else if (response.success && response.result) {
+        conversationData = Array.isArray(response.result) ? response.result : []
+      } else if (response.data) {
+        conversationData = Array.isArray(response.data) ? response.data : []
+      }
+      
+      // Sort messages by timestamp
+      const sortedMessages = conversationData.sort((a, b) => 
+        new Date(a.createdAt) - new Date(b.createdAt)
+      )
+      
+
+      setChatHistory(sortedMessages)
+      
+    } catch (error) {
+      console.error('Failed to load chat history:', error)
+      setChatHistory([])
+      
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!message.trim() || !isConnected) return
+    if (!message.trim() || !isConnected || !user) return
 
-    setIsTyping(true)
-    sendAdminMessage(message.trim())
-    setMessage('')
+    const messageText = message.trim()
     
-    // Simulate typing indicator
-    setTimeout(() => {
-      setIsTyping(false)
-    }, 1000)
+    try {
+      // Create message object for immediate UI update (like admin does)
+      const messageToSend = {
+        id: Date.now(), // temporary ID
+        senderId: user.id,
+        receiverId: null, // User messages to admin system
+        message: messageText,
+        senderType: 'user',
+        createdAt: new Date().toISOString(),
+        senderUsername: user.username || user.name
+      }
+
+      // Add message to UI immediately (like admin does)
+      setChatHistory(prev => {
+        const prevArray = Array.isArray(prev) ? prev : []
+        return [...prevArray, messageToSend]
+      })
+
+      // Send message via WebSocket - use sendUserMessage for user-to-admin messages
+      // This will send to /app/user-message endpoint and backend will broadcast to /topic/admin-messages
+      sendUserMessage(messageText)
+      
+      // Clear input
+      setMessage('')
+
+    } catch (error) {
+      console.error('Error sending message:', error)
+    } finally {
+      setTimeout(() => {
+        setIsTyping(false)
+      }, 1000)
+    }
   }
 
   const handleKeyPress = (e) => {
@@ -58,30 +182,46 @@ const AdminChat = () => {
     })
   }
 
+  const handleClearChat = async () => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử chat?')) {
+      try {
+        const response = await chatService.clearChatHistory(user.id)
+        if (response.success) {
+          setChatHistory([])
+        } else {
+          console.error('Failed to clear chat history:', response.message)
+        }
+      } catch (error) {
+        console.error('Error clearing chat history:', error)
+      }
+    }
+  }
+
   const renderMessage = (msg, index) => {
-    const isUser = msg.sender === 'user'
-    const isLastMessage = index === adminMessages.length - 1
+    const isUser = msg.senderType === 'user'
+    const isAdmin = msg.senderType === 'admin' || msg.senderType === 'manager'
+    const isFromCurrentUser = msg.senderId === user?.id
     
     return (
       <div
-        key={msg.id}
-        className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}
+        key={msg.id || `${msg.createdAt}-${index}`}
+        className={`flex ${isFromCurrentUser ? 'justify-end' : 'justify-start'} mb-4`}
       >
         <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-          isUser 
+          isFromCurrentUser
             ? 'bg-blue-600 text-white rounded-br-none' 
             : 'bg-gray-200 text-gray-900 rounded-bl-none'
         }`}>
-          {!isUser && (
+          {!isFromCurrentUser && (
             <div className="text-xs text-gray-600 mb-1 font-medium">
-              {msg.senderName || 'Admin'}
+              {msg.senderUsername || (isAdmin ? 'Admin' : 'User')}
             </div>
           )}
-          <div className="text-sm">{msg.text}</div>
+          <div className="text-sm whitespace-pre-wrap">{msg.message}</div>
           <div className={`text-xs mt-1 ${
-            isUser ? 'text-blue-100' : 'text-gray-500'
+            isFromCurrentUser ? 'text-blue-100' : 'text-gray-500'
           }`}>
-            {formatTime(msg.timestamp)}
+            {formatTime(msg.createdAt)}
           </div>
         </div>
       </div>
@@ -96,19 +236,38 @@ const AdminChat = () => {
           ? 'bg-green-50 text-green-700 border-b border-green-200' 
           : 'bg-red-50 text-red-700 border-b border-red-200'
       }`}>
-        <div className="flex items-center space-x-2">
-          <div className={`w-2 h-2 rounded-full ${
-            isConnected ? 'bg-green-500' : 'bg-red-500'
-          }`}></div>
-          <span>
-            {isConnected ? 'Đã kết nối - Sẵn sàng chat' : 'Đang kết nối lại...'}
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${
+              isConnected ? 'bg-green-500' : 'bg-red-500'
+            }`}></div>
+            <span>
+              {isConnected ? 'Đã kết nối - Sẵn sàng chat' : 'Đang kết nối lại...'}
+            </span>
+          </div>
+          
+          {chatHistory.length > 0 && (
+            <button
+              onClick={handleClearChat}
+              className="p-1 hover:bg-black/10 rounded transition-colors"
+              title="Xóa lịch sử chat"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {adminMessages.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-600">Đang tải lịch sử chat...</span>
+          </div>
+        ) : chatHistory.length === 0 ? (
           <div className="text-center text-gray-500 mt-8">
             <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -119,7 +278,7 @@ const AdminChat = () => {
             </p>
           </div>
         ) : (
-          adminMessages.map((msg, index) => renderMessage(msg, index))
+          chatHistory.map((msg, index) => renderMessage(msg, index))
         )}
         
         {/* Typing Indicator */}
@@ -140,10 +299,10 @@ const AdminChat = () => {
 
       {/* Input Area */}
       <div className="border-t border-gray-200 p-4">
-        {adminMessages.length > 0 && (
+        {chatHistory.length > 0 && (
           <div className="mb-3 flex justify-end">
             <button
-              onClick={clearAdminChat}
+              onClick={handleClearChat}
               className="text-sm text-gray-500 hover:text-red-600 transition-colors"
             >
               Xóa lịch sử chat

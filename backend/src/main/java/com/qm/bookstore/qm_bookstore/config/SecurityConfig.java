@@ -39,19 +39,30 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         
+                        // WebSocket endpoints
+                        .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/app/**").permitAll()
+                        .requestMatchers("/topic/**").permitAll()
+                        .requestMatchers("/queue/**").permitAll()
+                        
+                        // Chat endpoints
+                        .requestMatchers("/api/chat/history/**").authenticated()
+                        .requestMatchers("/api/chat/admin/**").hasAnyRole("admin", "manager")
+                        .requestMatchers("/api/chat/conversations").hasAnyRole("admin", "manager")
+                        
                         // Admin only endpoints
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("admin")
+                        .requestMatchers("/api/users/**").hasRole("admin")
                         
                         // Manager and Admin endpoints
-                        .requestMatchers("/api/products/manage/**").hasAnyRole("ADMIN", "MANAGER")
-                        .requestMatchers("/api/categories/manage/**").hasAnyRole("ADMIN", "MANAGER")
-                        .requestMatchers("/api/orders/manage/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers("/api/products/manage/**").hasAnyRole("admin", "manager")
+                        .requestMatchers("/api/categories/manage/**").hasAnyRole("admin", "manager")
+                        .requestMatchers("/api/orders/manage/**").hasAnyRole("admin", "manager")
                         
                         // Customer endpoints (authenticated users)
-                        .requestMatchers("/api/cart/**").hasAnyRole("CUSTOMER", "ADMIN", "MANAGER")
-                        .requestMatchers("/api/orders/my/**").hasAnyRole("CUSTOMER", "ADMIN", "MANAGER")
-                        
+                        .requestMatchers("/api/cart/**").hasAnyRole("customer", "admin", "manager")
+                        .requestMatchers("/api/orders/my/**").hasAnyRole("customer", "admin", "manager")
+
                         // Public read endpoints for products and categories
                         .requestMatchers("/api/products/**").permitAll()
                         .requestMatchers("/api/categories/**").permitAll()
