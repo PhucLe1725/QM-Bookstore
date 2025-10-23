@@ -42,9 +42,27 @@ export const authService = {
             localStorage.setItem('refreshToken', refreshToken)
           }
           
-          // Lưu thông tin user trong localStorage (không sensitive)
+          // Lưu thông tin user đầy đủ trong localStorage (không sensitive)
           if (userResponse) {
-            localStorage.setItem('user', JSON.stringify(userResponse))
+            // Đảm bảo lưu tất cả thông tin từ UserResponse
+            const userInfo = {
+              id: userResponse.id,
+              username: userResponse.username,
+              fullName: userResponse.fullName,
+              email: userResponse.email,
+              phoneNumber: userResponse.phoneNumber,
+              address: userResponse.address,
+              roleId: userResponse.roleId,
+              roleName: userResponse.roleName,
+              status: userResponse.status,
+              points: userResponse.points,
+              balance: userResponse.balance,
+              totalPurchase: userResponse.totalPurchase,
+              membershipLevel: userResponse.membershipLevel,
+              createdAt: userResponse.createdAt,
+              updatedAt: userResponse.updatedAt
+            }
+            localStorage.setItem('user', JSON.stringify(userInfo))
           }
         }
       }

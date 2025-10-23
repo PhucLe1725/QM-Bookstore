@@ -3,7 +3,7 @@ package com.qm.bookstore.qm_bookstore.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "cart_items")
@@ -26,8 +26,8 @@ public class CartItem {
     private Integer quantity;
 
     @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt = OffsetDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "updated_at", nullable = false)
-    private OffsetDateTime updatedAt = OffsetDateTime.now();
+    private LocalDateTime updatedAt = LocalDateTime.now();
 }

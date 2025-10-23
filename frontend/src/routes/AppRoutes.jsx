@@ -1,7 +1,7 @@
 import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { MainLayout } from '../layouts'
-import { Home, Login, Register, Dashboard } from '../pages'
+import { Home, Login, Register, Dashboard, Profile } from '../pages'
 import { AdminDashboard } from '../pages/admin'
 import AdminMessages from '../pages/admin/AdminMessages'
 import WebSocketTest from '../components/WebSocketTest'
@@ -27,6 +27,14 @@ const AppRoutes = () => {
         <ProtectedRoute>
           <MainLayout>
             <Dashboard />
+          </MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <MainLayout>
+            <Profile />
           </MainLayout>
         </ProtectedRoute>
       } />

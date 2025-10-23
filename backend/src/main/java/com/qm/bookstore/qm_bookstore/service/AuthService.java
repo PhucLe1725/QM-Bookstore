@@ -12,7 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -48,7 +48,7 @@ public class AuthService {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUserId(userId);
         refreshToken.setToken(UUID.randomUUID().toString());
-        refreshToken.setExpiryDate(OffsetDateTime.now().plusSeconds(refreshTokenExpiration / 1000));
+        refreshToken.setExpiryDate(LocalDateTime.now().plusSeconds(refreshTokenExpiration / 1000));
         refreshTokenRepository.save(refreshToken);
         return refreshToken.getToken();
     }
@@ -57,7 +57,7 @@ public class AuthService {
         RefreshToken token = refreshTokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_REFRESH_TOKEN));
 
-        if (token.getExpiryDate().isBefore(OffsetDateTime.now())) {
+        if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.delete(token);
             throw new AppException(ErrorCode.REFRESH_TOKEN_EXPIRED);
         }

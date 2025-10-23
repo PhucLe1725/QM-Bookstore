@@ -16,9 +16,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -95,7 +96,24 @@ public class UserService {
                     .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED)));
         }
 
-        OffsetDateTime now = OffsetDateTime.now();
+        // Set default values if not provided
+        if (user.getStatus() == null) {
+            user.setStatus(true);
+        }
+        if (user.getPoints() == null) {
+            user.setPoints(0);
+        }
+        if (user.getBalance() == null) {
+            user.setBalance(BigDecimal.ZERO);
+        }
+        if (user.getTotalPurchase() == null) {
+            user.setTotalPurchase(BigDecimal.ZERO);
+        }
+        if (user.getMembershipLevel() == null) {
+            user.setMembershipLevel(User.MembershipLevel.BASIC);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
         
@@ -111,8 +129,20 @@ public class UserService {
             user.setUsername(request.getUsername());
         }
         
+        if (request.getFullName() != null) {
+            user.setFullName(request.getFullName());
+        }
+        
         if (request.getEmail() != null) {
             user.setEmail(request.getEmail());
+        }
+        
+        if (request.getPhoneNumber() != null) {
+            user.setPhoneNumber(request.getPhoneNumber());
+        }
+        
+        if (request.getAddress() != null) {
+            user.setAddress(request.getAddress());
         }
         
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
@@ -125,7 +155,27 @@ public class UserService {
             user.setRole(role);
         }
         
-        user.setUpdatedAt(OffsetDateTime.now());
+        if (request.getStatus() != null) {
+            user.setStatus(request.getStatus());
+        }
+        
+        if (request.getPoints() != null) {
+            user.setPoints(request.getPoints());
+        }
+        
+        if (request.getBalance() != null) {
+            user.setBalance(request.getBalance());
+        }
+        
+        if (request.getTotalPurchase() != null) {
+            user.setTotalPurchase(request.getTotalPurchase());
+        }
+        
+        if (request.getMembershipLevel() != null) {
+            user.setMembershipLevel(request.getMembershipLevel());
+        }
+        
+        user.setUpdatedAt(LocalDateTime.now());
         user = userRepository.save(user);
         return userMapper.toUserResponse(user);
     }

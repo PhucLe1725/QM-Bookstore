@@ -1,10 +1,12 @@
 package com.qm.bookstore.qm_bookstore.dto.user.response;
 
+import com.qm.bookstore.qm_bookstore.entity.User;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 
-import java.time.OffsetDateTime;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
@@ -12,9 +14,17 @@ import java.util.UUID;
 public class UserResponse {
     UUID id;
     String username;
+    String fullName;
     String email;
-    Long roleId;
+    String phoneNumber;
+    String address;
+    Integer roleId;
     String roleName;
-    OffsetDateTime createdAt;
-    OffsetDateTime updatedAt;
+    Boolean status;
+    Integer points;
+    BigDecimal balance;
+    BigDecimal totalPurchase;
+    User.MembershipLevel membershipLevel;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
 }

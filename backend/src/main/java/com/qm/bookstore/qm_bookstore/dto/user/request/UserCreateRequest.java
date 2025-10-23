@@ -1,7 +1,10 @@
 package com.qm.bookstore.qm_bookstore.dto.user.request;
 
+import com.qm.bookstore.qm_bookstore.entity.User;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
@@ -11,6 +14,14 @@ import lombok.experimental.FieldDefaults;
 public class UserCreateRequest {
     String username;
     String password;
+    String fullName;
     String email;
-    Long roleId;
+    String phoneNumber;
+    String address;
+    Integer roleId;
+    Boolean status;
+    Integer points;
+    BigDecimal balance;
+    BigDecimal totalPurchase;
+    User.MembershipLevel membershipLevel;
 }

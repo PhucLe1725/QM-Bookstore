@@ -19,8 +19,8 @@ public class Role {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", updatable = false, nullable = false)
-    Long id;
+    Integer id;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false, unique = true, length = 50, columnDefinition = "VARCHAR(50) DEFAULT 'customer'")
     String name;
 }

@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "vouchers")
@@ -25,14 +25,14 @@ public class Voucher {
     private BigDecimal discountAmount;
 
     @Column(name = "start_date", nullable = false)
-    private OffsetDateTime startDate;
+    private LocalDateTime startDate;
 
     @Column(name = "end_date", nullable = false)
-    private OffsetDateTime endDate;
+    private LocalDateTime endDate;
 
     @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt = OffsetDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "updated_at", nullable = false)
-    private OffsetDateTime updatedAt = OffsetDateTime.now();
+    private LocalDateTime updatedAt = LocalDateTime.now();
 }

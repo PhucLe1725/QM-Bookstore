@@ -3,7 +3,7 @@ package com.qm.bookstore.qm_bookstore.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -23,11 +23,11 @@ public class RefreshToken {
     private String token;
 
     @Column(name = "expiry_date", nullable = false)
-    private OffsetDateTime expiryDate;
+    private LocalDateTime expiryDate;
 
     @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt = OffsetDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "updated_at", nullable = false)
-    private OffsetDateTime updatedAt = OffsetDateTime.now();
+    private LocalDateTime updatedAt = LocalDateTime.now();
 }

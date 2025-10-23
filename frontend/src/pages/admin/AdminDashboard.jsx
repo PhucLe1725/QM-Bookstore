@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { 
   Users, 
@@ -15,6 +16,7 @@ import {
 
 const AdminDashboard = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
 
   // Statistics cards data
   const stats = [
@@ -158,8 +160,8 @@ const AdminDashboard = () => {
                   key={index}
                   className={`bg-white rounded-lg border-2 ${action.color} p-6 cursor-pointer transition-all duration-200 hover:shadow-md`}
                   onClick={() => {
-                    // Tạm thời alert, sau này sẽ navigate
-                    alert(`Chuyển đến: ${action.title}`)
+                    // Navigate to the action's href
+                    navigate(action.href)
                   }}
                 >
                   <div className="flex items-start space-x-4">
@@ -206,7 +208,10 @@ const AdminDashboard = () => {
                 ))}
               </div>
               <div className="mt-4 pt-4 border-t">
-                <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                <button 
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  onClick={() => navigate('/admin/orders')}
+                >
                   Xem tất cả đơn hàng →
                 </button>
               </div>
@@ -236,7 +241,10 @@ const AdminDashboard = () => {
                 ))}
               </div>
               <div className="mt-4 pt-4 border-t">
-                <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                <button 
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  onClick={() => navigate('/admin/messages')}
+                >
                   Xem tất cả tin nhắn →
                 </button>
               </div>

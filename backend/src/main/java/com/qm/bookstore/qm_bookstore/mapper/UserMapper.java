@@ -18,7 +18,6 @@ public interface UserMapper {
     @Mapping(target = "passwordHash", source = "password")
     User toUser(UserCreateRequest request);
 
-
     @Mapping(source = "role.id", target = "roleId")
     @Mapping(source = "role.name", target = "roleName")
     UserResponse toUserResponse(User user);
@@ -29,5 +28,4 @@ public interface UserMapper {
     @Mapping(target = "passwordHash", source = "password")
     @Mapping(target = "role", ignore = true)
     void updateUser(@MappingTarget User user, UserUpdateRequest request);
-    
 }
