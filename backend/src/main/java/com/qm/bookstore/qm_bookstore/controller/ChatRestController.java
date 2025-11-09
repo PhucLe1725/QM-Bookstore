@@ -3,6 +3,8 @@ package com.qm.bookstore.qm_bookstore.controller;
 import com.qm.bookstore.qm_bookstore.dto.base.response.ApiResponse;
 import com.qm.bookstore.qm_bookstore.dto.chat.ChatMessageDto;
 import com.qm.bookstore.qm_bookstore.dto.chat.BroadcastMessageRequest;
+import com.qm.bookstore.qm_bookstore.dto.chat.request.MarkMessagesReadRequest;
+import com.qm.bookstore.qm_bookstore.dto.chat.response.ReadStatusResponse;
 import com.qm.bookstore.qm_bookstore.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -173,6 +175,197 @@ public class ChatRestController {
         
         return ApiResponse.<Page<ChatMessageDto>>builder()
                 .result(conversation)
+                .build();
+    }
+
+    // ===== READ STATUS ENDPOINTS =====
+
+    /**
+     * Admin đánh dấu tin nhắn từ user cụ thể đã đọc
+     */
+    @PutMapping("/admin/mark-read/user/{userId}")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+    public ApiResponse<ReadStatusResponse> markAsReadByAdminForUser(@PathVariable UUID userId) {
+        log.info("Admin marking messages as read for user: {}", userId);
+        
+        int markedCount = chatService.markAsReadByAdminForUser(userId);
+        
+        ReadStatusResponse response = ReadStatusResponse.builder()
+                .success(true)
+                .markedCount(markedCount)
+                .message("Đã đánh dấu " + markedCount + " tin nhắn là đã đọc")
+                .build();
+        
+        return ApiResponse.<ReadStatusResponse>builder()
+                .result(response)
+                .build();
+    }
+
+    /**
+     * User đánh dấu tin nhắn từ admin đã đọc
+     */
+    @PutMapping("/user/{userId}/mark-read-from-admin")
+    public ApiResponse<ReadStatusResponse> markAsReadByUserFromAdmin(@PathVariable UUID userId) {
+        log.info("User {} marking admin messages as read", userId);
+        
+        int markedCount = chatService.markAsReadByUserFromAdmin(userId);
+        
+        ReadStatusResponse response = ReadStatusResponse.builder()
+                .success(true)
+                .markedCount(markedCount)
+                .message("Đã đánh dấu " + markedCount + " tin nhắn là đã đọc")
+                .build();
+        
+        return ApiResponse.<ReadStatusResponse>builder()
+                .result(response)
+                .build();
+    }
+
+    /**
+     * Đánh dấu một tin nhắn cụ thể đã đọc bởi admin
+     */
+    @PutMapping("/admin/mark-read/message/{messageId}")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+    public ApiResponse<ReadStatusResponse> markMessageAsReadByAdmin(@PathVariable Long messageId) {
+        log.info("Admin marking message {} as read", messageId);
+        
+        int markedCount = chatService.markMessageAsReadByAdmin(messageId);
+        
+        ReadStatusResponse response = ReadStatusResponse.builder()
+                .success(markedCount > 0)
+                .markedCount(markedCount)
+                .message(markedCount > 0 ? "Đã đánh dấu tin nhắn là đã đọc" : "Không tìm thấy tin nhắn")
+                .build();
+        
+        return ApiResponse.<ReadStatusResponse>builder()
+                .result(response)
+                .build();
+    }
+
+    /**
+     * Đánh dấu một tin nhắn cụ thể đã đọc bởi user
+     */
+    @PutMapping("/user/mark-read/message/{messageId}")
+    public ApiResponse<ReadStatusResponse> markMessageAsReadByUser(@PathVariable Long messageId) {
+        log.info("User marking message {} as read", messageId);
+        
+        int markedCount = chatService.markMessageAsReadByUser(messageId);
+        
+        ReadStatusResponse response = ReadStatusResponse.builder()
+                .success(markedCount > 0)
+                .markedCount(markedCount)
+                .message(markedCount > 0 ? "Đã đánh dấu tin nhắn là đã đọc" : "Không tìm thấy tin nhắn")
+                .build();
+        
+        return ApiResponse.<ReadStatusResponse>builder()
+                .result(response)
+                .build();
+    }
+
+    /**
+     * Lấy số tin nhắn chưa đọc bởi admin từ user cụ thể
+     */
+    @GetMapping("/admin/unread-count/user/{userId}")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+    public ApiResponse<Long> getUnreadCountByAdminFromUser(@PathVariable UUID userId) {
+        Long count = chatService.getUnreadCountByAdminFromUser(userId);
+        
+        return ApiResponse.<Long>builder()
+                .result(count)
+                .build();
+    }
+
+    /**
+     * Lấy số tin nhắn chưa đọc bởi user từ admin
+     */
+    @GetMapping("/user/{userId}/unread-count-from-admin")
+    public ApiResponse<Long> getUnreadCountByUserFromAdmin(@PathVariable UUID userId) {
+        Long count = chatService.getUnreadCountByUserFromAdmin(userId);
+        
+        return ApiResponse.<Long>builder()
+                .result(count)
+                .build();
+    }
+
+    /**
+     * Lấy tổng số tin nhắn chưa đọc bởi admin
+     */
+    @GetMapping("/admin/total-unread-count")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+    public ApiResponse<Long> getTotalUnreadByAdmin() {
+        Long count = chatService.getTotalUnreadByAdmin();
+        
+        return ApiResponse.<Long>builder()
+                .result(count)
+                .build();
+    }
+
+    /**
+     * Lấy danh sách users có tin nhắn chưa đọc
+     */
+    @GetMapping("/admin/users-with-unread")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+    public ApiResponse<List<UUID>> getUsersWithUnreadMessages() {
+        List<UUID> userIds = chatService.getUsersWithUnreadMessages();
+        
+        return ApiResponse.<List<UUID>>builder()
+                .result(userIds)
+                .build();
+    }
+
+    /**
+     * Lấy tất cả tin nhắn chưa đọc bởi admin với phân trang
+     */
+    @GetMapping("/admin/unread-messages")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+    public ApiResponse<Page<ChatMessageDto>> getUnreadMessagesByAdmin(Pageable pageable) {
+        Page<ChatMessageDto> unreadMessages = chatService.getUnreadMessagesByAdmin(pageable);
+        
+        return ApiResponse.<Page<ChatMessageDto>>builder()
+                .result(unreadMessages)
+                .build();
+    }
+
+    /**
+     * Lấy tin nhắn chưa đọc bởi user cụ thể
+     */
+    @GetMapping("/user/{userId}/unread-messages")
+    public ApiResponse<List<ChatMessageDto>> getUnreadMessagesByUser(@PathVariable UUID userId) {
+        List<ChatMessageDto> unreadMessages = chatService.getUnreadMessagesByUser(userId);
+        
+        return ApiResponse.<List<ChatMessageDto>>builder()
+                .result(unreadMessages)
+                .build();
+    }
+
+    /**
+     * Endpoint tổng hợp để đánh dấu multiple messages đã đọc
+     */
+    @PutMapping("/mark-read")
+    public ApiResponse<ReadStatusResponse> markMessagesRead(@RequestBody MarkMessagesReadRequest request) {
+        log.info("Processing mark messages read request: {}", request);
+        
+        int totalMarked = 0;
+        
+        // Nếu yêu cầu đánh dấu tất cả tin nhắn từ user
+        if (Boolean.TRUE.equals(request.getMarkAllFromUser()) && request.getUserId() != null) {
+            totalMarked = chatService.markAsReadByAdminForUser(request.getUserId());
+        }
+        // Nếu có danh sách message IDs cụ thể
+        else if (request.getMessageIds() != null && !request.getMessageIds().isEmpty()) {
+            for (Long messageId : request.getMessageIds()) {
+                totalMarked += chatService.markMessageAsReadByAdmin(messageId);
+            }
+        }
+        
+        ReadStatusResponse response = ReadStatusResponse.builder()
+                .success(totalMarked > 0)
+                .markedCount(totalMarked)
+                .message("Đã đánh dấu " + totalMarked + " tin nhắn là đã đọc")
+                .build();
+        
+        return ApiResponse.<ReadStatusResponse>builder()
+                .result(response)
                 .build();
     }
 }

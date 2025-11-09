@@ -2,11 +2,9 @@ package com.qm.bookstore.qm_bookstore.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @Table(name = "products")
@@ -17,41 +15,46 @@ public class Product {
     @Column(name = "id")
     private Long id;
 
-    @Column(nullable = false, length = 200)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
+    @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    @Column(nullable = false, unique = true, length = 100)
+    private String sku;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
 
-    @Column(length = 20)
-    // @Enumerated(EnumType.STRING)
-    private String type;
+    @Column(name = "image_url", columnDefinition = "TEXT")
+    private String imageUrl;
 
-    @Column
-    private Integer stock = 0;
+    @Column(name = "short_description", length = 500)
+    private String shortDescription;
 
-    @ManyToOne
-    @JoinColumn(name = "category_id")
-    private Category category;
+    @Column(name = "full_description", columnDefinition = "TEXT")
+    private String fullDescription;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(length = 100)
+    private String brand;
+
+    @Column(columnDefinition = "BOOLEAN DEFAULT TRUE")
+    private Boolean availability = true;
+
+    @Column(name = "stock_quantity", columnDefinition = "INT DEFAULT 0")
+    private Integer stockQuantity = 0;
+
+    @Column(name = "reorder_level", columnDefinition = "INT DEFAULT 0")
+    private Integer reorderLevel = 0;
+
+    @Column(name = "reorder_quantity", columnDefinition = "INT DEFAULT 0")
+    private Integer reorderQuantity = 0;
+
+    @Column(name = "created_at", nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at", nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime updatedAt = LocalDateTime.now();
-
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    @ToString.Exclude
-    private List<ProductImage> images;
-
-    @OneToMany(mappedBy = "combo", cascade = CascadeType.ALL, orphanRemoval = true)
-    @ToString.Exclude
-    private List<ProductCombo> comboItems;
-
-    // public enum Type {
-    //     BOOK, STATIONERY, COMBO
-    // }
 }

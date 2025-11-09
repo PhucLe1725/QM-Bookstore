@@ -40,6 +40,12 @@ public class ChatMessage {
     @Column(name = "created_at")
     LocalDateTime createdAt;
     
+    @Column(name = "is_read_by_admin", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    Boolean isReadByAdmin = false;
+    
+    @Column(name = "is_read_by_user", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    Boolean isReadByUser = false;
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sender_id", insertable = false, updatable = false)
     User sender;

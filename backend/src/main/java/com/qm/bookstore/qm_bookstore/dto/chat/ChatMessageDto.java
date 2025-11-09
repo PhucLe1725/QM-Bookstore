@@ -27,6 +27,10 @@ public class ChatMessageDto {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     LocalDateTime createdAt;
     
+    // Read status fields
+    Boolean isReadByAdmin;
+    Boolean isReadByUser;
+    
     // Additional fields for display
     String senderUsername;
     String receiverUsername;

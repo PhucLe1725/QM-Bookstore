@@ -14,6 +14,8 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { userService, chatService } from '../../services'
 import { useWebSocket } from '../../store/WebSocketContext'
+import ChatUnreadCounter from '../../components/ChatUnreadCounter'
+import useChatReadStatus from '../../hooks/useChatReadStatus'
 
 const AdminMessages = () => {
   const { user } = useAuth()
@@ -29,6 +31,15 @@ const AdminMessages = () => {
     unsubscribeFromConversation
   } = useWebSocket()
   
+  const {
+    getTotalUnreadCount,
+    getAdminUnreadFromUserCount,
+    markAsReadByAdminForUser,
+    fetchTotalAdminUnread,
+    fetchAdminUnreadFromUser,
+    fetchUsersWithUnreadMessages
+  } = useChatReadStatus()
+  
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -42,11 +53,14 @@ const AdminMessages = () => {
   const conversationSubscriptionRef = useRef(null)
   const [isTyping, setIsTyping] = useState(false)
   const typingTimeoutRef = useRef(null)
+  const lastLoadedUserRef = useRef(null) // Track last loaded user to prevent unnecessary reloads
+  const [usersWithUnread, setUsersWithUnread] = useState([]) // Track users with unread messages
 
   // Fetch all users from API
   useEffect(() => {
     fetchUsers()
     loadAllUserMessages() // Load user messages on component mount
+    loadUsersWithUnreadMessages() // Load users with unread messages
   }, [])
 
   const fetchUsers = async () => {
@@ -82,6 +96,16 @@ const AdminMessages = () => {
       setError(err.message || 'Không thể tải danh sách người dùng')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Load users with unread messages
+  const loadUsersWithUnreadMessages = async () => {
+    try {
+      const userIds = await fetchUsersWithUnreadMessages()
+      setUsersWithUnread(userIds)
+    } catch (error) {
+      console.error('Error loading users with unread messages:', error)
     }
   }
 
@@ -129,6 +153,7 @@ const AdminMessages = () => {
   // Update chat messages when selectedUser changes
   useEffect(() => {
     if (selectedUser) {
+      console.log('🏗️ Setting up conversation for user:', selectedUser.username)
       loadConversation()
       
       // Subscribe to conversation updates for this user
@@ -156,7 +181,7 @@ const AdminMessages = () => {
         setIsTyping(false)
       }
     }
-  }, [selectedUser, subscribeToConversation, unsubscribeFromConversation])
+  }, [selectedUser?.id]) // Only depend on selectedUser.id to avoid unnecessary re-runs
 
   // Single effect to handle all real-time message updates
   useEffect(() => {
@@ -166,52 +191,58 @@ const AdminMessages = () => {
       selectedUser: selectedUser?.username
     })
 
-    // Reload all user messages when admin messages change
+    // Only reload all user messages when admin messages change (and not on initial load)
     if (adminMessages.length > 0) {
-      loadAllUserMessages()
+      // Use a ref to prevent infinite loops
+      const timeoutId = setTimeout(() => {
+        loadAllUserMessages()
+      }, 500)
+      
+      return () => clearTimeout(timeoutId)
     }
+  }, [adminMessages]) // Only depend on adminMessages
 
-    // Handle conversation updates for selected user
-    if (selectedUser) {
-      const relevantMessages = [
-        // Messages from user to admin
-        ...(Array.isArray(adminMessages) ? adminMessages : []).filter(msg => 
-          msg.senderId === selectedUser.id
-        ),
-        // Private messages involving this user
-        ...(Array.isArray(privateMessages) ? privateMessages : []).filter(msg => 
-          msg.senderId === selectedUser.id || msg.receiverId === selectedUser.id
-        )
-      ]
+  // Separate effect for handling conversation updates for selected user
+  useEffect(() => {
+    if (!selectedUser) return
 
-      console.log('📨 Relevant messages for user:', {
-        userId: selectedUser.id,
-        messageCount: relevantMessages.length,
-        messages: relevantMessages
-      })
+    const relevantMessages = [
+      // Messages from user to admin (new ones only)
+      ...(Array.isArray(adminMessages) ? adminMessages : []).filter(msg => 
+        msg.senderId === selectedUser.id
+      ),
+      // Private messages involving this user (new ones only)
+      ...(Array.isArray(privateMessages) ? privateMessages : []).filter(msg => 
+        msg.senderId === selectedUser.id || msg.receiverId === selectedUser.id
+      )
+    ]
 
-      if (relevantMessages.length > 0) {
-        // Reload conversation from API to get fresh data
-        const reloadConversation = async () => {
-          try {
-            console.log('🔄 Reloading conversation for user:', selectedUser.id)
-            const conversation = await chatService.getAdminConversationWithUser(selectedUser.id)
-            if (conversation.success && conversation.result && conversation.result.content) {
-              const newMessages = Array.isArray(conversation.result.content) ? conversation.result.content : []
-              console.log('✅ Conversation reloaded:', newMessages.length, 'messages')
-              setChatMessages(newMessages)
-            }
-          } catch (error) {
-            console.error('❌ Error reloading conversation:', error)
+    console.log('📨 Relevant messages for selected user:', {
+      userId: selectedUser.id,
+      messageCount: relevantMessages.length,
+      messages: relevantMessages
+    })
+
+    // Only reload if there are actually new relevant messages
+    if (relevantMessages.length > 0) {
+      // Debounce to avoid too many API calls
+      const timeoutId = setTimeout(async () => {
+        try {
+          console.log('🔄 Reloading conversation for user:', selectedUser.id)
+          const conversation = await chatService.getAdminConversationWithUser(selectedUser.id)
+          if (conversation.success && conversation.result && conversation.result.content) {
+            const newMessages = Array.isArray(conversation.result.content) ? conversation.result.content : []
+            console.log('✅ Conversation reloaded:', newMessages.length, 'messages')
+            setChatMessages(newMessages)
           }
+        } catch (error) {
+          console.error('❌ Error reloading conversation:', error)
         }
-        
-        // Debounce to avoid too many API calls
-        const timeoutId = setTimeout(reloadConversation, 300)
-        return () => clearTimeout(timeoutId)
-      }
+      }, 500) // Increased debounce time
+      
+      return () => clearTimeout(timeoutId)
     }
-  }, [adminMessages, privateMessages, selectedUser])
+  }, [selectedUser?.id, privateMessages]) // Only depend on selectedUser.id and privateMessages
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -223,8 +254,15 @@ const AdminMessages = () => {
   const loadConversation = async () => {
     if (!selectedUser || !user) return
     
+    // Avoid loading the same conversation repeatedly
+    if (lastLoadedUserRef.current === selectedUser.id) {
+      console.log('📋 Conversation already loaded for user:', selectedUser.username)
+      return
+    }
+    
     try {
       setLoadingConversation(true)
+      console.log('🔄 Loading conversation for user:', selectedUser.username)
       
       // Kiểm tra quyền admin/manager
       if (user.roleName !== 'admin' && user.roleName !== 'manager') {
@@ -233,20 +271,28 @@ const AdminMessages = () => {
         return
       }
       
-      // Load messages from specific user using new API
-        // Load conversation from new REST API for admin/manager
-        const conversation = await chatService.getAdminConversationWithUser(selectedUser.id)
-        if (conversation.success && conversation.result && conversation.result.content) {
-          setChatMessages(Array.isArray(conversation.result.content) ? conversation.result.content : [])
-        } else if (conversation.success && conversation.result) {
-          setChatMessages(Array.isArray(conversation.result) ? conversation.result : [])
-        } else if (conversation.data) {
-          setChatMessages(Array.isArray(conversation.data) ? conversation.data : [])
-        } else if (Array.isArray(conversation)) {
-          setChatMessages(conversation)
-        } else {
-          setChatMessages([])
-        }
+      // Load conversation from new REST API for admin/manager
+      const conversation = await chatService.getAdminConversationWithUser(selectedUser.id)
+      if (conversation.success && conversation.result && conversation.result.content) {
+        const messages = Array.isArray(conversation.result.content) ? conversation.result.content : []
+        setChatMessages(messages)
+        lastLoadedUserRef.current = selectedUser.id // Mark as loaded
+        console.log('✅ Conversation loaded:', messages.length, 'messages')
+      } else if (conversation.success && conversation.result) {
+        const messages = Array.isArray(conversation.result) ? conversation.result : []
+        setChatMessages(messages)
+        lastLoadedUserRef.current = selectedUser.id
+      } else if (conversation.data) {
+        const messages = Array.isArray(conversation.data) ? conversation.data : []
+        setChatMessages(messages)
+        lastLoadedUserRef.current = selectedUser.id
+      } else if (Array.isArray(conversation)) {
+        setChatMessages(conversation)
+        lastLoadedUserRef.current = selectedUser.id
+      } else {
+        setChatMessages([])
+        lastLoadedUserRef.current = selectedUser.id
+      }
     } catch (error) {
       console.error('Error loading conversation:', error)
       setChatMessages([])
@@ -255,9 +301,26 @@ const AdminMessages = () => {
     }
   }
 
-  const handleUserSelect = (selectedUser) => {
-    setSelectedUser(selectedUser)
-    setChatMessages([]) // Clear previous conversation
+  const handleUserSelect = async (selectedUserData) => {
+    // Không clear messages nếu chọn lại cùng user
+    if (selectedUser && selectedUser.id === selectedUserData.id) {
+      console.log('📋 Same user selected, keeping current conversation')
+      return
+    }
+    
+    console.log('👤 Selecting new user:', selectedUserData.username)
+    setSelectedUser(selectedUserData)
+    setChatMessages([]) // Clear previous conversation only when selecting different user
+    lastLoadedUserRef.current = null // Reset loaded state for new user
+    
+    // Mark all messages from this user as read by admin
+    try {
+      await markAsReadByAdminForUser(selectedUserData.id)
+      // Refresh users with unread messages
+      loadUsersWithUnreadMessages()
+    } catch (error) {
+      console.error('Error marking messages as read:', error)
+    }
   }
 
   const handleSendMessage = async (e) => {
@@ -372,6 +435,15 @@ const AdminMessages = () => {
                   <h1 className="text-3xl font-bold text-gray-900 flex items-center">
                     <MessageSquare className="h-8 w-8 mr-3 text-blue-600" />
                     Tin nhắn hỗ trợ
+                    {/* Total Unread Counter */}
+                    <div className="ml-4">
+                      <ChatUnreadCounter 
+                        isAdminView={true}
+                        showMarkAllRead={false}
+                        size="default"
+                        className="bg-white rounded-lg shadow-sm border px-3 py-1"
+                      />
+                    </div>
                   </h1>
                   <p className="mt-1 text-sm text-gray-600">
                     Quản lý tin nhắn và hỗ trợ khách hàng
@@ -472,6 +544,14 @@ const AdminMessages = () => {
                             </div>
                           </div>
                           <div className="flex flex-col items-end space-y-1">
+                            {/* Unread Counter */}
+                            <ChatUnreadCounter 
+                              userId={userData.id}
+                              isAdminView={true}
+                              showMarkAllRead={false}
+                              size="small"
+                            />
+                            
                             {getMessageCountFromUser(userData.id) > 0 && (
                               <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
                                 {getMessageCountFromUser(userData.id)} tin nhắn

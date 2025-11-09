@@ -34,7 +34,6 @@ public class MembershipLevelConverter implements AttributeConverter<User.Members
             case "platinum":
                 return User.MembershipLevel.PLATINUM;
             default:
-                // Default to BASIC if unknown value
                 return User.MembershipLevel.BASIC;
         }
     }

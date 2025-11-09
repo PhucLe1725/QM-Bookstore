@@ -12,7 +12,8 @@ public interface ChatMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "sender", ignore = true)
     @Mapping(target = "receiver", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "isReadByAdmin", constant = "false")
+    @Mapping(target = "isReadByUser", constant = "false")
     @Mapping(source = "senderType", target = "senderType", qualifiedByName = "stringToSenderType")
     ChatMessage toEntity(ChatMessageDto dto);
 

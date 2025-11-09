@@ -122,4 +122,94 @@ public class ChatService {
         Page<ChatMessage> conversation = chatMessageRepository.findFullConversationWithUser(userId, pageable);
         return conversation.map(chatMapper::toDto);
     }
+
+    // ===== READ STATUS METHODS =====
+
+    /**
+     * Đánh dấu tin nhắn đã đọc bởi admin cho user cụ thể
+     */
+    @Transactional
+    public int markAsReadByAdminForUser(UUID userId) {
+        log.info("Marking messages as read by admin for user: {}", userId);
+        return chatMessageRepository.markAsReadByAdminForUser(userId);
+    }
+
+    /**
+     * Đánh dấu tin nhắn đã đọc bởi user từ admin
+     */
+    @Transactional
+    public int markAsReadByUserFromAdmin(UUID userId) {
+        log.info("Marking messages as read by user: {}", userId);
+        return chatMessageRepository.markAsReadByUserFromAdmin(userId);
+    }
+
+    /**
+     * Đánh dấu một tin nhắn cụ thể đã đọc bởi admin
+     */
+    @Transactional
+    public int markMessageAsReadByAdmin(Long messageId) {
+        log.info("Marking message {} as read by admin", messageId);
+        return chatMessageRepository.markMessageAsReadByAdmin(messageId);
+    }
+
+    /**
+     * Đánh dấu một tin nhắn cụ thể đã đọc bởi user
+     */
+    @Transactional
+    public int markMessageAsReadByUser(Long messageId) {
+        log.info("Marking message {} as read by user", messageId);
+        return chatMessageRepository.markMessageAsReadByUser(messageId);
+    }
+
+    /**
+     * Lấy số tin nhắn chưa đọc bởi admin từ user cụ thể
+     */
+    @Transactional(readOnly = true)
+    public Long getUnreadCountByAdminFromUser(UUID userId) {
+        return chatMessageRepository.countUnreadByAdminFromUser(userId);
+    }
+
+    /**
+     * Lấy số tin nhắn chưa đọc bởi user từ admin
+     */
+    @Transactional(readOnly = true)
+    public Long getUnreadCountByUserFromAdmin(UUID userId) {
+        return chatMessageRepository.countUnreadByUserFromAdmin(userId);
+    }
+
+    /**
+     * Lấy tổng số tin nhắn chưa đọc bởi admin
+     */
+    @Transactional(readOnly = true)
+    public Long getTotalUnreadByAdmin() {
+        return chatMessageRepository.countTotalUnreadByAdmin();
+    }
+
+    /**
+     * Lấy danh sách users có tin nhắn chưa đọc
+     */
+    @Transactional(readOnly = true)
+    public List<UUID> getUsersWithUnreadMessages() {
+        return chatMessageRepository.findUsersWithUnreadMessages();
+    }
+
+    /**
+     * Lấy tất cả tin nhắn chưa đọc bởi admin
+     */
+    @Transactional(readOnly = true)
+    public Page<ChatMessageDto> getUnreadMessagesByAdmin(Pageable pageable) {
+        Page<ChatMessage> unreadMessages = chatMessageRepository.findUnreadByAdmin(pageable);
+        return unreadMessages.map(chatMapper::toDto);
+    }
+
+    /**
+     * Lấy tin nhắn chưa đọc bởi user cụ thể
+     */
+    @Transactional(readOnly = true)
+    public List<ChatMessageDto> getUnreadMessagesByUser(UUID userId) {
+        List<ChatMessage> unreadMessages = chatMessageRepository.findUnreadByUser(userId);
+        return unreadMessages.stream()
+                .map(chatMapper::toDto)
+                .toList();
+    }
 }

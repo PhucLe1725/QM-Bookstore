@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useWebSocket } from './WebSocketContext'
+import useChatReadStatus from '../hooks/useChatReadStatus'
 
 const ChatContext = createContext()
 
@@ -20,6 +21,14 @@ export const ChatProvider = ({ children }) => {
   const [isTyping, setIsTyping] = useState(false)
   
   const { isConnected, sendMessage, messages } = useWebSocket()
+  const {
+    markMessageAsRead,
+    markAsReadByUserFromAdmin,
+    markAsReadByAdminForUser,
+    fetchUserUnreadFromAdmin,
+    fetchTotalAdminUnread,
+    isAdmin
+  } = useChatReadStatus()
 
   // Listen for admin chat messages from WebSocket
   useEffect(() => {
@@ -28,16 +37,29 @@ export const ChatProvider = ({ children }) => {
       
       // Filter messages for admin chat
       if (latestMessage.type === 'admin_chat' || latestMessage.chatType === 'admin') {
-        setAdminMessages(prev => [...prev, {
-          id: Date.now(),
+        const newMessage = {
+          id: latestMessage.id || Date.now(),
           text: latestMessage.content || latestMessage.message,
-          sender: 'admin',
+          sender: latestMessage.senderType === 'admin' ? 'admin' : 'user',
           timestamp: new Date(latestMessage.timestamp || Date.now()),
-          senderName: latestMessage.senderName || 'Admin'
-        }])
+          senderName: latestMessage.senderName || 'Admin',
+          isReadByAdmin: latestMessage.isReadByAdmin || false,
+          isReadByUser: latestMessage.isReadByUser || false
+        }
+        
+        setAdminMessages(prev => [...prev, newMessage])
+        
+        // Auto-refresh unread counts when new message arrives
+        if (newMessage.sender === 'admin') {
+          // If admin sent message, refresh user's unread count
+          fetchUserUnreadFromAdmin(latestMessage.receiverId)
+        } else {
+          // If user sent message, refresh admin's unread count
+          fetchTotalAdminUnread()
+        }
       }
     }
-  }, [messages])
+  }, [messages]) // Removed function dependencies
 
   const openChat = () => {
     setIsOpen(true)
@@ -46,6 +68,26 @@ export const ChatProvider = ({ children }) => {
   const closeChat = () => {
     setIsOpen(false)
     setChatMode('select')
+  }
+
+  // Mark messages as read when opening chat
+  const openChatWithReadStatus = async (mode, userId = null) => {
+    setIsOpen(true)
+    setChatMode(mode)
+    
+    if (mode === 'admin' && userId) {
+      try {
+        if (isAdmin) {
+          // Admin is opening chat with user - mark user's messages as read by admin
+          await markAsReadByAdminForUser(userId)
+        } else {
+          // User is opening chat - mark admin's messages as read by user
+          await markAsReadByUserFromAdmin(userId)
+        }
+      } catch (error) {
+        console.error('Error marking messages as read:', error)
+      }
+    }
   }
 
   const toggleDisplayMode = () => {
@@ -187,12 +229,17 @@ export const ChatProvider = ({ children }) => {
     isConnected,
     openChat,
     closeChat,
+    openChatWithReadStatus,
     toggleDisplayMode,
     selectChatMode,
     sendAdminMessage,
     sendChatbotMessage,
     clearAdminChat,
-    clearChatbotChat
+    clearChatbotChat,
+    // Read status functions
+    markMessageAsRead,
+    markAsReadByUserFromAdmin,
+    markAsReadByAdminForUser
   }
 
   return (

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import SockJS from 'sockjs-client'
 import Stomp from 'stompjs'
 import Cookies from 'js-cookie'
@@ -22,22 +22,189 @@ export const WebSocketProvider = ({ children }) => {
   const [privateMessages, setPrivateMessages] = useState([]) // Private 1-1 messages
   const [chatHistory, setChatHistory] = useState([]) // Loaded chat history
   const [adminNotifications, setAdminNotifications] = useState([]) // Admin notifications
+  const [notifications, setNotifications] = useState([]) // Real-time notifications
+  const [readStatusCallbacks, setReadStatusCallbacks] = useState([]) // Callbacks for read status updates
   const clientRef = useRef(null)
+  const isConnectedRef = useRef(false)
+  const readStatusCallbacksRef = useRef([])
   const { user } = useAuth()
 
+  // Update refs when state changes
   useEffect(() => {
-    // Chỉ kết nối khi có user
-    if (!user) return
+    isConnectedRef.current = isConnected
+  }, [isConnected])
 
-    connectWebSocket()
+  useEffect(() => {
+    readStatusCallbacksRef.current = readStatusCallbacks
+  }, [readStatusCallbacks])
 
-    // Cleanup function
+  // Register callback for read status updates
+  const registerReadStatusCallback = useCallback((callback) => {
+    setReadStatusCallbacks(prev => [...prev, callback])
+    // Return unregister function
     return () => {
-      disconnectWebSocket()
+      setReadStatusCallbacks(prev => prev.filter(cb => cb !== callback))
     }
-  }, [user])
+  }, [])
 
-  const connectWebSocket = () => {
+  // Trigger read status callbacks
+  const triggerReadStatusUpdate = useCallback((messageData) => {
+    readStatusCallbacksRef.current.forEach(callback => {
+      try {
+        callback(messageData)
+      } catch (error) {
+        console.error('Error in read status callback:', error)
+      }
+    })
+  }, [])
+
+  // Define helper functions first
+  const subscribeToChannels = useCallback((stompClient) => {
+    // 1. Subscribe admin broadcast messages (cho tất cả users)
+    stompClient.subscribe('/topic/messages', function (message) {
+      const chatMessage = JSON.parse(message.body)
+      console.log('Admin broadcast message:', chatMessage)
+      setMessages(prev => [...prev, chatMessage])
+      
+      // Trigger read status update for new admin message
+      if (chatMessage.senderType === 'admin') {
+        triggerReadStatusUpdate({
+          type: 'new_admin_message',
+          senderId: chatMessage.senderId,
+          messageId: chatMessage.id,
+          receiverId: chatMessage.receiverId
+        })
+      }
+    })
+
+    // 2. Subscribe private messages
+    stompClient.subscribe('/user/queue/private-messages', function (message) {
+      const privateMessage = JSON.parse(message.body)
+      console.log('💬 Private message received:', privateMessage)
+      setPrivateMessages(prev => {
+        const newMessages = [...prev, privateMessage]
+        console.log('📝 Updated privateMessages count:', newMessages.length)
+        return newMessages
+      })
+    })
+
+    // 3. Subscribe chat history
+    stompClient.subscribe('/user/queue/chat-history', function (message) {
+      const history = JSON.parse(message.body)
+      console.log('Chat history loaded:', history)
+      setChatHistory(history)
+    })
+
+    // 4. Subscribe user messages to admin (admin & manager)
+    if (user?.roleName === 'admin' || user?.roleName === 'manager') {
+      stompClient.subscribe('/topic/admin-messages', function (message) {
+        const userMessage = JSON.parse(message.body)
+        console.log('📨 User message to admin received:', userMessage)
+        setAdminMessages(prev => {
+          const newMessages = [...prev, userMessage]
+          console.log('📝 Updated adminMessages count:', newMessages.length)
+          return newMessages
+        })
+        
+        // Trigger read status update for new user message to admin
+        if (userMessage.senderType === 'user') {
+          triggerReadStatusUpdate({
+            type: 'new_user_message',
+            senderId: userMessage.senderId,
+            messageId: userMessage.id,
+            receiverId: userMessage.receiverId
+          })
+        }
+      })
+
+      // Admin-specific notifications
+      stompClient.subscribe('/topic/admin-notifications', function (message) {
+        const notification = JSON.parse(message.body)
+        console.log('🔔 Admin notification received:', notification)
+        setAdminNotifications(prev => [notification, ...prev])
+      })
+    }
+
+    // 5. Subscribe user-specific private notifications
+    if (user?.id) {
+      stompClient.subscribe(`/user/${user.id}/queue/notifications`, function (message) {
+        const notification = JSON.parse(message.body)
+        console.log('🔔 Private notification received:', notification)
+        setNotifications(prev => [notification, ...prev])
+      })
+    }
+
+    // 6. Subscribe to read status updates
+    stompClient.subscribe('/topic/read-status', function (message) {
+      const readStatus = JSON.parse(message.body)
+      console.log('📖 Read status update:', readStatus)
+      
+      // Trigger callbacks for components using read status
+      triggerReadStatusUpdate({
+        type: 'read_status_update',
+        ...readStatus
+      })
+    })
+
+    // 7. Subscribe to user status updates (online/offline)
+    stompClient.subscribe('/topic/user-status', function (message) {
+      const userStatus = JSON.parse(message.body)
+      console.log('👤 User status update:', userStatus)
+      // Handle user status updates
+    })
+
+    // 8. Subscribe to notifications for current user
+    if (user?.id) {
+      stompClient.subscribe(`/topic/notifications/${user.id}`, function (message) {
+        const notification = JSON.parse(message.body)
+        console.log('🔔 Real-time notification received:', notification)
+        
+        // Add to notifications state
+        setNotifications(prev => [notification, ...prev])
+        
+        // Show toast notification
+        if (window.showNotificationToast) {
+          window.showNotificationToast(notification)
+        }
+      })
+    }
+  }, [user, triggerReadStatusUpdate])
+
+  const loadChatHistory = useCallback((stompClient) => {
+    // Load chat history theo API guide - check if connected first
+    if (stompClient && stompClient.connected) {
+      stompClient.send('/app/load-history', {}, JSON.stringify({}))
+    }
+  }, [])
+
+  const disconnectWebSocket = useCallback(() => {
+    if (clientRef.current && clientRef.current.connected) {
+      try {
+        clientRef.current.disconnect()
+      } catch (error) {
+        console.error('Error disconnecting WebSocket:', error)
+      }
+    }
+    setIsConnected(false)
+    clientRef.current = null
+  }, [])
+
+  const connectWebSocket = useCallback(() => {
+    // Tránh multiple connections
+    if (clientRef.current && clientRef.current.connected) {
+      console.log('WebSocket already connected, skipping...')
+      return
+    }
+
+    // Cleanup existing connection if any
+    if (clientRef.current) {
+      try {
+        clientRef.current.disconnect()
+      } catch (error) {
+        console.error('Error cleaning up existing connection:', error)
+      }
+    }
+
     // Lấy token cho WebSocket authentication
     const getToken = () => {
       return Cookies.get('token') || localStorage.getItem('token')
@@ -69,99 +236,52 @@ export const WebSocketProvider = ({ children }) => {
       console.error('STOMP Connection error:', error)
       setIsConnected(false)
       
-      // Thử kết nối lại sau 5s
+      // Thử kết nối lại sau 5s (không gọi recursive)
       setTimeout(() => {
-        if (!isConnected) {
+        if (!isConnectedRef.current && user) {
           console.log('Attempting to reconnect...')
-          connectWebSocket()
+          // Trigger reconnect thông qua state thay vì gọi function
+          setIsConnected(false) // This will trigger useEffect
         }
       }, 5000)
     })
 
     clientRef.current = stompClient
-  }
+  }, [user, subscribeToChannels, loadChatHistory])
 
-  const subscribeToChannels = (stompClient) => {
-    // 1. Subscribe admin broadcast messages (cho tất cả users)
-    stompClient.subscribe('/topic/messages', function (message) {
-      const chatMessage = JSON.parse(message.body)
-      console.log('Admin broadcast message:', chatMessage)
-      setMessages(prev => [...prev, chatMessage])
-    })
+  // Create stable function references
+  const connectWebSocketRef = useRef()
+  const disconnectWebSocketRef = useRef()
+  
+  connectWebSocketRef.current = connectWebSocket
+  disconnectWebSocketRef.current = disconnectWebSocket
 
-    // 2. Subscribe private messages
-    stompClient.subscribe('/user/queue/private-messages', function (message) {
-      const privateMessage = JSON.parse(message.body)
-      console.log('💬 Private message received:', privateMessage)
-      setPrivateMessages(prev => {
-        const newMessages = [...prev, privateMessage]
-        console.log('📝 Updated privateMessages count:', newMessages.length)
-        return newMessages
-      })
-    })
-
-    // 3. Subscribe chat history
-    stompClient.subscribe('/user/queue/chat-history', function (message) {
-      const history = JSON.parse(message.body)
-      console.log('Chat history loaded:', history)
-      setChatHistory(history)
-    })
-
-    // 4. Subscribe user messages to admin (admin & manager)
-    if (user?.roleName === 'admin' || user?.roleName === 'manager') {
-      stompClient.subscribe('/topic/admin-messages', function (message) {
-        const userMessage = JSON.parse(message.body)
-        console.log('📨 User message to admin received:', userMessage)
-        setAdminMessages(prev => {
-          const newMessages = [...prev, userMessage]
-          console.log('📝 Updated adminMessages count:', newMessages.length)
-          return newMessages
-        })
-      })
-
-      // 5. Subscribe admin notifications (thông báo có tin nhắn mới)
-      stompClient.subscribe('/topic/admin-notifications', function (message) {
-        const notification = JSON.parse(message.body)
-        console.log('🔔 Admin notification received:', notification)
-        // Trigger conversation reload cho admin đang xem user này
-        if (notification.type === 'conversation_update') {
-          setAdminNotifications(prev => [...prev, notification])
-        }
-      })
+  useEffect(() => {
+    // Chỉ kết nối khi có user và chưa connected
+    if (!user) {
+      // Disconnect if user logged out
+      if (clientRef.current && clientRef.current.connected) {
+        disconnectWebSocketRef.current()
+      }
+      return
     }
 
-    // 6. Subscribe to typing indicators (all users)
-    stompClient.subscribe('/topic/typing-indicators', function (message) {
-      const typingIndicator = JSON.parse(message.body)
-      console.log('Typing indicator:', typingIndicator)
-      // Handle typing indicator updates
-    })
-
-    // 7. Subscribe to user status updates (all users)
-    stompClient.subscribe('/topic/user-status', function (message) {
-      const statusUpdate = JSON.parse(message.body)
-      console.log('User status update:', statusUpdate)
-      // Handle user status updates
-    })
-  }
-
-  const loadChatHistory = (stompClient) => {
-    // Load chat history theo API guide
-    stompClient.send('/app/load-history', {}, JSON.stringify({}))
-  }
-
-  const disconnectWebSocket = () => {
-    if (clientRef.current) {
-      clientRef.current.disconnect()
-      setIsConnected(false)
+    // Only connect if not already connected
+    if (!clientRef.current || !clientRef.current.connected) {
+      connectWebSocketRef.current()
     }
-  }
+
+    // Cleanup function
+    return () => {
+      disconnectWebSocketRef.current()
+    }
+  }, [user])
 
   // === MESSAGE SENDING METHODS ===
 
   // Admin gửi broadcast message
   const sendAdminBroadcast = (message) => {
-    if (clientRef.current && isConnected && user?.roleName === 'admin') {
+    if (clientRef.current && clientRef.current.connected && isConnected && user?.roleName === 'admin') {
       const payload = {
         senderId: user.id,
         message: message,
@@ -175,7 +295,7 @@ export const WebSocketProvider = ({ children }) => {
 
   // User gửi message cho admin
   const sendUserMessage = (message) => {
-    if (clientRef.current && isConnected) {
+    if (clientRef.current && clientRef.current.connected && isConnected) {
       const payload = {
         senderId: user.id,
         message: message,
@@ -189,7 +309,7 @@ export const WebSocketProvider = ({ children }) => {
 
   // Gửi private message
   const sendPrivateMessage = (receiverId, message) => {
-    if (clientRef.current && isConnected) {
+    if (clientRef.current && clientRef.current.connected && isConnected) {
       const payload = {
         senderId: user.id,
         receiverId: receiverId,
@@ -325,7 +445,7 @@ export const WebSocketProvider = ({ children }) => {
     }
   }
 
-  const value = {
+  const value = useMemo(() => ({
     // Connection status
     isConnected,
     
@@ -335,6 +455,7 @@ export const WebSocketProvider = ({ children }) => {
     privateMessages, // Private 1-1 messages
     chatHistory, // Loaded history
     adminNotifications, // Admin notifications
+    notifications, // Real-time notifications
     
     // Send methods
     sendMessage, // Generic
@@ -352,13 +473,28 @@ export const WebSocketProvider = ({ children }) => {
     loadConversationWithUser,
     loadRecentMessages,
     
+    // Read status integration
+    registerReadStatusCallback,
+    
     // Connection control
     connectWebSocket,
     disconnectWebSocket,
     
     // STOMP client reference
     client: clientRef.current
-  }
+  }), [
+    // Only include state values, not functions
+    isConnected,
+    messages,
+    adminMessages, 
+    privateMessages,
+    chatHistory,
+    adminNotifications,
+    notifications,
+    registerReadStatusCallback,
+    connectWebSocket,
+    disconnectWebSocket
+  ])
 
   return (
     <WebSocketContext.Provider value={value}>

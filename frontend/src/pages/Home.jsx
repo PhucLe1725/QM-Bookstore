@@ -6,8 +6,6 @@ const Home = () => {
   const { isConnected, sendMessage } = useWebSocket()
   const { isAuthenticated, user } = useAuth()
 
-  console.log(JSON.stringify(user))
-
   const handleTestNotification = () => {
     showNotification('success', 'Thông báo thành công', 'Đây là một thông báo test từ hệ thống!')
   }

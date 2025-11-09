@@ -14,6 +14,18 @@ public enum ErrorCode {
     CHAT_SAVE_FAILED(2002, "Failed to save chat message"),
     CHAT_UNAUTHORIZED(2003, "Unauthorized to access this chat"),
 
+    // Product errors
+    PRODUCT_NOT_FOUND(3001, "Product not found"),
+    PRODUCT_SKU_ALREADY_EXISTS(3002, "Product SKU already exists"),
+    PRODUCT_OUT_OF_STOCK(3003, "Product is out of stock"),
+    
+    // Category errors
+    CATEGORY_NOT_FOUND(4001, "Category not found"),
+
+    // Notification errors
+    NOTIFICATION_NOT_FOUND(5001, "Notification not found"),
+    NOTIFICATION_ACCESS_DENIED(5002, "Access denied to this notification"),
+
     // Generic errors
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error"),
     INVALID_KEY(1005, "Invalid message key"),

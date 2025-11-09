@@ -4,6 +4,7 @@ import com.qm.bookstore.qm_bookstore.entity.ChatMessage;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -74,4 +75,60 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
            "(cm.senderId = :userId AND cm.receiverId IS NOT NULL) " +
            "ORDER BY cm.createdAt ASC")
     Page<ChatMessage> findFullConversationWithUser(@Param("userId") UUID userId, Pageable pageable);
+
+    // ===== METHODS FOR READ STATUS =====
+    
+    // Đếm tin nhắn chưa đọc bởi admin trong cuộc hội thoại với user cụ thể
+    @Query("SELECT COUNT(cm) FROM ChatMessage cm WHERE " +
+           "cm.senderId = :userId AND cm.senderType = 'user' AND cm.isReadByAdmin = false")
+    Long countUnreadByAdminFromUser(@Param("userId") UUID userId);
+    
+    // Đếm tin nhắn chưa đọc bởi user từ admin
+    @Query("SELECT COUNT(cm) FROM ChatMessage cm WHERE " +
+           "cm.receiverId = :userId AND cm.senderType IN ('admin', 'manager') AND cm.isReadByUser = false")
+    Long countUnreadByUserFromAdmin(@Param("userId") UUID userId);
+    
+    // Lấy tất cả tin nhắn chưa đọc bởi admin
+    @Query("SELECT cm FROM ChatMessage cm WHERE " +
+           "cm.senderType = 'user' AND cm.isReadByAdmin = false " +
+           "ORDER BY cm.createdAt DESC")
+    Page<ChatMessage> findUnreadByAdmin(Pageable pageable);
+    
+    // Lấy tin nhắn chưa đọc bởi user cụ thể
+    @Query("SELECT cm FROM ChatMessage cm WHERE " +
+           "cm.receiverId = :userId AND cm.senderType IN ('admin', 'manager') AND cm.isReadByUser = false " +
+           "ORDER BY cm.createdAt DESC")
+    List<ChatMessage> findUnreadByUser(@Param("userId") UUID userId);
+    
+    // Đánh dấu tin nhắn đã đọc bởi admin cho user cụ thể
+    @Modifying
+    @Query("UPDATE ChatMessage cm SET cm.isReadByAdmin = true WHERE " +
+           "cm.senderId = :userId AND cm.senderType = 'user' AND cm.isReadByAdmin = false")
+    int markAsReadByAdminForUser(@Param("userId") UUID userId);
+    
+    // Đánh dấu tin nhắn đã đọc bởi user từ admin
+    @Modifying
+    @Query("UPDATE ChatMessage cm SET cm.isReadByUser = true WHERE " +
+           "cm.receiverId = :userId AND cm.senderType IN ('admin', 'manager') AND cm.isReadByUser = false")
+    int markAsReadByUserFromAdmin(@Param("userId") UUID userId);
+    
+    // Đánh dấu một tin nhắn cụ thể đã đọc bởi admin
+    @Modifying
+    @Query("UPDATE ChatMessage cm SET cm.isReadByAdmin = true WHERE cm.id = :messageId")
+    int markMessageAsReadByAdmin(@Param("messageId") Long messageId);
+    
+    // Đánh dấu một tin nhắn cụ thể đã đọc bởi user
+    @Modifying
+    @Query("UPDATE ChatMessage cm SET cm.isReadByUser = true WHERE cm.id = :messageId")
+    int markMessageAsReadByUser(@Param("messageId") Long messageId);
+    
+    // Lấy danh sách users có tin nhắn chưa đọc bởi admin
+    @Query("SELECT DISTINCT cm.senderId FROM ChatMessage cm WHERE " +
+           "cm.senderType = 'user' AND cm.isReadByAdmin = false")
+    List<UUID> findUsersWithUnreadMessages();
+    
+    // Lấy số lượng tin nhắn chưa đọc tổng cộng bởi admin
+    @Query("SELECT COUNT(cm) FROM ChatMessage cm WHERE " +
+           "cm.senderType = 'user' AND cm.isReadByAdmin = false")
+    Long countTotalUnreadByAdmin();
 }

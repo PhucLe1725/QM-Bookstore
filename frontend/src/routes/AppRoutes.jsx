@@ -1,7 +1,7 @@
 import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { MainLayout } from '../layouts'
-import { Home, Login, Register, Dashboard, Profile } from '../pages'
+import { Home, Login, Register, Dashboard, Profile, NotificationsPage } from '../pages'
 import { AdminDashboard } from '../pages/admin'
 import AdminMessages from '../pages/admin/AdminMessages'
 import WebSocketTest from '../components/WebSocketTest'
@@ -35,6 +35,14 @@ const AppRoutes = () => {
         <ProtectedRoute>
           <MainLayout>
             <Profile />
+          </MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/notifications" element={
+        <ProtectedRoute>
+          <MainLayout>
+            <NotificationsPage />
           </MainLayout>
         </ProtectedRoute>
       } />

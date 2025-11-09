@@ -1,5 +1,7 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useChat } from '../store/ChatContext'
+import { useAuth } from '../hooks/useAuth'
+import useChatReadStatus from '../hooks/useChatReadStatus'
 import AdminChat from './AdminChat'
 import Chatbot from './Chatbot'
 
@@ -12,6 +14,23 @@ const ChatModal = () => {
     toggleDisplayMode, 
     selectChatMode 
   } = useChat()
+  
+  const { user } = useAuth()
+  const { markAsReadByUserFromAdmin } = useChatReadStatus()
+
+  // Mark admin messages as read when opening admin chat
+  useEffect(() => {
+    if (isOpen && chatMode === 'admin' && user?.id) {
+      const markMessages = async () => {
+        try {
+          await markAsReadByUserFromAdmin(user.id)
+        } catch (error) {
+          console.error('Error marking admin messages as read:', error)
+        }
+      }
+      markMessages()
+    }
+  }, [isOpen, chatMode, user?.id]) // Removed function dependency
 
   if (!isOpen) return null
 

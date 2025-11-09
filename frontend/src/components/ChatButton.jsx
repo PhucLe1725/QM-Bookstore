@@ -1,13 +1,29 @@
 import React from 'react'
 import { useChat } from '../store/ChatContext'
+import { useAuth } from '../hooks/useAuth'
+import ChatUnreadCounter from './ChatUnreadCounter'
 
 const ChatButton = () => {
   const { openChat, isOpen } = useChat()
+  const { user } = useAuth()
 
   if (isOpen) return null // Hide button when chat is open
 
   return (
     <div className="fixed bottom-6 right-6 z-40">
+      {/* Unread Counter - positioned above chat button */}
+      {user && (
+        <div className="absolute -top-2 -left-2 z-10">
+          <ChatUnreadCounter 
+            userId={user.id}
+            isAdminView={false}
+            showMarkAllRead={false}
+            size="small"
+            className="bg-white rounded-full shadow-lg px-2 py-1"
+          />
+        </div>
+      )}
+      
       <button
         onClick={openChat}
         className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-full p-4 shadow-lg transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-blue-300 group"

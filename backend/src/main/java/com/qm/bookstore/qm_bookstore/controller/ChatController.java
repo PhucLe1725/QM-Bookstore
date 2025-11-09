@@ -4,7 +4,7 @@ import com.qm.bookstore.qm_bookstore.dto.chat.ChatMessageDto;
 import com.qm.bookstore.qm_bookstore.dto.chat.TypingIndicatorDto;
 import com.qm.bookstore.qm_bookstore.dto.chat.UserStatusDto;
 import com.qm.bookstore.qm_bookstore.service.ChatService;
-import com.qm.bookstore.qm_bookstore.service.NotificationService;
+import com.qm.bookstore.qm_bookstore.service.ChatNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -27,7 +27,7 @@ public class ChatController {
 
     private final ChatService chatService;
     private final SimpMessagingTemplate messagingTemplate;
-    private final NotificationService notificationService;
+    private final ChatNotificationService notificationService;
 
     @MessageMapping("/admin-chat")
     @SendTo("/topic/messages")
