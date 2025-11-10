@@ -29,6 +29,42 @@ const chatService = {
     }
   },
 
+  // Lấy tin nhắn mới nhất của conversation theo format doc
+  getRecentConversationMessages: async (userId, limit = 20, page = 0) => {
+    try {
+      // Theo doc: Load Recent Messages (Recommended)
+      // GET /api/chat/recent-messages?limit=20&page=0
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        page: page.toString()
+      })
+      
+      const response = await api.get(`/chat/recent-messages?${params.toString()}`)
+      
+      // Nếu có userId, filter messages cho conversation với user đó
+      if (response.success && response.result && userId) {
+        const filteredMessages = response.result.filter(msg => 
+          msg.senderId === userId || msg.receiverId === userId
+        )
+        return {
+          ...response,
+          result: filteredMessages
+        }
+      }
+      
+      return response
+    } catch (error) {
+      console.error('Error fetching recent conversation messages:', error)
+      // Fallback về API cũ nếu API mới không hoạt động
+      try {
+        return await this.getAdminConversationWithUser(userId, page, limit, 'createdAt,desc')
+      } catch (fallbackError) {
+        console.error('Fallback API also failed:', fallbackError)
+        throw error
+      }
+    }
+  },
+
   // Lấy cuộc trò chuyện giữa 2 users (không được backend hỗ trợ)
   getConversation: async (user1Id, user2Id, page = 0, size = 20) => {
     return {
@@ -126,11 +162,12 @@ const chatService = {
   },
 
     // Lấy cuộc trò chuyện hiện tại giữa hệ thống và user (admin/manager)
-    getAdminConversationWithUser: async (userId, page = 0, size = 20) => {
+    getAdminConversationWithUser: async (userId, page = 0, size = 20, sort = 'createdAt,desc') => {
       try {
         const params = new URLSearchParams({
           page: page.toString(),
-          size: size.toString()
+          size: size.toString(),
+          sort
         })
         const response = await api.get(`/chat/admin/conversation-with-user/${userId}?${params.toString()}`)
         return response

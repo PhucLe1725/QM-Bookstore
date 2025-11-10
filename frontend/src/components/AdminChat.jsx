@@ -93,26 +93,18 @@ const AdminChat = () => {
     setLoading(true)
     
     try {
-
-      
-      // Try to load chat history with error handling
-      const response = await chatService.getChatHistory(user.id)
+      // Load recent conversation messages - same as AdminMessages
+      const response = await chatService.getRecentConversationMessages(user.id, 50)
       
       let conversationData = []
-      if (response.success && response.result && response.result.content) {
-        conversationData = response.result.content
-      } else if (response.success && response.result) {
+      if (response.success && response.result) {
         conversationData = Array.isArray(response.result) ? response.result : []
       } else if (response.data) {
         conversationData = Array.isArray(response.data) ? response.data : []
       }
       
-      // Sort messages by timestamp
-      const sortedMessages = conversationData.sort((a, b) => 
-        new Date(a.createdAt) - new Date(b.createdAt)
-      )
-      
-
+      // Sort messages by createdAt ascending (oldest first) for proper chat display
+      const sortedMessages = conversationData.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
       setChatHistory(sortedMessages)
       
     } catch (error) {
@@ -176,7 +168,12 @@ const AdminChat = () => {
   }
 
   const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString('vi-VN', {
+    const date = new Date(timestamp)
+    // Always show full date and time in standard format
+    return date.toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     })

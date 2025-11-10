@@ -66,7 +66,7 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public Page<ChatMessageDto> getAllMessages(Pageable pageable) {
-        Page<ChatMessage> messages = chatMessageRepository.findAll(pageable);
+        Page<ChatMessage> messages = chatMessageRepository.findAllByOrderByCreatedAtDesc(pageable);
         return messages.map(chatMapper::toDto);
     }
 

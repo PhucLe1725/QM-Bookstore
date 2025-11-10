@@ -27,6 +27,51 @@ class ChatReadStatusService {
   }
 
   /**
+   * Đánh dấu tin nhắn đã đọc theo MarkMessagesReadRequest DTO
+   * @param {string} userId - UUID của user
+   * @param {Array<number>} messageIds - Optional: specific message IDs to mark as read
+   * @param {boolean} markAllFromUser - Mark all messages from this user as read
+   * @returns {Promise<Object>} ReadStatusResponse
+   */
+  async markMessagesRead(userId, messageIds = null, markAllFromUser = false) {
+    try {
+      const payload = {
+        userId: userId,
+        messageIds: messageIds,
+        markAllFromUser: markAllFromUser
+      }
+      
+      console.log('🔧 API Call: markMessagesRead with payload:', payload)
+      // Try PUT method instead of POST, and ensure correct path
+      const response = await api.put('/chat/mark-read', payload)
+      console.log('🔧 API Response:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('❌ API Error marking messages as read:', error)
+      console.error('❌ Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText, 
+        data: error.response?.data,
+        url: error.config?.url
+      })
+      
+      // If new API fails, fallback to old API
+      if (markAllFromUser) {
+        console.log('🔄 Falling back to old API...')
+        try {
+          const fallbackResponse = await api.put(`/chat/admin/mark-read/user/${userId}`)
+          console.log('✅ Fallback API success:', fallbackResponse.data)
+          return fallbackResponse.data
+        } catch (fallbackError) {
+          console.error('❌ Fallback API also failed:', fallbackError)
+        }
+      }
+      
+      throw error
+    }
+  }
+
+  /**
    * Đánh dấu tin nhắn cụ thể đã đọc bởi admin
    * @param {number} messageId - ID của tin nhắn
    * @returns {Promise<Object>} ReadStatusResponse

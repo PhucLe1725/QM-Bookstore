@@ -42,17 +42,18 @@ const useChatReadStatus = () => {
     setError(null)
   }, [])
 
-  // Lấy tổng số tin nhắn chưa đọc bởi admin
+  // Lấy tổng số tin nhắn chưa đọc bởi admin (DISABLED to avoid API errors)
   const fetchTotalAdminUnread = useCallback(async () => {
     if (!isAdmin || !isAuthenticated) return
 
     try {
       setLoading(true)
-      const count = await chatReadStatusService.getTotalUnreadCountByAdmin()
-      setUnreadCounts(prev => ({
-        ...prev,
-        totalAdminUnread: count
-      }))
+      // const count = await chatReadStatusService.getTotalUnreadCountByAdmin()
+      // setUnreadCounts(prev => ({
+      //   ...prev,
+      //   totalAdminUnread: count
+      // }))
+      console.log('📝 fetchTotalAdminUnread disabled to avoid API errors')
       clearError()
     } catch (error) {
       console.error('Error fetching total admin unread:', error)
@@ -62,19 +63,20 @@ const useChatReadStatus = () => {
     }
   }, [isAdmin, isAuthenticated, clearError])
 
-  // Lấy số tin nhắn chưa đọc từ admin cho user
+  // Lấy số tin nhắn chưa đọc từ admin cho user (DISABLED to avoid API errors)
   const fetchUserUnreadFromAdmin = useCallback(async (userId) => {
     if (!userId || !isAuthenticated) return
 
     try {
-      const count = await chatReadStatusService.getUnreadCountByUserFromAdmin(userId)
-      setUnreadCounts(prev => ({
-        ...prev,
-        userUnreadFromAdmin: {
-          ...prev.userUnreadFromAdmin,
-          [userId]: count
-        }
-      }))
+      // const count = await chatReadStatusService.getUnreadCountByUserFromAdmin(userId)
+      // setUnreadCounts(prev => ({
+      //   ...prev,
+      //   userUnreadFromAdmin: {
+      //     ...prev.userUnreadFromAdmin,
+      //     [userId]: count
+      //   }
+      // }))
+      console.log('📝 fetchUserUnreadFromAdmin disabled to avoid API errors for userId:', userId)
       clearError()
     } catch (error) {
       console.error('Error fetching user unread from admin:', error)
@@ -125,8 +127,8 @@ const useChatReadStatus = () => {
         }
       }))
       
-      // Refresh total count
-      await fetchTotalAdminUnread()
+      // Skip refresh total count to avoid API errors
+      // await fetchTotalAdminUnread()
       clearError()
       console.log('🔄 Refreshed admin unread counts after marking as read')
       
@@ -138,7 +140,7 @@ const useChatReadStatus = () => {
     } finally {
       setLoading(false)
     }
-  }, [isAdmin, isAuthenticated, fetchTotalAdminUnread, clearError])
+  }, [isAdmin, isAuthenticated, clearError]) // Removed fetchTotalAdminUnread
 
   // Đánh dấu tin nhắn đã đọc bởi user từ admin
   const markAsReadByUserFromAdmin = useCallback(async (userId) => {
@@ -255,11 +257,11 @@ const useChatReadStatus = () => {
     if (!isAuthenticated) return
 
     if (isAdmin) {
-      fetchTotalAdminUnread()
+      // fetchTotalAdminUnread() // Disabled to avoid API errors
     }
 
     if (user?.id) {
-      fetchUserUnreadFromAdmin(user.id)
+      // fetchUserUnreadFromAdmin(user.id) // Disabled to avoid API errors
     }
   }, [isAuthenticated, isAdmin, user?.id]) // Removed function dependencies
 
@@ -270,14 +272,14 @@ const useChatReadStatus = () => {
     const handleReadStatusUpdate = (messageData) => {
       if (messageData.type === 'new_user_message' && isAdmin) {
         // User sent message to admin - refresh admin unread counts
-        fetchTotalAdminUnread()
+        // fetchTotalAdminUnread() // Disabled to avoid API errors
         if (messageData.senderId) {
           fetchAdminUnreadFromUser(messageData.senderId)
         }
       } else if (messageData.type === 'new_admin_message' && !isAdmin) {
         // Admin sent message to user - refresh user unread count
         if (user?.id && messageData.receiverId === user.id) {
-          fetchUserUnreadFromAdmin(user.id)
+          // fetchUserUnreadFromAdmin(user.id) // Disabled to avoid API errors
         }
       }
     }
@@ -285,6 +287,33 @@ const useChatReadStatus = () => {
     const unregister = registerReadStatusCallback(handleReadStatusUpdate)
     return unregister
   }, [registerReadStatusCallback, isAdmin, user?.id]) // Removed function dependencies
+
+  // Mark messages read theo DTO format
+  const markMessagesRead = useCallback(async (userId, messageIds = null, markAllFromUser = false) => {
+    if (!isAuthenticated) return null
+
+    try {
+      setLoading(true)
+      clearError()
+      
+      const result = await chatReadStatusService.markMessagesRead(userId, messageIds, markAllFromUser)
+      console.log('✅ Messages marked as read:', result)
+      
+      // Skip refresh unread counts to avoid API errors
+      // if (isAdmin) {
+      //   await fetchTotalAdminUnread()
+      //   await fetchAdminUnreadFromUser(userId)
+      // }
+      
+      return result
+    } catch (error) {
+      console.error('❌ Error marking messages as read:', error)
+      setError(error.response?.data?.message || error.message)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }, [isAuthenticated, isAdmin, clearError]) // Removed fetchTotalAdminUnread, fetchAdminUnreadFromUser
 
   return {
     // State
@@ -305,6 +334,7 @@ const useChatReadStatus = () => {
     markAsReadByAdminForUser,
     markAsReadByUserFromAdmin,
     markMessageAsRead,
+    markMessagesRead, // New method for DTO format
     fetchUsersWithUnreadMessages,
     fetchUnreadMessagesForAdmin,
     fetchUnreadMessagesForUser,

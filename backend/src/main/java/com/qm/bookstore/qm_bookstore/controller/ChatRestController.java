@@ -9,7 +9,9 @@ import com.qm.bookstore.qm_bookstore.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -41,9 +43,24 @@ public class ChatRestController {
 
     @GetMapping("/recent-messages")
     public ApiResponse<List<ChatMessageDto>> getRecentMessages(
-            @RequestParam(defaultValue = "50") int limit) {
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(defaultValue = "0") int page) {
         
-        Pageable pageable = org.springframework.data.domain.PageRequest.of(0, limit);
+        // Sắp xếp theo thời gian tạo mới nhất (DESC)
+        Pageable pageable = PageRequest.of(page, limit, Sort.by("createdAt").descending());
+        Page<ChatMessageDto> messages = chatService.getAllMessages(pageable);
+        
+        return ApiResponse.<List<ChatMessageDto>>builder()
+                .result(messages.getContent())
+                .build();
+    }
+
+    @GetMapping("/all-messages")
+    public ApiResponse<List<ChatMessageDto>> getAllMessagesWithoutPagination(
+            @RequestParam(defaultValue = "100") int limit) {
+        
+        // Lấy tối đa limit tin nhắn mới nhất, không phân trang
+        Pageable pageable = PageRequest.of(0, limit, Sort.by("createdAt").descending());
         Page<ChatMessageDto> messages = chatService.getAllMessages(pageable);
         
         return ApiResponse.<List<ChatMessageDto>>builder()
@@ -53,8 +70,17 @@ public class ChatRestController {
 
     @GetMapping("/admin/messages")
     @PreAuthorize("hasRole('admin') or hasRole('manager')")
-    public ApiResponse<Page<ChatMessageDto>> getAllMessages(Pageable pageable) {
+    public ApiResponse<Page<ChatMessageDto>> getAllMessages(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
         
+        // Tạo sort direction
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? 
+            Sort.Direction.DESC : Sort.Direction.ASC;
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
         Page<ChatMessageDto> messages = chatService.getAllMessages(pageable);
         
         return ApiResponse.<Page<ChatMessageDto>>builder()

@@ -11,6 +11,6 @@ import java.util.UUID;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class MarkMessagesReadRequest {
     UUID userId;
-    List<Long> messageIds; // Optional: specific message IDs to mark as read
-    Boolean markAllFromUser = false; // Mark all messages from this user as read
+    List<Long> messageIds;
+    Boolean markAllFromUser = false;
 }

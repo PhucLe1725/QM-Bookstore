@@ -81,6 +81,14 @@ export const WebSocketProvider = ({ children }) => {
     stompClient.subscribe('/user/queue/private-messages', function (message) {
       const privateMessage = JSON.parse(message.body)
       console.log('💬 Private message received:', privateMessage)
+      
+      // Skip auto-adding admin's own messages to avoid duplicates
+      // AdminMessages component will handle its own messages via API reload
+      if (user?.roleName === 'admin' && privateMessage.senderId === user.id) {
+        console.log('🚫 Skipping admin own message auto-add to prevent duplicate')
+        return
+      }
+      
       setPrivateMessages(prev => {
         const newMessages = [...prev, privateMessage]
         console.log('📝 Updated privateMessages count:', newMessages.length)
@@ -122,6 +130,46 @@ export const WebSocketProvider = ({ children }) => {
         const notification = JSON.parse(message.body)
         console.log('🔔 Admin notification received:', notification)
         setAdminNotifications(prev => [notification, ...prev])
+        
+        // Handle different notification types for chat updates
+        if (notification.type === 'new_user_message') {
+          console.log('📨 Converting new_user_message notification to adminMessage for chat update')
+          const adminMessage = {
+            id: notification.messageId,
+            senderId: notification.senderId,
+            senderUsername: notification.senderUsername,
+            senderType: notification.senderType,
+            message: notification.message,
+            createdAt: notification.timestamp,
+            type: 'new_user_message'
+          }
+          setAdminMessages(prev => {
+            const newMessages = [...prev, adminMessage]
+            console.log('📝 Updated adminMessages count from user notification:', newMessages.length)
+            return newMessages
+          })
+        } else if (notification.type === 'conversation_update') {
+          console.log('📨 Converting conversation_update notification to privateMessage for chat update')
+          const privateMessage = {
+            id: notification.messageId,
+            senderId: notification.senderId,
+            receiverId: notification.userId, // userId is the receiver in this case
+            senderUsername: notification.senderUsername,
+            senderType: notification.senderType,
+            message: notification.message,
+            createdAt: notification.timestamp,
+            type: 'conversation_update'
+          }
+          
+          // Only add to privateMessages if it's not from current user (avoid self-duplicate)
+          if (notification.senderId !== user.id) {
+            setPrivateMessages(prev => {
+              const newMessages = [...prev, privateMessage]
+              console.log('📝 Updated privateMessages count from admin notification:', newMessages.length)
+              return newMessages
+            })
+          }
+        }
       })
     }
 
@@ -319,19 +367,6 @@ export const WebSocketProvider = ({ children }) => {
       
       console.log('📤 Sending private message:', payload)
       clientRef.current.send('/app/private-message', {}, JSON.stringify(payload))
-      
-      // For admin/manager messages, also add to privateMessages immediately
-      // to trigger UI updates in AdminMessages component
-      if (user?.roleName === 'admin' || user?.roleName === 'manager') {
-        const messageForUI = {
-          ...payload,
-          id: Date.now(),
-          createdAt: new Date().toISOString(),
-          senderUsername: user.username
-        }
-        console.log('➕ Adding admin message to privateMessages for UI update')
-        setPrivateMessages(prev => [...prev, messageForUI])
-      }
     } else {
       console.error('Cannot send private message: not connected')
     }
@@ -387,6 +422,13 @@ export const WebSocketProvider = ({ children }) => {
         subscription = clientRef.current.subscribe(channelName, function (message) {
           const conversationUpdate = JSON.parse(message.body)
           console.log(`📨 Admin received conversation update for user ${userId}:`, conversationUpdate)
+          
+          // Skip auto-adding admin's own messages to avoid duplicates
+          if (conversationUpdate.senderId === user.id) {
+            console.log('🚫 Skipping admin own message auto-add to prevent duplicate')
+            return
+          }
+          
           if (onMessageReceived) {
             onMessageReceived(conversationUpdate)
           } else {

@@ -16,6 +16,9 @@ import java.util.UUID;
 @Repository
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
 
+    // Lấy tất cả tin nhắn sắp xếp theo thời gian tạo mới nhất
+    Page<ChatMessage> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
     @Query("SELECT cm FROM ChatMessage cm WHERE cm.senderId = :userId OR cm.receiverId = :userId ORDER BY cm.createdAt ASC")
     Page<ChatMessage> findChatHistoryByUserId(@Param("userId") UUID userId, Pageable pageable);
 
