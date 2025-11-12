@@ -19,7 +19,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +35,6 @@ public class NotificationService {
     NotificationRepository notificationRepository;
     UserRepository userRepository;
     NotificationMapper notificationMapper;
-    SimpMessagingTemplate messagingTemplate;
 
     public NotificationResponse getNotificationById(UUID notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
@@ -79,9 +77,11 @@ public class NotificationService {
 
     @Transactional
     public NotificationResponse createNotification(NotificationCreateRequest request) {
-        // Verify user exists
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        // Verify user exists only if userId is not null (for non-global notifications)
+        if (request.getUserId() != null) {
+            User user = userRepository.findById(request.getUserId())
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        }
         
         Notification notification = notificationMapper.toNotification(request);
         notification.setStatus(Notification.NotificationStatus.UNREAD);
@@ -90,10 +90,8 @@ public class NotificationService {
         
         notification = notificationRepository.save(notification);
         
-        // Send real-time notification via WebSocket
+        // Return response (WebSocket handled by ChatNotificationService)
         NotificationResponse response = notificationMapper.toNotificationResponse(notification);
-        sendRealTimeNotification(request.getUserId(), response);
-        
         return response;
     }
 
@@ -128,18 +126,30 @@ public class NotificationService {
     }
 
     public Long getUnreadNotificationCount(UUID userId) {
-        return notificationRepository.countByUserIdAndStatus(userId, Notification.NotificationStatus.UNREAD);
+        // Sử dụng query mới để đếm cả personal và global notifications
+        return notificationRepository.countUnreadNotificationsForAdmin(userId);
     }
 
     @Transactional
     public void markNotificationAsRead(UUID notificationId) {
-        int updated = notificationRepository.updateStatusById(
-            notificationId, 
-            Notification.NotificationStatus.READ, 
-            LocalDateTime.now()
-        );
-        if (updated == 0) {
-            throw new AppException(ErrorCode.NOTIFICATION_NOT_FOUND);
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOTIFICATION_NOT_FOUND));
+                
+        // Nếu là global notification (user_id IS NULL và type NEW_MESSAGE)
+        if (notification.getUserId() == null && notification.getType() == Notification.NotificationType.NEW_MESSAGE) {
+            // Đánh dấu tất cả global NEW_MESSAGE notifications là đã đọc
+            notificationRepository.markGlobalNewMessageAsRead(LocalDateTime.now());
+            log.info("Marked all global NEW_MESSAGE notifications as read");
+        } else {
+            // Đánh dấu notification cá nhân là đã đọc
+            int updated = notificationRepository.updateStatusById(
+                notificationId, 
+                Notification.NotificationStatus.READ, 
+                LocalDateTime.now()
+            );
+            if (updated == 0) {
+                throw new AppException(ErrorCode.NOTIFICATION_NOT_FOUND);
+            }
         }
     }
 
@@ -160,8 +170,29 @@ public class NotificationService {
         NotificationCreateRequest request = new NotificationCreateRequest();
         request.setUserId(userId);
         request.setType(Notification.NotificationType.NEW_MESSAGE);
-        request.setMessage(String.format("New message from %s: %s", senderName, messagePreview));
+        
+        // Cải thiện format message với username rõ ràng
+        String formattedMessage = String.format("New message from %s: %s", 
+            senderName != null ? senderName : "Unknown User", 
+            messagePreview != null ? messagePreview : "");
+        request.setMessage(formattedMessage);
         request.setAnchor("/chat/" + userId);
+        
+        return createNotification(request);
+    }
+
+    @Transactional
+    public NotificationResponse createGlobalNewMessageNotification(UUID senderUserId, String senderName, String messagePreview) {
+        NotificationCreateRequest request = new NotificationCreateRequest();
+        request.setUserId(null); // NULL user_id for global notification
+        request.setType(Notification.NotificationType.NEW_MESSAGE);
+        
+        // Cải thiện format message với username rõ ràng cho global notification
+        String formattedMessage = String.format("New message from %s: %s", 
+            senderName != null ? senderName : "Customer", 
+            messagePreview != null ? messagePreview : "");
+        request.setMessage(formattedMessage);
+        request.setAnchor("/admin/message");
         
         return createNotification(request);
     }
@@ -209,16 +240,6 @@ public class NotificationService {
         return createNotification(request);
     }
 
-    // Send real-time notification via WebSocket
-    private void sendRealTimeNotification(UUID userId, NotificationResponse notification) {
-        try {
-            messagingTemplate.convertAndSend("/topic/notifications/" + userId, notification);
-            log.info("Sent real-time notification to user: {}, type: {}", userId, notification.getType());
-        } catch (Exception e) {
-            log.error("Failed to send real-time notification to user: {}", userId, e);
-        }
-    }
-
     // Cleanup old notifications (can be scheduled)
     @Transactional
     public int cleanupOldNotifications(int daysOld) {
@@ -226,5 +247,37 @@ public class NotificationService {
         int deleted = notificationRepository.deleteByCreatedAtBefore(cutoffDate);
         log.info("Cleaned up {} old notifications older than {} days", deleted, daysOld);
         return deleted;
+    }
+
+    /**
+     * Lấy tất cả global notifications (userId = null và type = NEW_MESSAGE)
+     * Dành cho admin/manager để xem thông báo tin nhắn toàn cục
+     */
+    public List<NotificationResponse> getGlobalNotifications() {
+        List<Notification> notifications = notificationRepository.findGlobalNotifications();
+        return notificationMapper.toNotificationResponseList(notifications);
+    }
+
+    /**
+     * Lấy tất cả notifications bao gồm cả personal và global cho admin/manager
+     * @param adminUserId ID của admin/manager
+     * @return List các notification (personal + global)
+     */
+    public List<NotificationResponse> getAllNotificationsForAdmin(UUID adminUserId) {
+        // Lấy personal notifications của admin/manager
+        List<Notification> personalNotifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(adminUserId);
+        
+        // Lấy global notifications
+        List<Notification> globalNotifications = notificationRepository.findGlobalNotifications();
+        
+        // Gộp 2 lists và sắp xếp theo thời gian tạo (mới nhất trước)
+        List<Notification> allNotifications = new java.util.ArrayList<>();
+        allNotifications.addAll(personalNotifications);
+        allNotifications.addAll(globalNotifications);
+        
+        // Sắp xếp theo createdAt DESC
+        allNotifications.sort((n1, n2) -> n2.getCreatedAt().compareTo(n1.getCreatedAt()));
+        
+        return notificationMapper.toNotificationResponseList(allNotifications);
     }
 }

@@ -4,8 +4,6 @@ import NotificationProvider from './store/NotificationContext'
 import { AppRoutes } from './routes'
 import ChatButton from './components/ChatButton'
 import ChatModal from './components/ChatModal'
-import { NotificationToastContainer } from './components/NotificationToast'
-import NotificationTestPanel from './components/NotificationTestPanel'
 import { useChatVisibility } from './hooks'
 
 const AppContent = () => {
@@ -22,12 +20,6 @@ const AppContent = () => {
           <ChatModal />
         </>
       )}
-      
-      {/* Notification Toast Container */}
-      <NotificationToastContainer />
-      
-      {/* Development Test Panel */}
-      <NotificationTestPanel />
     </div>
   )
 }

@@ -29,6 +29,14 @@ const NotificationDropdown = () => {
     clearError
   } = useNotificationContext()
 
+  // Debug logs
+  useEffect(() => {
+    console.log('🔍 NotificationDropdown - notifications:', notifications)
+    console.log('🔍 NotificationDropdown - unreadCount:', unreadCount)
+    console.log('🔍 NotificationDropdown - loading:', loading)
+    console.log('🔍 NotificationDropdown - error:', error)
+  }, [notifications, unreadCount, loading, error])
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -86,7 +94,14 @@ const NotificationDropdown = () => {
     
     // Navigate to anchor if exists
     if (notification.anchor) {
-      window.location.href = notification.anchor
+      let targetUrl = notification.anchor
+      
+      // For NEW_MESSAGE notifications, redirect to admin messages page
+      if (notification.type === 'NEW_MESSAGE') {
+        targetUrl = '/admin/messages'
+      }
+      
+      window.location.href = targetUrl
       setIsOpen(false)
     }
   }
@@ -175,6 +190,9 @@ const NotificationDropdown = () => {
               <div className="px-4 py-8 text-center">
                 <Bell className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500 text-sm">Chưa có thông báo nào</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Debug: Array length = {notifications?.length || 'undefined'}, Array = {JSON.stringify(notifications)}
+                </p>
               </div>
             ) : (
               <div className="divide-y divide-gray-200">
@@ -189,7 +207,15 @@ const NotificationDropdown = () => {
                     <div className="flex items-start space-x-3">
                       {/* Icon */}
                       <div className="flex-shrink-0 mt-1">
-                        {getNotificationIcon(notification.type)}
+                        <div className="relative">
+                          {getNotificationIcon(notification.type)}
+                          {/* Global notification indicator */}
+                          {notification.userId === null && (
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                              <span className="text-white text-xs">🌐</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
                       {/* Content */}
@@ -202,9 +228,16 @@ const NotificationDropdown = () => {
                           {notification.message}
                         </p>
                         <div className="flex items-center justify-between mt-1">
-                          <p className="text-xs text-gray-500">
-                            {formatTime(notification.createdAt)}
-                          </p>
+                          <div className="flex items-center space-x-2">
+                            <p className="text-xs text-gray-500">
+                              {formatTime(notification.createdAt)}
+                            </p>
+                            {notification.userId === null && (
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                Global
+                              </span>
+                            )}
+                          </div>
                           {notification.anchor && (
                             <ExternalLink className="h-3 w-3 text-gray-400" />
                           )}

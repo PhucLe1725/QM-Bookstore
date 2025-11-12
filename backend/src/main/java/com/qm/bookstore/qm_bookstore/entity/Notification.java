@@ -21,7 +21,7 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.UUID)
     UUID id;
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id")
     UUID userId;
 
     @Enumerated(EnumType.STRING)
@@ -34,7 +34,7 @@ public class Notification {
     @Column(columnDefinition = "TEXT")
     String anchor;
 
-    @Enumerated(EnumType.ORDINAL)
+    @Convert(converter = NotificationStatusConverter.class)
     @Builder.Default
     @Column(nullable = false, columnDefinition = "SMALLINT DEFAULT 1")
     NotificationStatus status = NotificationStatus.UNREAD;
@@ -47,7 +47,7 @@ public class Notification {
     @Column(name = "updated_at", nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     LocalDateTime updatedAt = LocalDateTime.now();
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(name = "user_id", insertable = false, updatable = false)
     User user;
 
@@ -87,5 +87,24 @@ public class Notification {
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    @Converter
+    public static class NotificationStatusConverter implements AttributeConverter<NotificationStatus, Integer> {
+        @Override
+        public Integer convertToDatabaseColumn(NotificationStatus status) {
+            return status != null ? status.getValue() : null;
+        }
+
+        @Override
+        public NotificationStatus convertToEntityAttribute(Integer value) {
+            if (value == null) return null;
+            for (NotificationStatus status : NotificationStatus.values()) {
+                if (status.getValue() == value) {
+                    return status;
+                }
+            }
+            throw new IllegalArgumentException("Unknown value: " + value);
+        }
     }
 }

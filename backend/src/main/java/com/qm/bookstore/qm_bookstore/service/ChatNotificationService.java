@@ -3,6 +3,7 @@ package com.qm.bookstore.qm_bookstore.service;
 import com.qm.bookstore.qm_bookstore.dto.chat.AdminNotification;
 import com.qm.bookstore.qm_bookstore.dto.chat.ChatMessageDto;
 import com.qm.bookstore.qm_bookstore.dto.chat.ConversationUpdate;
+import com.qm.bookstore.qm_bookstore.dto.notification.response.NotificationResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -16,6 +17,33 @@ import java.util.UUID;
 public class ChatNotificationService {
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationService notificationService;
+    
+    /**
+     * Broadcast global notification qua WebSocket (notification đã được tạo trong database)
+     */
+    public void broadcastGlobalNotification(NotificationResponse notification) {
+        try {
+            // Gửi notification real-time tới tất cả admin/manager qua WebSocket
+            messagingTemplate.convertAndSend("/topic/notifications", notification);
+            log.info("Broadcasted global notification with ID {} to all admins", notification.getId());
+        } catch (Exception e) {
+            log.error("Failed to broadcast global notification: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Broadcast personal notification qua WebSocket (notification đã được tạo trong database)
+     */
+    public void broadcastPersonalNotification(UUID userId, NotificationResponse notification) {
+        try {
+            // Gửi notification real-time tới customer qua WebSocket
+            messagingTemplate.convertAndSend("/topic/notifications/" + userId, notification);
+            log.info("Broadcasted personal notification with ID {} to user {}", notification.getId(), userId);
+        } catch (Exception e) {
+            log.error("Failed to broadcast personal notification to user {}: {}", userId, e.getMessage(), e);
+        }
+    }
     
     /**
      * Gửi notification tới tất cả admin/manager
@@ -45,54 +73,24 @@ public class ChatNotificationService {
     
     /**
      * Xử lý khi có tin nhắn mới từ user
+     * DEPRECATED: Sử dụng ChatService.createNotificationsForMessage() thay thế
      */
+    @Deprecated
     public void handleNewUserMessage(ChatMessageDto message) {
-        UUID userId = message.getSenderId();
-        
-        // 1. Gửi notification tới tất cả admin
-        AdminNotification notification = AdminNotification.newUserMessage(
-                userId, 
-                UUID.randomUUID(), // Tạm thời dùng random UUID, có thể convert từ Long sau
-                message.getSenderUsername(), 
-                message.getMessage()
-        );
-        sendAdminNotification(notification);
-        
-        // 2. Gửi update tới conversation cụ thể
-        ConversationUpdate update = ConversationUpdate.newMessage(userId, message);
-        sendConversationUpdate(userId, update);
+        // Method này đã được thay thế bởi ChatService.createNotificationsForMessage()
+        // Để tránh duplicate notifications, không sử dụng method này nữa
+        log.warn("handleNewUserMessage is deprecated. Use ChatService.createNotificationsForMessage() instead");
     }
     
     /**
      * Xử lý khi admin/manager gửi tin nhắn
+     * DEPRECATED: Sử dụng ChatService.createNotificationsForMessage() thay thế
      */
+    @Deprecated
     public void handleAdminMessage(ChatMessageDto message, UUID receiverId) {
-        // 1. Gửi notification tới tất cả admin khác
-        AdminNotification notification = AdminNotification.conversationUpdate(
-                receiverId,
-                UUID.randomUUID(), // Tạm thời dùng random UUID, có thể convert từ Long sau
-                message.getSenderId(),
-                message.getSenderUsername(),
-                message.getSenderType(),
-                message.getMessage()
-        );
-        sendAdminNotification(notification);
-        
-        // 2. Gửi update tới conversation cụ thể
-        ConversationUpdate update = ConversationUpdate.newMessage(receiverId, message);
-        sendConversationUpdate(receiverId, update);
-        
-        // 3. Gửi tin nhắn trực tiếp tới user (nếu user đang online)
-        try {
-            messagingTemplate.convertAndSendToUser(
-                    receiverId.toString(), 
-                    "/queue/messages", 
-                    message
-            );
-            log.info("Sent direct message to user: {}", receiverId);
-        } catch (Exception e) {
-            log.error("Failed to send direct message to user: {}", receiverId, e);
-        }
+        // Method này đã được thay thế bởi ChatService.createNotificationsForMessage()
+        // Để tránh duplicate notifications, không sử dụng method này nữa
+        log.warn("handleAdminMessage is deprecated. Use ChatService.createNotificationsForMessage() instead");
     }
     
     /**

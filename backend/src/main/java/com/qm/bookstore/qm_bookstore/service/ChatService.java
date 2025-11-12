@@ -1,6 +1,7 @@
 package com.qm.bookstore.qm_bookstore.service;
 
 import com.qm.bookstore.qm_bookstore.dto.chat.ChatMessageDto;
+import com.qm.bookstore.qm_bookstore.dto.notification.response.NotificationResponse;
 import com.qm.bookstore.qm_bookstore.entity.ChatMessage;
 import com.qm.bookstore.qm_bookstore.exception.AppException;
 import com.qm.bookstore.qm_bookstore.exception.ErrorCode;
@@ -24,6 +25,8 @@ public class ChatService {
 
     private final ChatMessageRepository chatMessageRepository;
     private final ChatMapper chatMapper;
+    private final NotificationService notificationService;
+    private final ChatNotificationService chatNotificationService;
 
     @Transactional
     public ChatMessageDto saveMessage(ChatMessageDto messageDto) {
@@ -50,6 +53,9 @@ public class ChatService {
             
             log.info("Saved chat message with ID: {} from sender: {} type: {} to receiver: {}", 
                     savedMessage.getId(), savedMessage.getSenderId(), savedMessage.getSenderType(), savedMessage.getReceiverId());
+            
+            // Create notifications based on message type and broadcast via WebSocket
+            createNotificationsForMessage(savedMessage, messageDto);
             
             return chatMapper.toDto(savedMessage);
         } catch (Exception e) {
@@ -211,5 +217,74 @@ public class ChatService {
         return unreadMessages.stream()
                 .map(chatMapper::toDto)
                 .toList();
+    }
+
+    /**
+     * Create notifications based on chat message type and participants
+     */
+    private void createNotificationsForMessage(ChatMessage savedMessage, ChatMessageDto messageDto) {
+        try {
+            String senderType = savedMessage.getSenderType().name();
+            UUID senderId = savedMessage.getSenderId();
+            UUID receiverId = savedMessage.getReceiverId();
+            String messagePreview = truncateMessage(savedMessage.getMessage());
+            
+            log.info("Creating notifications for message from {} (type: {}) to {}", 
+                    senderId, senderType, receiverId);
+
+            if ("user".equals(senderType)) {
+                // Customer gửi message → Tạo global notification cho admin/manager
+                log.info("Customer message detected - creating global notification for admin/manager");
+                
+                // Get sender username for notification message
+                String senderName = messageDto.getSenderUsername() != null ? 
+                    messageDto.getSenderUsername() : "Customer";
+                
+                // Tạo notification trong database
+                NotificationResponse globalNotification = notificationService.createGlobalNewMessageNotification(
+                    senderId, 
+                    senderName, 
+                    messagePreview
+                );
+                
+                log.info("Created global notification in database with ID: {}", globalNotification.getId());
+                
+                // Broadcast notification real-time qua WebSocket
+                chatNotificationService.broadcastGlobalNotification(globalNotification);
+                
+            } else if (("admin".equals(senderType) || "manager".equals(senderType)) && receiverId != null) {
+                // Admin/Manager gửi message cho customer → Tạo personal notification cho customer
+                log.info("Admin/Manager message detected - creating personal notification for customer {}", receiverId);
+                
+                String senderName = messageDto.getSenderUsername() != null ? 
+                    messageDto.getSenderUsername() : "Admin";
+                
+                // Tạo notification trong database
+                NotificationResponse personalNotification = notificationService.createNewMessageNotification(
+                    receiverId, // Customer ID
+                    senderName, 
+                    messagePreview
+                );
+                
+                log.info("Created personal notification for customer {} with ID: {}", receiverId, personalNotification.getId());
+                
+                // Broadcast notification real-time qua WebSocket
+                chatNotificationService.broadcastPersonalNotification(receiverId, personalNotification);
+            }
+            
+            log.info("Notifications created and broadcasted successfully for message {}", savedMessage.getId());
+            
+        } catch (Exception e) {
+            log.error("Error creating notifications for message {}: {}", savedMessage.getId(), e.getMessage(), e);
+            // Don't throw exception - notification failure shouldn't break chat functionality
+        }
+    }
+
+    /**
+     * Truncate message for notification preview
+     */
+    private String truncateMessage(String message) {
+        if (message == null) return "";
+        return message.length() > 50 ? message.substring(0, 47) + "..." : message;
     }
 }

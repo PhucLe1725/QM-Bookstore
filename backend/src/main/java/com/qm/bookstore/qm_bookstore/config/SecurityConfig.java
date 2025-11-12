@@ -49,7 +49,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/chat/history/**").authenticated()
                         .requestMatchers("/api/chat/admin/**").hasAnyRole("admin", "manager")
                         .requestMatchers("/api/chat/conversations").hasAnyRole("admin", "manager")
-                        
+
+                        // Notification endpoints
+                        .requestMatchers("/api/notifications/user/**").permitAll()
+                        .requestMatchers("/api/notifications/**").authenticated()
+                        .requestMatchers("/api/notifications/admin/**").hasAnyRole("admin", "manager")
+
                         // Admin only endpoints
                         .requestMatchers("/api/admin/**").hasRole("admin")
                         .requestMatchers("/api/users/**").hasRole("admin")

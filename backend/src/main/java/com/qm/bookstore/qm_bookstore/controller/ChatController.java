@@ -71,11 +71,8 @@ public class ChatController {
             ChatMessageDto savedMessage = chatService.saveMessage(message);
             log.info("Private message saved with ID: {}", savedMessage.getId());
             
-            // Send notifications through NotificationService
-            if (savedMessage.getReceiverId() != null) {
-                // This is admin/manager sending to user
-                notificationService.handleAdminMessage(savedMessage, savedMessage.getReceiverId());
-            }
+            // Notifications are handled automatically in ChatService.saveMessage()
+            log.info("Notifications created automatically for admin message to user: {}", savedMessage.getReceiverId());
         } catch (Exception e) {
             log.error("Error handling private message: {}", e.getMessage(), e);
         }
@@ -104,8 +101,8 @@ public class ChatController {
             ChatMessageDto savedMessage = chatService.saveMessage(message);
             log.info("User message saved with ID: {} and will be visible to all admin/manager", savedMessage.getId());
             
-            // Send notifications through NotificationService
-            notificationService.handleNewUserMessage(savedMessage);
+            // Notifications are handled automatically in ChatService.saveMessage()
+            log.info("Notifications created automatically for user message from: {}", savedMessage.getSenderId());
             
             // Return saved message for legacy compatibility
             return savedMessage;

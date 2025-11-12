@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect } from 'react'
+import React, { createContext, useContext, useEffect, useCallback } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useNotifications } from '../hooks/useNotifications'
 import { useWebSocket } from './WebSocketContext'
@@ -15,35 +15,59 @@ export const useNotificationContext = () => {
 
 export const NotificationProvider = ({ children }) => {
   const { user } = useAuth()
-  const { isConnected } = useWebSocket()
+  const { isConnected, setNotificationHandler } = useWebSocket()
   const notificationHook = useNotifications()
 
-  // Listen for real-time notifications via WebSocket
+  // Debug log notifications state
   useEffect(() => {
-    if (!user?.id || !isConnected) return
+    console.log('🔍 NotificationContext - notificationHook state:', {
+      notifications: notificationHook.notifications,
+      notificationCount: notificationHook.notifications?.length || 0,
+      unreadCount: notificationHook.unreadCount,
+      loading: notificationHook.loading,
+      error: notificationHook.error
+    })
+  }, [notificationHook.notifications, notificationHook.unreadCount, notificationHook.loading, notificationHook.error])
 
-    // This will be handled by WebSocketContext
-    // Here we just provide the context for notification management
-    console.log('📢 Notification system initialized for user:', user.username)
-  }, [user?.id, isConnected])
-
-  // Handle new real-time notifications
-  const handleRealtimeNotification = (notification) => {
-    console.log('🔔 New real-time notification:', notification)
+  // Handle new real-time notifications from WebSocket
+  const handleRealtimeNotification = useCallback((notification) => {
+    console.log('🔔 New real-time notification received in NotificationContext:', {
+      id: notification.id,
+      userId: notification.userId,
+      type: notification.type,
+      message: notification.message,
+      status: notification.status,
+      isGlobal: notification.userId === null
+    })
     
     // Add to notification list
     notificationHook.addNotification(notification)
     
     // Show toast notification (optional)
     showNotificationToast(notification)
-  }
+  }, [notificationHook.addNotification])  // Only depend on addNotification method
+
+  // Register notification handler with WebSocket context
+  useEffect(() => {
+    if (setNotificationHandler && handleRealtimeNotification) {
+      console.log('🔗 Registering notification handler with WebSocket (isConnected:', isConnected, ')')
+      setNotificationHandler(() => handleRealtimeNotification)
+    }
+    
+    return () => {
+      if (setNotificationHandler) {
+        console.log('📢 Unregistering notification handler from WebSocket')
+        setNotificationHandler(null)
+      }
+    }
+  }, [setNotificationHandler, handleRealtimeNotification])  // Remove isConnected dependency to always set handler
 
   const showNotificationToast = (notification) => {
     // Create a simple toast notification
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification(getNotificationTitle(notification.type), {
         body: notification.message,
-        icon: '/favicon.ico',
+        // Remove icon to avoid 404 error - browser will use default
         tag: notification.id
       })
     }

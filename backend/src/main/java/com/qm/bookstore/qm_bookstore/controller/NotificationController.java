@@ -310,4 +310,36 @@ public class NotificationController {
                 .result(notification)
                 .build();
     }
+
+    /**
+     * Lấy tất cả thông báo toàn cục (global notifications) - chỉ dành cho admin/manager
+     * Những notification này có userId = null và type = NEW_MESSAGE
+     */
+    @GetMapping("/global")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ApiResponse<List<NotificationResponse>> getGlobalNotifications() {
+        log.info("Getting global notifications for admin/manager");
+        
+        List<NotificationResponse> notifications = notificationService.getGlobalNotifications();
+        
+        return ApiResponse.<List<NotificationResponse>>builder()
+                .result(notifications)
+                .build();
+    }
+
+    /**
+     * Lấy tất cả thông báo bao gồm cả personal và global cho admin/manager
+     */
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ApiResponse<List<NotificationResponse>> getAllNotificationsForAdmin(
+            @RequestParam UUID adminUserId) {
+        log.info("Getting all notifications (personal + global) for admin/manager: {}", adminUserId);
+        
+        List<NotificationResponse> notifications = notificationService.getAllNotificationsForAdmin(adminUserId);
+        
+        return ApiResponse.<List<NotificationResponse>>builder()
+                .result(notifications)
+                .build();
+    }
 }

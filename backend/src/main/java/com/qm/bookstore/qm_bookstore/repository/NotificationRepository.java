@@ -50,9 +50,9 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     @Query("DELETE FROM Notification n WHERE n.createdAt < :cutoffDate")
     int deleteByCreatedAtBefore(@Param("cutoffDate") LocalDateTime cutoffDate);
     
-    // Find notifications with filters
+    // Find notifications with filters (including global notifications for admin/manager)
     @Query("SELECT n FROM Notification n WHERE " +
-           "n.userId = :userId AND " +
+           "(n.userId = :userId OR (n.userId IS NULL AND n.type = com.qm.bookstore.qm_bookstore.entity.Notification$NotificationType.NEW_MESSAGE)) AND " +
            "(:type IS NULL OR n.type = :type) AND " +
            "(:status IS NULL OR n.status = :status) AND " +
            "(:fromDate IS NULL OR n.createdAt >= :fromDate) AND " +
@@ -65,4 +65,20 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
             @Param("fromDate") LocalDateTime fromDate,
             @Param("toDate") LocalDateTime toDate,
             Pageable pageable);
+            
+    // Find global notifications (user_id IS NULL) for admin/manager
+    @Query("SELECT n FROM Notification n WHERE n.userId IS NULL AND n.type = com.qm.bookstore.qm_bookstore.entity.Notification$NotificationType.NEW_MESSAGE ORDER BY n.createdAt DESC")
+    List<Notification> findGlobalNotifications();
+    
+    // Count unread notifications for admin/manager (including global notifications)
+    @Query("SELECT COUNT(n) FROM Notification n WHERE " +
+           "(n.userId = :userId OR (n.userId IS NULL AND n.type = com.qm.bookstore.qm_bookstore.entity.Notification$NotificationType.NEW_MESSAGE)) AND " +
+           "n.status = com.qm.bookstore.qm_bookstore.entity.Notification$NotificationStatus.UNREAD")
+    Long countUnreadNotificationsForAdmin(@Param("userId") UUID userId);
+    
+    // Mark global NEW_MESSAGE notifications as read
+    @Modifying
+    @Query("UPDATE Notification n SET n.status = com.qm.bookstore.qm_bookstore.entity.Notification$NotificationStatus.READ, n.updatedAt = :updatedAt " +
+           "WHERE n.userId IS NULL AND n.type = com.qm.bookstore.qm_bookstore.entity.Notification$NotificationType.NEW_MESSAGE AND n.status = com.qm.bookstore.qm_bookstore.entity.Notification$NotificationStatus.UNREAD")
+    int markGlobalNewMessageAsRead(@Param("updatedAt") LocalDateTime updatedAt);
 }

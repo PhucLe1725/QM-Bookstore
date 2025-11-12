@@ -24,6 +24,15 @@ export const WebSocketProvider = ({ children }) => {
   const [adminNotifications, setAdminNotifications] = useState([]) // Admin notifications
   const [notifications, setNotifications] = useState([]) // Real-time notifications
   const [readStatusCallbacks, setReadStatusCallbacks] = useState([]) // Callbacks for read status updates
+  
+  // New: Notification handler for NotificationContext integration
+  const [notificationHandler, setNotificationHandler] = useState(null)
+
+  // Debug notification handler changes
+  useEffect(() => {
+    console.log('🔔 NotificationHandler changed:', notificationHandler ? 'SET' : 'NULL')
+  }, [notificationHandler])
+
   const clientRef = useRef(null)
   const isConnectedRef = useRef(false)
   const readStatusCallbacksRef = useRef([])
@@ -173,13 +182,73 @@ export const WebSocketProvider = ({ children }) => {
       })
     }
 
+    console.log('🔗 Setting up WebSocket subscriptions for user:', {
+      userId: user?.id,
+      roleName: user?.roleName,
+      roles: user?.roles,
+      isAdmin: user && (user.roles?.includes('ADMIN') || user.roles?.includes('MANAGER') || 
+                       user.roleName === 'admin' || user.roleName === 'manager')
+    })
+
     // 5. Subscribe user-specific private notifications
     if (user?.id) {
+      console.log('📡 Subscribing to private notifications for user:', user.id, 'role:', user.roleName || user.roles)
+      
       stompClient.subscribe(`/user/${user.id}/queue/notifications`, function (message) {
         const notification = JSON.parse(message.body)
-        console.log('🔔 Private notification received:', notification)
-        setNotifications(prev => [notification, ...prev])
+        console.log('🔔 Private notification received via /user/queue:', notification)
+        
+        // Use notification handler instead of local state
+        if (notificationHandler) {
+          console.log('📞 Calling notification handler for private notification')
+          notificationHandler(notification)
+        } else {
+          console.warn('⚠️ No notification handler available for private notification')
+        }
       })
+      
+      // Subscribe to user-specific notifications channel (per documentation)
+      stompClient.subscribe(`/topic/notifications/${user.id}`, function (message) {
+        const notification = JSON.parse(message.body)
+        console.log('🔔 User-specific notification received via /topic:', notification)
+        
+        // Only use notification handler, don't update local WebSocket state
+        if (notificationHandler) {
+          console.log('📞 Calling notification handler for user-specific notification')
+          notificationHandler(notification)
+        } else {
+          console.warn('⚠️ No notification handler available for user-specific notification')
+        }
+      })
+    }
+    
+    // 5.1. Subscribe to all notifications (for admin/manager)
+    if (user && (user.roles?.includes('ADMIN') || user.roles?.includes('MANAGER') || 
+                 user.roles?.includes('admin') || user.roles?.includes('manager') ||
+                 user.roleName === 'ADMIN' || user.roleName === 'MANAGER' ||
+                 user.roleName === 'admin' || user.roleName === 'manager')) {
+      console.log('🔐 Subscribing to global notifications for admin/manager:', user.roleName || user.roles)
+      stompClient.subscribe('/topic/notifications', function (message) {
+        const notification = JSON.parse(message.body)
+        console.log('🔔 Global notification received:', {
+          id: notification.id,
+          userId: notification.userId,
+          type: notification.type,
+          message: notification.message,
+          isGlobal: notification.userId === null
+        })
+        
+        // Only use notification handler, don't update local WebSocket state
+        // Let NotificationContext handle the state management
+        if (notificationHandler) {
+          console.log('📞 Calling notification handler for global notification')
+          notificationHandler(notification)
+        } else {
+          console.warn('⚠️ No notification handler available for global notification')
+        }
+      })
+    } else {
+      console.log('🚫 Not subscribing to global notifications - user role:', user?.roleName || user?.roles)
     }
 
     // 6. Subscribe to read status updates
@@ -201,21 +270,7 @@ export const WebSocketProvider = ({ children }) => {
       // Handle user status updates
     })
 
-    // 8. Subscribe to notifications for current user
-    if (user?.id) {
-      stompClient.subscribe(`/topic/notifications/${user.id}`, function (message) {
-        const notification = JSON.parse(message.body)
-        console.log('🔔 Real-time notification received:', notification)
-        
-        // Add to notifications state
-        setNotifications(prev => [notification, ...prev])
-        
-        // Show toast notification
-        if (window.showNotificationToast) {
-          window.showNotificationToast(notification)
-        }
-      })
-    }
+    // Note: User-specific notifications already handled in step 5 above
   }, [user, triggerReadStatusUpdate])
 
   const loadChatHistory = useCallback((stompClient) => {
@@ -346,9 +401,11 @@ export const WebSocketProvider = ({ children }) => {
     if (clientRef.current && clientRef.current.connected && isConnected) {
       const payload = {
         senderId: user.id,
+        senderUsername: user.username, // Add username for notification creation
         message: message,
         senderType: 'user'
       }
+      console.log('📤 Sending user message:', payload)
       clientRef.current.send('/app/user-message', {}, JSON.stringify(payload))
     } else {
       console.error('Cannot send user message: not connected')
@@ -360,6 +417,7 @@ export const WebSocketProvider = ({ children }) => {
     if (clientRef.current && clientRef.current.connected && isConnected) {
       const payload = {
         senderId: user.id,
+        senderUsername: user.username, // Add username for consistency
         receiverId: receiverId,
         message: message,
         senderType: user?.roleName === 'admin' ? 'admin' : 'user'
@@ -517,6 +575,9 @@ export const WebSocketProvider = ({ children }) => {
     
     // Read status integration
     registerReadStatusCallback,
+    
+    // Notification handler management
+    setNotificationHandler,
     
     // Connection control
     connectWebSocket,

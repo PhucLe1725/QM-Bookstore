@@ -112,6 +112,45 @@ public class ChatRestController {
                 .build();
     }
 
+    /**
+     * Admin gửi tin nhắn riêng cho customer cụ thể
+     */
+    @PostMapping("/admin/send-private-message/{customerId}")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+    public ApiResponse<ChatMessageDto> sendPrivateMessageToCustomer(
+            @PathVariable UUID customerId,
+            @RequestBody BroadcastMessageRequest request) {
+        
+        log.info("Admin sending private message to customer: {}", customerId);
+        
+        // Tạo tin nhắn riêng tư
+        ChatMessageDto message = ChatMessageDto.builder()
+                .message(request.getMessage())
+                .senderType("admin") // Hoặc "manager" tùy theo JWT token
+                .receiverId(customerId) // Customer sẽ nhận tin nhắn
+                .createdAt(LocalDateTime.now())
+                .build();
+        
+        // Lưu vào database
+        ChatMessageDto savedMessage = chatService.saveMessage(message);
+        
+        // Gửi tin nhắn qua WebSocket đến customer cụ thể
+        messagingTemplate.convertAndSendToUser(
+            customerId.toString(),
+            "/queue/private-messages", 
+            savedMessage
+        );
+        
+        // Tạo notification cho customer
+        // notificationService.createNewMessageNotification(customerId, "Admin", request.getMessage());
+        
+        log.info("Private message sent to customer {} successfully", customerId);
+        
+        return ApiResponse.<ChatMessageDto>builder()
+                .result(savedMessage)
+                .build();
+    }
+
     @GetMapping("/conversations")
     @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ApiResponse<List<UUID>> getActiveConversations() {

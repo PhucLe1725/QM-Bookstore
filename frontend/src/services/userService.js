@@ -15,11 +15,14 @@ const userService = {
 
   // Lấy thông tin user theo ID
   getUserById: async (userId) => {
+    console.log('🔍 userService.getUserById called with userId:', userId)
+    
     try {
       const response = await api.get(`/users/getById/${userId}`)
+      console.log('✅ userService.getUserById success:', response)
       return response
     } catch (error) {
-      console.error('Error fetching user:', error)
+      console.error('❌ userService.getUserById error for userId:', userId, error)
       throw error
     }
   },

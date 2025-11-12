@@ -87,7 +87,14 @@ const NotificationsPage = () => {
     }
     
     if (notification.anchor) {
-      window.location.href = notification.anchor
+      let targetUrl = notification.anchor
+      
+      // For NEW_MESSAGE notifications, redirect to admin messages page
+      if (notification.type === 'NEW_MESSAGE') {
+        targetUrl = '/admin/messages'
+      }
+      
+      window.location.href = targetUrl
     }
   }
 
@@ -260,7 +267,15 @@ const NotificationsPage = () => {
                 >
                   <div className="flex items-start space-x-4">
                     <div className="flex-shrink-0 mt-1">
-                      {getNotificationIcon(notification.type)}
+                      <div className="relative">
+                        {getNotificationIcon(notification.type)}
+                        {/* Global notification indicator */}
+                        {notification.userId === null && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs">🌐</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex-1 min-w-0">
@@ -282,8 +297,15 @@ const NotificationsPage = () => {
                             {notification.username && (
                               <div>Từ: {notification.username}</div>
                             )}
-                            <div className="capitalize">
-                              {notification.type.replace('_', ' ').toLowerCase()}
+                            <div className="flex items-center space-x-2">
+                              <span className="capitalize">
+                                {notification.type.replace('_', ' ').toLowerCase()}
+                              </span>
+                              {notification.userId === null && (
+                                <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">
+                                  Global
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>

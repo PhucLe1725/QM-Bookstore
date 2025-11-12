@@ -134,12 +134,15 @@ export const MessageTypes = {
   },
   
   Notification: {
-    id: 'string',
-    type: 'string', // 'info' | 'success' | 'warning' | 'error'
-    title: 'string',
-    message: 'string',
-    timestamp: 'Date',
-    read: 'boolean'
+    id: 'string',              // UUID
+    userId: 'string',          // UUID  
+    username: 'string',        // Tên user
+    type: 'string',            // NEW_MESSAGE | ORDER_UPDATE | PAYMENT_UPDATE | SYSTEM_NOTIFICATION | PROMOTION
+    message: 'string',         // Nội dung thông báo
+    anchor: 'string',          // Link đích (optional)
+    status: 'string',          // UNREAD | read
+    createdAt: 'string',       // ISO datetime
+    updatedAt: 'string'        // ISO datetime
   }
 }
 

@@ -4,7 +4,7 @@ import com.qm.bookstore.qm_bookstore.entity.User;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
-@Converter(autoApply = true)
+@Converter
 public class MembershipLevelConverter implements AttributeConverter<User.MembershipLevel, String> {
 
     @Override

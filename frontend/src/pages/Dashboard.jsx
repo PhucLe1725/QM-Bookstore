@@ -1,5 +1,6 @@
 import React from 'react'
 import { useAuth } from '../store'
+import NotificationDebugPanel from '../components/NotificationDebugPanel'
 
 const Dashboard = () => {
   const { user } = useAuth()
@@ -43,6 +44,11 @@ const Dashboard = () => {
             <h3 className="font-semibold text-gray-900 mb-2">Đơn hàng</h3>
             <p className="text-sm text-gray-600">Chưa có đơn hàng nào</p>
           </div>
+        </div>
+
+        {/* Debug Panel - Remove in production */}
+        <div className="mt-8">
+          <NotificationDebugPanel />
         </div>
       </div>
     </div>

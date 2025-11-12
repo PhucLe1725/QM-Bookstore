@@ -71,16 +71,29 @@ const NotificationToast = ({ notification, onClose, duration = 5000 }) => {
         ${getNotificationColor(notification.type)}
       `}>
         <div className="flex items-start">
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 relative">
             {getNotificationIcon(notification.type)}
+            {/* Global notification indicator */}
+            {notification.userId === null && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs">🌐</span>
+              </div>
+            )}
           </div>
           
           <div className="ml-3 flex-1">
-            <p className="text-sm font-medium text-gray-900">
-              {notification.message}
-            </p>
+            <div className="flex items-center space-x-2 mb-1">
+              <p className="text-sm font-medium text-gray-900">
+                {notification.message}
+              </p>
+              {notification.userId === null && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                  Global
+                </span>
+              )}
+            </div>
             {notification.username && (
-              <p className="text-xs text-gray-600 mt-1">
+              <p className="text-xs text-gray-600">
                 Từ: {notification.username}
               </p>
             )}

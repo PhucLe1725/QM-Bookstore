@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from './useAuth'
 import { notificationService } from '../services/notificationService'
+import { userService } from '../services'
 
 /**
  * Custom hook to manage notifications
@@ -12,6 +13,50 @@ export const useNotifications = () => {
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [updateTrigger, setUpdateTrigger] = useState(0) // Force update trigger
+
+  // Debug notifications state changes
+  useEffect(() => {
+    console.log('🔍 useNotifications state change:', {
+      notificationsCount: notifications.length,
+      notifications: notifications,
+      unreadCount,
+      loading,
+      error,
+      updateTrigger
+    })
+  }, [notifications, unreadCount, loading, error, updateTrigger])
+
+  // Helper function to enrich notifications with usernames
+  const enrichNotificationsWithUsernames = async (notifications) => {
+    if (!Array.isArray(notifications)) return notifications
+    
+    const enrichedNotifications = await Promise.all(
+      notifications.map(async (notification) => {
+        // Skip global notifications (userId = null) and notifications that already have username
+        if (notification.userId === null || notification.username) {
+          return notification
+        }
+        
+        // Try to fetch username for user-specific notifications
+        try {
+          const userResponse = await userService.getUserById(notification.userId)
+          if (userResponse.success && userResponse.result) {
+            return {
+              ...notification,
+              username: userResponse.result.username || userResponse.result.fullName || 'Unknown User'
+            }
+          }
+        } catch (err) {
+          console.warn('Could not fetch username for userId:', notification.userId, err)
+        }
+        
+        return notification
+      })
+    )
+    
+    return enrichedNotifications
+  }
 
   // Fetch notifications with optional parameters
   const fetchNotifications = useCallback(async (params = {}) => {
@@ -21,23 +66,93 @@ export const useNotifications = () => {
     setError(null)
     
     try {
-      const response = await notificationService.getUserNotifications(user.id, {
-        skipCount: 0,
-        maxResultCount: 20,
-        sortDirection: 'desc',
-        ...params
+      console.log('🔄 Fetching notifications for user:', user.id)
+      
+      // Fetch both personal and global notifications in parallel
+      console.log('👤 User role check:', {
+        userId: user.id,
+        roles: user.roles,
+        roleName: user.roleName,
+        isAdmin: user.roles?.includes('admin') || user.roles?.includes('manager') || user.roleName === 'admin' || user.roleName === 'manager'
       })
+      
+      const [userNotificationsResponse, globalNotificationsResponse] = await Promise.allSettled([
+        notificationService.getUserNotifications(user.id, {
+          skipCount: 0,
+          maxResultCount: 20,
+          sortDirection: 'desc',
+          ...params
+        }),
+        // Only fetch global if user is admin/manager (check multiple role formats)
+        (user.roles?.includes('ADMIN') || user.roles?.includes('MANAGER') || 
+         user.roles?.includes('admin') || user.roles?.includes('manager') ||
+         user.roleName === 'ADMIN' || user.roleName === 'MANAGER' ||
+         user.roleName === 'admin' || user.roleName === 'manager') 
+          ? notificationService.getGlobalNotifications()
+          : Promise.resolve({ success: false, result: [] })
+      ])
 
-      if (response.success && response.result) {
-        const notificationData = response.result.data || response.result
-        setNotifications(Array.isArray(notificationData) ? notificationData : [])
-      } else {
+      console.log('✅ User notifications response:', userNotificationsResponse)
+      console.log('✅ Global notifications response:', globalNotificationsResponse)
+
+      // Combine notifications
+      let allNotifications = []
+
+      // Add personal notifications
+      if (userNotificationsResponse.status === 'fulfilled' && userNotificationsResponse.value?.success) {
+        const userData = userNotificationsResponse.value.result?.data || userNotificationsResponse.value.result || []
+        if (Array.isArray(userData)) {
+          allNotifications.push(...userData)
+        }
+      }
+
+      // Add global notifications (for admin/manager)
+      if (globalNotificationsResponse.status === 'fulfilled' && globalNotificationsResponse.value?.success) {
+        const globalData = globalNotificationsResponse.value.result || []
+        if (Array.isArray(globalData)) {
+          allNotifications.push(...globalData)
+        }
+      }
+
+      // Sort by createdAt (newest first)
+      allNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+      console.log('🔗 Combined notifications:', allNotifications)
+      
+      // Enrich notifications with usernames
+      const enrichedNotifications = await enrichNotificationsWithUsernames(allNotifications)
+      console.log('🎯 Setting notifications state with:', enrichedNotifications)
+      setNotifications(enrichedNotifications)
+      
+    } catch (err) {
+      console.error('❌ Error fetching notifications:', err)
+      console.error('❌ Error response:', err.response?.data)
+      console.error('❌ Error status:', err.response?.status)
+      setError('Không thể tải thông báo')
+      
+      // Fallback to getUserNotifications if main API fails
+      try {
+        console.log('🔄 Trying fallback API...')
+        const fallbackResponse = await notificationService.getUserNotifications(user.id, {
+          skipCount: 0,
+          maxResultCount: 20,
+          sortDirection: 'desc',
+          ...params
+        })
+        
+        if (fallbackResponse.success && fallbackResponse.result) {
+          const notificationData = fallbackResponse.result.data || fallbackResponse.result
+          const rawNotifications = Array.isArray(notificationData) ? notificationData : []
+          
+          // Enrich notifications with usernames
+          const enrichedNotifications = await enrichNotificationsWithUsernames(rawNotifications)
+          setNotifications(enrichedNotifications)
+          setError(null) // Clear error if fallback works
+        }
+      } catch (fallbackErr) {
+        console.error('❌ Fallback API also failed:', fallbackErr)
         setNotifications([])
       }
-    } catch (err) {
-      console.error('Error fetching notifications:', err)
-      setError('Không thể tải thông báo')
-      setNotifications([])
     } finally {
       setLoading(false)
     }
@@ -48,34 +163,43 @@ export const useNotifications = () => {
     if (!user?.id) return
 
     try {
+      console.log('🔄 Fetching unread count for user:', user.id)
       const response = await notificationService.getUnreadCount(user.id)
       
+      console.log('✅ Unread count response:', response)
       if (response.success) {
-        setUnreadCount(response.result || 0)
+        const count = response.result || 0
+        console.log('🎯 Setting unread count to:', count)
+        setUnreadCount(count)
+      } else {
+        console.warn('⚠️ Unread count API returned unsuccessful response:', response)
       }
     } catch (err) {
-      console.error('Error fetching unread count:', err)
+      console.error('❌ Error fetching unread count:', err)
     }
   }, [user?.id])
 
   // Mark notification as read
   const markAsRead = async (notificationId) => {
     try {
+      console.log('📖 Marking notification as read:', notificationId)
       await notificationService.markAsRead(notificationId)
       
       // Update local state
       setNotifications(prev => 
         prev.map(notification => 
           notification.id === notificationId 
-            ? { ...notification, status: 'READ' }
+            ? { ...notification, status: 'read' }
             : notification
         )
       )
       
-      // Update unread count
-      setUnreadCount(prev => Math.max(0, prev - 1))
+      // Refresh unread count from server for accuracy
+      console.log('🔄 Refreshing unread count after mark as read...')
+      fetchUnreadCount()
+      
     } catch (err) {
-      console.error('Error marking notification as read:', err)
+      console.error('❌ Error marking notification as read:', err)
       setError('Không thể cập nhật trạng thái thông báo')
     }
   }
@@ -85,31 +209,62 @@ export const useNotifications = () => {
     if (!user?.id) return
 
     try {
+      console.log('📖 Marking all notifications as read for user:', user.id)
       await notificationService.markAllAsRead(user.id)
       
       // Update local state
       setNotifications(prev => 
         prev.map(notification => ({ 
           ...notification, 
-          status: 'READ' 
+          status: 'read' 
         }))
       )
       
-      setUnreadCount(0)
+      // Refresh unread count from server
+      console.log('🔄 Refreshing unread count after mark all as read...')
+      fetchUnreadCount()
+      
     } catch (err) {
-      console.error('Error marking all notifications as read:', err)
+      console.error('❌ Error marking all notifications as read:', err)
       setError('Không thể cập nhật tất cả thông báo')
     }
   }
 
   // Add new notification (for real-time updates)
-  const addNotification = useCallback((newNotification) => {
-    setNotifications(prev => [newNotification, ...prev])
+  const addNotification = useCallback(async (newNotification) => {
+    console.log('🔔 addNotification called with:', newNotification)
     
-    if (newNotification.status === 'UNREAD') {
-      setUnreadCount(prev => prev + 1)
+    // Enrich with username if needed
+    const enrichedNotifications = await enrichNotificationsWithUsernames([newNotification])
+    const enrichedNotification = enrichedNotifications[0]
+    
+    console.log('🎯 Adding enriched notification to state:', enrichedNotification)
+    
+    setNotifications(prev => {
+      console.log('📋 Previous notifications:', prev.length, 'items')
+      const updated = [enrichedNotification, ...prev]
+      console.log('📋 Updated notifications:', updated.length, 'items')
+      return updated
+    })
+    
+    // Immediately update unread count for responsive UI
+    if (enrichedNotification.status === 'UNREAD') {
+      console.log('📊 Incrementing unread count locally...')
+      setUnreadCount(prev => {
+        const newCount = prev + 1
+        console.log('📊 Unread count:', prev, '→', newCount)
+        return newCount
+      })
     }
-  }, [])
+    
+    // Then refresh from server for accuracy (async)
+    console.log('🔄 Refreshing unread count from server...')
+    setTimeout(() => fetchUnreadCount(), 100) // Small delay to avoid race condition
+    
+    // Force component re-render
+    setUpdateTrigger(prev => prev + 1)
+    
+  }, [])  // Remove fetchUnreadCount from dependencies to avoid infinite loops
 
   // Remove notification
   const removeNotification = useCallback((notificationId) => {
@@ -142,6 +297,18 @@ export const useNotifications = () => {
       setUnreadCount(0)
     }
   }, [user?.id]) // Removed function dependencies
+
+  // Periodic refresh for unread count (every 30 seconds)
+  useEffect(() => {
+    if (!user?.id) return
+
+    const interval = setInterval(() => {
+      console.log('⏰ Periodic unread count refresh...')
+      fetchUnreadCount()
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(interval)
+  }, [user?.id, fetchUnreadCount])
 
   return {
     // State

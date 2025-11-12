@@ -15,6 +15,8 @@ import { useAuth } from '../../hooks/useAuth'
 import { userService, chatService } from '../../services'
 import { useWebSocket } from '../../store/WebSocketContext'
 import useChatReadStatus from '../../hooks/useChatReadStatus'
+import NotificationButton from '../../components/NotificationButton'
+import NotificationTest from '../../components/NotificationTest'
 
 const AdminMessages = () => {
   const { user } = useAuth()
@@ -296,6 +298,17 @@ const AdminMessages = () => {
                   </p>
                 </div>
               </div>
+              
+              {/* Notification Button */}
+              <div className="flex items-center">
+                <NotificationButton className="mr-4" />
+                <div className="flex items-center text-sm text-gray-500">
+                  WebSocket: 
+                  <span className={`ml-1 ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                    {isConnected ? '✅ Connected' : '❌ Disconnected'}
+                  </span>
+                </div>
+              </div>
               <div className="text-right">
                 <p className="text-sm text-gray-500">Admin</p>
                 <p className="text-lg font-semibold text-gray-900">
@@ -575,6 +588,9 @@ const AdminMessages = () => {
           </div>
         </div>
       </div>
+      
+      {/* Notification Test Panel (for development) */}
+      <NotificationTest />
     </div>
   )
 }
