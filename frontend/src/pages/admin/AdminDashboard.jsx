@@ -60,11 +60,18 @@ const AdminDashboard = () => {
       color: 'border-blue-200 hover:border-blue-300'
     },
     {
+      title: 'Quản lý sản phẩm',
+      description: 'Thêm, sửa, xóa sản phẩm trong kho',
+      icon: Package,
+      href: '/admin/products',
+      color: 'border-green-200 hover:border-green-300'
+    },
+    {
       title: 'Quản lý sách',
       description: 'Thêm, sửa, xóa sách trong kho',
-      icon: Package,
+      icon: BookOpen,
       href: '/admin/books',
-      color: 'border-green-200 hover:border-green-300'
+      color: 'border-teal-200 hover:border-teal-300'
     },
     {
       title: 'Đơn hàng',

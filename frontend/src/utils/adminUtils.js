@@ -22,6 +22,33 @@ export const isAdmin = (user) => {
 }
 
 /**
+ * Kiểm tra xem user có quyền admin hoặc manager không
+ * @param {Object} user - User object từ authentication
+ * @returns {boolean} - true nếu user là admin hoặc manager
+ */
+export const isAdminOrManager = (user) => {
+  if (!user) return false
+  
+  // Kiểm tra nhiều format role khác nhau (admin hoặc manager)
+  return (
+    user.role === 'admin' ||
+    user.role === 'ADMIN' ||
+    user.role === 'manager' ||
+    user.role === 'MANAGER' ||
+    user.roleName === 'admin' ||
+    user.roleName === 'ADMIN' ||
+    user.roleName === 'manager' ||
+    user.roleName === 'MANAGER' ||
+    user.roles?.includes('admin') ||
+    user.roles?.includes('ADMIN') ||
+    user.roles?.includes('manager') ||
+    user.roles?.includes('MANAGER') ||
+    user.isAdmin === true ||
+    user.admin === true
+  )
+}
+
+/**
  * Kiểm tra quyền của user
  * @param {Object} user - User object
  * @param {string} permission - Permission cần kiểm tra

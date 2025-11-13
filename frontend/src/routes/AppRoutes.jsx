@@ -1,8 +1,8 @@
 import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { MainLayout } from '../layouts'
-import { Home, Login, Register, Dashboard, Profile, NotificationsPage } from '../pages'
-import { AdminDashboard } from '../pages/admin'
+import { Home, Login, Register, Dashboard, Profile, NotificationsPage, Products, ProductDetail } from '../pages'
+import { AdminDashboard, AdminProducts } from '../pages/admin'
 import AdminMessages from '../pages/admin/AdminMessages'
 import WebSocketTest from '../components/WebSocketTest'
 import ProtectedRoute from '../components/ProtectedRoute'
@@ -47,10 +47,28 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
       
+      <Route path="/products" element={
+        <MainLayout>
+          <Products />
+        </MainLayout>
+      } />
+      
+      <Route path="/products/:id" element={
+        <MainLayout>
+          <ProductDetail />
+        </MainLayout>
+      } />
+      
       {/* Admin Routes - Chỉ admin mới truy cập được */}
       <Route path="/admin" element={
         <AdminRoute>
           <AdminDashboard />
+        </AdminRoute>
+      } />
+      
+      <Route path="/admin/products" element={
+        <AdminRoute>
+          <AdminProducts />
         </AdminRoute>
       } />
       

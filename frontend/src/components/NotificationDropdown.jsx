@@ -87,23 +87,50 @@ const NotificationDropdown = () => {
 
   // Handle notification click
   const handleNotificationClick = (notification) => {
-    // Mark as read if unread
+    console.log('🔔 Notification clicked (mark as read only):', notification)
+    
+    // Click vào notification → chỉ mark as read
     if (notification.status === 'UNREAD') {
       markAsRead(notification.id)
     }
     
-    // Navigate to anchor if exists
-    if (notification.anchor) {
-      let targetUrl = notification.anchor
-      
-      // For NEW_MESSAGE notifications, redirect to admin messages page
-      if (notification.type === 'NEW_MESSAGE') {
-        targetUrl = '/admin/messages'
-      }
-      
-      window.location.href = targetUrl
-      setIsOpen(false)
+    console.log('✅ Notification marked as read')
+  }
+
+  const handleNavigationClick = (e, notification) => {
+    // Ngăn event bubbling để không trigger handleNotificationClick
+    e.stopPropagation()
+    
+    console.log('🔗 Navigation button clicked:', notification)
+    
+    // Mark as read trước khi navigate
+    if (notification.status === 'UNREAD') {
+      markAsRead(notification.id)
     }
+    
+    // Xác định URL để navigate
+    let targetUrl = notification.anchor
+    
+    // Xử lý các loại notification đặc biệt nếu không có anchor
+    if (!targetUrl && notification.type === 'NEW_MESSAGE') {
+      // Global notifications (userId = null) → Admin messages page
+      if (notification.userId === null) {
+        targetUrl = '/admin/messages'
+      } else {
+        // Personal notifications (userId != null) → Customer chat/messages page
+        targetUrl = null
+      }
+    }
+    
+    // Nếu vẫn không có targetUrl thì không làm gì
+    if (!targetUrl) {
+      console.log('⚠️ No target URL found, skipping navigation')
+      return
+    }
+    
+    console.log('📍 Navigating to:', targetUrl)
+    window.location.href = targetUrl
+    setIsOpen(false)
   }
 
   const toggleDropdown = () => {
@@ -238,8 +265,15 @@ const NotificationDropdown = () => {
                               </span>
                             )}
                           </div>
-                          {notification.anchor && (
-                            <ExternalLink className="h-3 w-3 text-gray-400" />
+                          {/* Navigation button - chỉ hiện khi có anchor hoặc là NEW_MESSAGE (sẽ có default route) */}
+                          {(notification.anchor || notification.type === 'NEW_MESSAGE') && (
+                            <button
+                              onClick={(e) => handleNavigationClick(e, notification)}
+                              className="flex-shrink-0 p-1 hover:bg-blue-100 rounded transition-colors group"
+                              title="Đi đến chi tiết"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5 text-gray-400 group-hover:text-blue-600" />
+                            </button>
                           )}
                         </div>
                       </div>

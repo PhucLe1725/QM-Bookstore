@@ -100,7 +100,7 @@ export const ChatProvider = ({ children }) => {
       // Add welcome message for chatbot
       setChatbotMessages([{
         id: Date.now(),
-        text: 'Xin chào! Tôi là chatbot hỗ trợ của Books Store. Tôi có thể giúp bạn tìm sách, trả lời câu hỏi về đơn hàng và nhiều thứ khác. Bạn cần hỗ trợ gì?',
+        text: 'Xin chào! Tôi là chatbot hỗ trợ của Văn phòng phẩm Quang Minh. Tôi có thể giúp bạn tìm sách, trả lời câu hỏi về đơn hàng và nhiều thứ khác. Bạn cần hỗ trợ gì?',
         sender: 'bot',
         timestamp: new Date()
       }])
@@ -167,12 +167,12 @@ export const ChatProvider = ({ children }) => {
       greeting: [
         'Chào bạn! Tôi có thể giúp gì cho bạn hôm nay?',
         'Xin chào! Bạn đang tìm kiếm loại sách nào?',
-        'Chào mừng bạn đến với Books Store! Tôi có thể hỗ trợ gì?'
+        'Chào mừng bạn đến với Văn phòng phẩm Quang Minh! Tôi có thể hỗ trợ gì?'
       ],
       book: [
         'Chúng tôi có rất nhiều đầu sách hay. Bạn quan tâm đến thể loại nào? Văn học, khoa học, kinh doanh, hay thể loại khác?',
         'Tôi có thể giúp bạn tìm sách theo tác giả, thể loại hoặc chủ đề. Bạn có tiêu chí cụ thể nào không?',
-        'Books Store có hàng ngàn đầu sách. Hãy cho tôi biết bạn đang tìm gì để tôi có thể gợi ý phù hợp!'
+        'Văn phòng phẩm Quang Minh có hàng ngàn đầu sách. Hãy cho tôi biết bạn đang tìm gì để tôi có thể gợi ý phù hợp!'
       ],
       order: [
         'Về đơn hàng, bạn có thể kiểm tra trạng thái trong mục "Đơn hàng của tôi" hoặc cho tôi mã đơn hàng để hỗ trợ.',
@@ -213,7 +213,7 @@ export const ChatProvider = ({ children }) => {
   const clearChatbotChat = () => {
     setChatbotMessages([{
       id: Date.now(),
-      text: 'Xin chào! Tôi là chatbot hỗ trợ của Books Store. Tôi có thể giúp bạn tìm sách, trả lời câu hỏi về đơn hàng và nhiều thứ khác. Bạn cần hỗ trợ gì?',
+      text: 'Xin chào! Tôi là chatbot hỗ trợ của Văn phòng phẩm Quang Minh. Tôi có thể giúp bạn tìm sách, trả lời câu hỏi về đơn hàng và nhiều thứ khác. Bạn cần hỗ trợ gì?',
       sender: 'bot',
       timestamp: new Date()
     }])

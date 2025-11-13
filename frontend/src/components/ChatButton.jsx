@@ -67,7 +67,7 @@ const ChatButton = () => {
               </svg>
             </div>
             <p className="text-base font-semibold text-gray-900 text-center">
-              Chào mừng đến Books Store!
+              Chào mừng đến Văn phòng phẩm Quang Minh!
             </p>
             <p className="text-sm text-gray-600 mt-2 text-center">
               Cần hỗ trợ? Chat với chúng tôi ngay!

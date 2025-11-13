@@ -4,6 +4,7 @@ import Stomp from 'stompjs'
 import Cookies from 'js-cookie'
 import { useAuth } from '../hooks/useAuth'
 import { chatService } from '../services'
+import { isAdminOrManager } from '../utils/adminUtils'
 
 const WebSocketContext = createContext()
 
@@ -222,11 +223,8 @@ export const WebSocketProvider = ({ children }) => {
       })
     }
     
-    // 5.1. Subscribe to all notifications (for admin/manager)
-    if (user && (user.roles?.includes('ADMIN') || user.roles?.includes('MANAGER') || 
-                 user.roles?.includes('admin') || user.roles?.includes('manager') ||
-                 user.roleName === 'ADMIN' || user.roleName === 'MANAGER' ||
-                 user.roleName === 'admin' || user.roleName === 'manager')) {
+    // 5.1. Subscribe to all notifications (for admin/manager ONLY)
+    if (isAdminOrManager(user)) {
       console.log('🔐 Subscribing to global notifications for admin/manager:', user.roleName || user.roles)
       stompClient.subscribe('/topic/notifications', function (message) {
         const notification = JSON.parse(message.body)
@@ -248,7 +246,7 @@ export const WebSocketProvider = ({ children }) => {
         }
       })
     } else {
-      console.log('🚫 Not subscribing to global notifications - user role:', user?.roleName || user?.roles)
+      console.log('🚫 Not subscribing to global notifications - user is customer')
     }
 
     // 6. Subscribe to read status updates

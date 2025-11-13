@@ -275,7 +275,7 @@ const Chatbot = () => {
               onKeyPress={handleKeyPress}
               placeholder={
                 activeTab === 'chatbot' 
-                  ? "Hỏi gì đó về Books Store..." 
+                  ? "Hỏi gì đó về Văn phòng phẩm Quang Minh..." 
                   : isConnected 
                     ? "Nhập tin nhắn cho admin..."
                     : "Chưa kết nối..."

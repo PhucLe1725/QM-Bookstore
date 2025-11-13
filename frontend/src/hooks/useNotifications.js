@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from './useAuth'
 import { notificationService } from '../services/notificationService'
 import { userService } from '../services'
+import { isAdminOrManager } from '../utils/adminUtils'
 
 /**
  * Custom hook to manage notifications
@@ -69,11 +70,12 @@ export const useNotifications = () => {
       console.log('🔄 Fetching notifications for user:', user.id)
       
       // Fetch both personal and global notifications in parallel
+      const isAdminUser = isAdminOrManager(user)
       console.log('👤 User role check:', {
         userId: user.id,
         roles: user.roles,
         roleName: user.roleName,
-        isAdmin: user.roles?.includes('admin') || user.roles?.includes('manager') || user.roleName === 'admin' || user.roleName === 'manager'
+        isAdmin: isAdminUser
       })
       
       const [userNotificationsResponse, globalNotificationsResponse] = await Promise.allSettled([
@@ -83,11 +85,8 @@ export const useNotifications = () => {
           sortDirection: 'desc',
           ...params
         }),
-        // Only fetch global if user is admin/manager (check multiple role formats)
-        (user.roles?.includes('ADMIN') || user.roles?.includes('MANAGER') || 
-         user.roles?.includes('admin') || user.roles?.includes('manager') ||
-         user.roleName === 'ADMIN' || user.roleName === 'MANAGER' ||
-         user.roleName === 'admin' || user.roleName === 'manager') 
+        // Only fetch global if user is admin/manager
+        isAdminUser
           ? notificationService.getGlobalNotifications()
           : Promise.resolve({ success: false, result: [] })
       ])
@@ -209,8 +208,22 @@ export const useNotifications = () => {
     if (!user?.id) return
 
     try {
-      console.log('📖 Marking all notifications as read for user:', user.id)
-      await notificationService.markAllAsRead(user.id)
+      const isAdminUser = isAdminOrManager(user)
+      console.log('📖 Marking all notifications as read for user:', user.id, 'isAdmin:', isAdminUser)
+      
+      // Admin/Manager: mark both personal and global notifications
+      if (isAdminUser) {
+        // Call both APIs in parallel
+        await Promise.all([
+          notificationService.markAllAsRead(user.id),
+          notificationService.markAllGlobalAsRead()
+        ])
+        console.log('✅ Marked all personal and global notifications as read')
+      } else {
+        // Customer: mark only personal notifications
+        await notificationService.markAllAsRead(user.id)
+        console.log('✅ Marked all personal notifications as read')
+      }
       
       // Update local state
       setNotifications(prev => 

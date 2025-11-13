@@ -19,14 +19,14 @@ const Header = () => {
           <div className="flex items-center">
             <img 
               src="/src/assets/website/logo.png" 
-              alt="Books Store Logo" 
+              alt="QM Logo" 
               className="h-8 w-auto"
             />
-            <h1 className="ml-3 text-2xl font-bold text-gray-900">Books Store</h1>
+            <h1 className="ml-3 text-2xl font-bold text-gray-900">Văn phòng phẩm Quang Minh</h1>
           </div>
           <nav className="flex items-center space-x-8">
             <Link to="/" className="text-gray-900 hover:text-blue-600">Trang chủ</Link>
-            <a href="#" className="text-gray-900 hover:text-blue-600">Sách</a>
+            <Link to="/products" className="text-gray-900 hover:text-blue-600">Sản phẩm</Link>
             <a href="#" className="text-gray-900 hover:text-blue-600">Liên hệ</a>
             {isAuthenticated && (
               <Link to="/dashboard" className="text-gray-900 hover:text-blue-600">Dashboard</Link>

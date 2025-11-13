@@ -126,6 +126,25 @@ export const notificationService = {
     return await api.put(`/notifications/user/${userId}/mark-all-read`)
   },
 
+  // Mark all global notifications as read (Admin/Manager only)
+  markAllGlobalAsRead: async () => {
+    console.log('🔍 notificationService.markAllGlobalAsRead called')
+    
+    try {
+      const response = await api.put('/notifications/global/mark-all-read')
+      console.log('✅ notificationService.markAllGlobalAsRead success:', response)
+      return response
+    } catch (error) {
+      console.error('❌ notificationService.markAllGlobalAsRead error:', error)
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      })
+      throw error
+    }
+  },
+
   // Update notification status
   updateNotificationStatus: async (notificationId, status) => {
     return await api.put(`/notifications/${notificationId}`, { status })

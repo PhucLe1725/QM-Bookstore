@@ -29,10 +29,11 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
             <h2 className="text-4xl font-bold mb-6">
-              Chào mừng đến với Nhà sách Quang Minh
+              Chào mừng đến với Văn phòng phẩm Quang Minh
             </h2>
             <p className="text-xl mb-8 max-w-2xl mx-auto">
-              Khám phá thế giới tri thức với hàng ngàn cuốn sách chất lượng cao
+              Nơi cung cấp đa dạng các loại sách và văn phòng phẩm chất lượng cao với
+              giá cả hợp lý. Khám phá ngay hôm nay để tìm những cuốn sách yêu thích của bạn!
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <button className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-300">
