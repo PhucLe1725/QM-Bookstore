@@ -17,10 +17,15 @@ import {
   EyeOff
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { userService } from '../services'
+import { useToast } from '../contexts/ToastContext'
 
 const Profile = () => {
   const { user, updateUser } = useAuth()
+  const toast = useToast()
   const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [profileData, setProfileData] = useState(null) // Local profile state
   const [editForm, setEditForm] = useState({
     fullName: '',
     email: '',
@@ -28,10 +33,53 @@ const Profile = () => {
     address: ''
   })
   const [showSensitiveInfo, setShowSensitiveInfo] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(false)
+
+  // Fetch profile data từ API khi component mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return
+      
+      setProfileLoading(true)
+      try {
+        const response = await userService.getMyProfile()
+        if (response.success && response.result) {
+          // Cập nhật local profile state ngay lập tức
+          setProfileData(response.result)
+          
+          // Cập nhật user trong AuthContext và localStorage
+          if (updateUser) {
+            updateUser(response.result)
+          }
+          
+          // Cập nhật form data ngay lập tức
+          setEditForm({
+            fullName: response.result.fullName || '',
+            email: response.result.email || '',
+            phoneNumber: response.result.phoneNumber || '',
+            address: response.result.address || ''
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error)
+        // Nếu fetch thất bại, dùng user từ AuthContext
+        setProfileData(user)
+      } finally {
+        setProfileLoading(false)
+      }
+    }
+
+    fetchProfile()
+  }, [user?.id]) // Chạy lại khi user.id thay đổi
 
   // Initialize form with current user data
   useEffect(() => {
     if (user) {
+      // Nếu chưa có profileData, dùng user từ AuthContext
+      if (!profileData) {
+        setProfileData(user)
+      }
+      
       setEditForm({
         fullName: user.fullName || '',
         email: user.email || '',
@@ -47,23 +95,72 @@ const Profile = () => {
 
   const handleCancel = () => {
     setIsEditing(false)
-    // Reset form to original values
+    // Reset form to original values from profileData or user
+    const currentData = profileData || user
     setEditForm({
-      fullName: user.fullName || '',
-      email: user.email || '',
-      phoneNumber: user.phoneNumber || '',
-      address: user.address || ''
+      fullName: currentData.fullName || '',
+      email: currentData.email || '',
+      phoneNumber: currentData.phoneNumber || '',
+      address: currentData.address || ''
     })
   }
 
   const handleSave = async () => {
+    // Validate form data
+    if (!editForm.fullName?.trim()) {
+      toast.warning('Vui lòng nhập họ tên')
+      return
+    }
+
+    if (editForm.phoneNumber && !/^[0-9]{10,11}$/.test(editForm.phoneNumber.replace(/\s/g, ''))) {
+      toast.warning('Số điện thoại không hợp lệ (10-11 số)')
+      return
+    }
+
+    if (editForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.email)) {
+      toast.warning('Email không hợp lệ')
+      return
+    }
+
+    setIsSaving(true)
+    
     try {
-      // Call API to update user info
-      // await updateUser(editForm)
-      console.log('Updating user with:', editForm)
-      setIsEditing(false)
+      // Call API to update profile using new endpoint
+      const response = await userService.updateMyProfile({
+        fullName: editForm.fullName.trim(),
+        email: editForm.email?.trim() || null,
+        phoneNumber: editForm.phoneNumber?.trim() || null,
+        address: editForm.address?.trim() || null
+      })
+
+      if (response.success) {
+        toast.success('Cập nhật thông tin thành công!')
+        
+        // Cập nhật local profile state ngay lập tức
+        setProfileData(response.result)
+        
+        // Cập nhật user trong AuthContext và localStorage
+        if (updateUser) {
+          updateUser(response.result)
+        }
+        
+        // Cập nhật form data với thông tin mới
+        setEditForm({
+          fullName: response.result.fullName || '',
+          email: response.result.email || '',
+          phoneNumber: response.result.phoneNumber || '',
+          address: response.result.address || ''
+        })
+        
+        setIsEditing(false)
+      } else {
+        toast.error(response.message || 'Có lỗi xảy ra khi cập nhật')
+      }
     } catch (error) {
       console.error('Error updating user:', error)
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật thông tin')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -141,6 +238,17 @@ const Profile = () => {
     )
   }
 
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải thông tin profile...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -170,14 +278,16 @@ const Profile = () => {
                   <div className="flex space-x-2">
                     <button
                       onClick={handleSave}
-                      className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      disabled={isSaving}
+                      className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Save className="h-4 w-4 mr-2" />
-                      Lưu
+                      {isSaving ? 'Đang lưu...' : 'Lưu'}
                     </button>
                     <button
                       onClick={handleCancel}
-                      className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                      disabled={isSaving}
+                      className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <X className="h-4 w-4 mr-2" />
                       Hủy
@@ -218,7 +328,7 @@ const Profile = () => {
                     />
                   ) : (
                     <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">
-                      {user.fullName || 'Chưa cập nhật'}
+                      {(profileData || user).fullName || 'Chưa cập nhật'}
                     </p>
                   )}
                 </div>
@@ -229,7 +339,7 @@ const Profile = () => {
                     Tên đăng nhập
                   </label>
                   <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">
-                    {user.username}
+                    {(profileData || user).username}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">Không thể thay đổi tên đăng nhập</p>
                 </div>
@@ -249,7 +359,7 @@ const Profile = () => {
                   ) : (
                     <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg flex items-center">
                       <Mail className="h-4 w-4 mr-2 text-gray-400" />
-                      {user.email || 'Chưa cập nhật'}
+                      {(profileData || user).email || 'Chưa cập nhật'}
                     </p>
                   )}
                 </div>
@@ -269,7 +379,7 @@ const Profile = () => {
                   ) : (
                     <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg flex items-center">
                       <Phone className="h-4 w-4 mr-2 text-gray-400" />
-                      {user.phoneNumber || 'Chưa cập nhật'}
+                      {(profileData || user).phoneNumber || 'Chưa cập nhật'}
                     </p>
                   )}
                 </div>
@@ -289,7 +399,7 @@ const Profile = () => {
                   ) : (
                     <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg flex items-start">
                       <MapPin className="h-4 w-4 mr-2 text-gray-400 mt-0.5" />
-                      {user.address || 'Chưa cập nhật'}
+                      {(profileData || user).address || 'Chưa cập nhật'}
                     </p>
                   )}
                 </div>
@@ -307,13 +417,13 @@ const Profile = () => {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-600">Ngày tạo tài khoản</p>
                   <p className="text-lg font-semibold text-gray-900">
-                    {formatDate(user.createdAt)}
+                    {formatDate((profileData || user).createdAt)}
                   </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-600">Lần cập nhật cuối</p>
                   <p className="text-lg font-semibold text-gray-900">
-                    {formatDate(user.updatedAt)}
+                    {formatDate((profileData || user).updatedAt)}
                   </p>
                 </div>
               </div>
@@ -334,8 +444,8 @@ const Profile = () => {
                 {/* Role */}
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Vai trò</p>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getRoleBadgeColor(user.roleName)}`}>
-                    {user.roleName || 'User'}
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getRoleBadgeColor((profileData || user).roleName)}`}>
+                    {(profileData || user).roleName || 'User'}
                   </span>
                 </div>
 
@@ -343,19 +453,19 @@ const Profile = () => {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Trạng thái</p>
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                    user.status ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    (profileData || user).status ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
-                    {user.status ? 'Hoạt động' : 'Đã khóa'}
+                    {(profileData || user).status ? 'Hoạt động' : 'Đã khóa'}
                   </span>
                 </div>
 
                 {/* Membership Level */}
-                {user.membershipLevel && (
+                {(profileData || user).membershipLevel && (
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Hạng thành viên</p>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getMembershipColor(user.membershipLevel)}`}>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getMembershipColor((profileData || user).membershipLevel)}`}>
                       <Star className="h-4 w-4 mr-1" />
-                      {user.membershipLevel}
+                      {(profileData || user).membershipLevel}
                     </span>
                   </div>
                 )}
@@ -383,7 +493,7 @@ const Profile = () => {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-600">Điểm tích lũy</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {user.points || 0} điểm
+                    {(profileData || user).points || 0} điểm
                   </p>
                 </div>
 
@@ -391,7 +501,7 @@ const Profile = () => {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-600">Số dư tài khoản</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {showSensitiveInfo ? formatCurrency(user.balance) : '••••••'}
+                    {showSensitiveInfo ? formatCurrency((profileData || user).balance) : '••••••'}
                   </p>
                 </div>
 
@@ -400,7 +510,7 @@ const Profile = () => {
                   <p className="text-sm text-gray-600">Tổng chi tiêu</p>
                   <p className="text-2xl font-bold text-purple-600 flex items-center">
                     <ShoppingBag className="h-5 w-5 mr-2" />
-                    {showSensitiveInfo ? formatCurrency(user.totalPurchase) : '••••••'}
+                    {showSensitiveInfo ? formatCurrency((profileData || user).totalPurchase) : '••••••'}
                   </p>
                 </div>
               </div>

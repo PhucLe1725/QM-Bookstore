@@ -12,15 +12,20 @@ import {
   Check,
   Package,
   Truck,
-  Shield
+  Shield,
+  MessageCircle,
+  Send,
+  ThumbsUp
 } from 'lucide-react'
-import { productService } from '../services'
+import { productService, commentService } from '../services'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../contexts/ToastContext'
 
 const ProductDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user, isAuthenticated } = useAuth()
+  const toast = useToast()
   
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -29,13 +34,30 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState(0)
   const [isInWishlist, setIsInWishlist] = useState(false)
   
+  // Tab state
+  const [activeTab, setActiveTab] = useState('description') // 'description', 'comments', 'reviews'
+  
+  // Comments state
+  const [comments, setComments] = useState([])
+  const [commentCount, setCommentCount] = useState(0)
+  const [newComment, setNewComment] = useState('')
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [replyingTo, setReplyingTo] = useState(null) // ID of comment being replied to
+  const [replyContent, setReplyContent] = useState('')
+  const [loadedReplies, setLoadedReplies] = useState({}) // Track which comments have loaded replies
+  const [replyCounts, setReplyCounts] = useState({}) // Track reply count for each comment
+  const [editingComment, setEditingComment] = useState(null) // ID of comment being edited
+  const [editContent, setEditContent] = useState('')
+  
   // Reviews state
   const [reviews, setReviews] = useState([])
   const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [userReview, setUserReview] = useState(null) // User's existing review
+  const [hasPurchased, setHasPurchased] = useState(false) // Check if user bought this product
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [newReview, setNewReview] = useState({
     rating: 5,
-    comment: ''
+    content: ''
   })
 
   // Fetch product details
@@ -67,30 +89,84 @@ const ProductDetail = () => {
     }
   }, [id])
 
+  // Fetch comments for product
+  useEffect(() => {
+    const fetchComments = async () => {
+      if (!id) return
+      
+      setCommentsLoading(true)
+      try {
+        // Fetch root comments only (for better performance)
+        const [commentsResponse, countResponse] = await Promise.all([
+          commentService.getRootCommentsByProduct(id),
+          commentService.getCommentCount(id)
+        ])
+        
+        if (commentsResponse.success) {
+          setComments(commentsResponse.result || [])
+          
+          // Fetch reply counts for all root comments
+          const rootComments = commentsResponse.result || []
+          rootComments.forEach(async (comment) => {
+            try {
+              const replyCountResponse = await commentService.getReplyCount(comment.id)
+              if (replyCountResponse.success) {
+                setReplyCounts(prev => ({
+                  ...prev,
+                  [comment.id]: replyCountResponse.result
+                }))
+              }
+            } catch (err) {
+              console.error('Error fetching reply count:', err)
+            }
+          })
+        }
+        
+        if (countResponse.success) {
+          setCommentCount(countResponse.result || 0)
+        }
+      } catch (err) {
+        console.error('Error fetching comments:', err)
+      } finally {
+        setCommentsLoading(false)
+      }
+    }
+
+    fetchComments()
+  }, [id])
+
   // Mock reviews data (replace with API call)
   useEffect(() => {
     // Mock data - replace with actual API
     setReviews([
       {
         id: 1,
-        userId: 1,
-        userName: 'Nguyễn Văn A',
+        userId: 'user-3',
+        userName: 'Lê Văn C',
         rating: 5,
-        comment: 'Sản phẩm rất tốt, chất lượng cao',
-        createdAt: '2024-01-15T10:30:00',
+        content: 'Sản phẩm rất tốt, chất lượng cao. Đã mua và dùng được 2 tuần rồi, rất hài lòng!',
+        createdAt: '2024-01-10T10:30:00',
         helpful: 12
       },
       {
         id: 2,
-        userId: 2,
-        userName: 'Trần Thị B',
+        userId: 'user-4',
+        userName: 'Phạm Thị D',
         rating: 4,
-        comment: 'Giao hàng nhanh, đóng gói cẩn thận',
-        createdAt: '2024-01-10T14:20:00',
+        content: 'Giao hàng nhanh, đóng gói cẩn thận. Sản phẩm đúng như mô tả.',
+        createdAt: '2024-01-08T14:20:00',
         helpful: 8
       }
     ])
-  }, [id])
+
+    // Mock: Check if current user has purchased and reviewed
+    if (isAuthenticated) {
+      setHasPurchased(true) // TODO: Replace with actual API check
+      // Check if user already reviewed
+      const existingReview = null // TODO: API call to check
+      setUserReview(existingReview)
+    }
+  }, [id, isAuthenticated])
 
   // Handle quantity change
   const handleQuantityChange = (type) => {
@@ -105,7 +181,7 @@ const ProductDetail = () => {
   const handleAddToCart = () => {
     // TODO: Implement add to cart API
     console.log('Add to cart:', { productId: id, quantity })
-    alert('Đã thêm vào giỏ hàng!')
+    toast.success('Đã thêm vào giỏ hàng!')
   }
 
   // Handle wishlist toggle
@@ -119,8 +195,18 @@ const ProductDetail = () => {
     e.preventDefault()
     
     if (!isAuthenticated) {
-      alert('Vui lòng đăng nhập để đánh giá sản phẩm')
+      toast.warning('Vui lòng đăng nhập để đánh giá sản phẩm')
       navigate('/login')
+      return
+    }
+
+    if (!hasPurchased) {
+      toast.warning('Bạn cần mua sản phẩm này trước khi đánh giá')
+      return
+    }
+
+    if (userReview) {
+      toast.info('Bạn đã đánh giá sản phẩm này rồi')
       return
     }
 
@@ -129,13 +215,209 @@ const ProductDetail = () => {
       productId: id,
       userId: user?.id,
       rating: newReview.rating,
-      comment: newReview.comment
+      content: newReview.content
     })
 
     // Reset form
-    setNewReview({ rating: 5, comment: '' })
+    setNewReview({ rating: 5, content: '' })
     setShowReviewForm(false)
-    alert('Cảm ơn bạn đã đánh giá!')
+    toast.success('Cảm ơn bạn đã đánh giá!')
+  }
+
+  // Handle submit comment
+  const handleSubmitComment = async (e) => {
+    e.preventDefault()
+    
+    if (!isAuthenticated) {
+      toast.warning('Vui lòng đăng nhập để bình luận')
+      navigate('/login')
+      return
+    }
+
+    if (!newComment.trim()) {
+      return
+    }
+
+    try {
+      const response = await commentService.createComment({
+        productId: parseInt(id),
+        userId: user?.id,
+        content: newComment.trim(),
+        parentId: null // Root comment
+      })
+
+      if (response.success) {
+        // Add new comment to the list with user info from context if not provided
+        const newCommentData = {
+          ...response.result,
+          username: response.result.username || user?.username,
+          fullName: response.result.fullName || user?.fullName
+        }
+        setComments([newCommentData, ...comments])
+        setCommentCount(commentCount + 1)
+        // Initialize reply count to 0 for new comment
+        setReplyCounts(prev => ({
+          ...prev,
+          [newCommentData.id]: 0
+        }))
+        setNewComment('')
+        toast.success('Bình luận của bạn đã được đăng!')
+      }
+    } catch (err) {
+      console.error('Error submitting comment:', err)
+      toast.error('Có lỗi xảy ra khi đăng bình luận')
+    }
+  }
+
+  // Handle submit reply
+  const handleSubmitReply = async (commentId) => {
+    if (!isAuthenticated) {
+      toast.warning('Vui lòng đăng nhập để trả lời')
+      navigate('/login')
+      return
+    }
+
+    if (!replyContent.trim()) {
+      return
+    }
+
+    try {
+      const response = await commentService.createComment({
+        productId: parseInt(id),
+        userId: user?.id,
+        content: replyContent.trim(),
+        parentId: commentId
+      })
+
+      if (response.success) {
+        // Add reply to loaded replies with user info from context if not provided
+        const newReplyData = {
+          ...response.result,
+          username: response.result.username || user?.username,
+          fullName: response.result.fullName || user?.fullName
+        }
+        const replies = loadedReplies[commentId] || []
+        setLoadedReplies({
+          ...loadedReplies,
+          [commentId]: [...replies, newReplyData]
+        })
+        setCommentCount(commentCount + 1)
+        // Update reply count
+        setReplyCounts(prev => ({
+          ...prev,
+          [commentId]: (prev[commentId] || 0) + 1
+        }))
+        setReplyContent('')
+        setReplyingTo(null)
+        toast.success('Trả lời của bạn đã được đăng!')
+      }
+    } catch (err) {
+      console.error('Error submitting reply:', err)
+      toast.error('Có lỗi xảy ra khi đăng trả lời')
+    }
+  }
+
+  // Load replies for a comment
+  const handleLoadReplies = async (commentId) => {
+    // If already loaded, toggle visibility
+    if (loadedReplies[commentId]) {
+      setLoadedReplies({
+        ...loadedReplies,
+        [commentId]: null
+      })
+      return
+    }
+
+    try {
+      const response = await commentService.getRepliesByComment(commentId)
+      
+      if (response.success) {
+        setLoadedReplies({
+          ...loadedReplies,
+          [commentId]: response.result || []
+        })
+      }
+    } catch (err) {
+      console.error('Error loading replies:', err)
+      toast.error('Có lỗi xảy ra khi tải trả lời')
+    }
+  }
+
+  // Handle edit comment
+  const handleEditComment = async (commentId) => {
+    if (!editContent.trim()) {
+      return
+    }
+
+    try {
+      const response = await commentService.updateComment(commentId, editContent.trim())
+
+      if (response.success) {
+        // Update comment in list
+        setComments(comments.map(c => 
+          c.id === commentId ? { ...c, content: editContent.trim() } : c
+        ))
+        
+        // Update in replies if exists
+        Object.keys(loadedReplies).forEach(parentId => {
+          const replies = loadedReplies[parentId]
+          if (replies) {
+            setLoadedReplies({
+              ...loadedReplies,
+              [parentId]: replies.map(r => 
+                r.id === commentId ? { ...r, content: editContent.trim() } : r
+              )
+            })
+          }
+        })
+        
+        setEditingComment(null)
+        setEditContent('')
+        toast.success('Cập nhật bình luận thành công!')
+      }
+    } catch (err) {
+      console.error('Error updating comment:', err)
+      toast.error('Có lỗi xảy ra khi cập nhật bình luận')
+    }
+  }
+
+  // Handle delete comment
+  const handleDeleteComment = async (commentId, isReply = false, parentId = null) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa bình luận này? Tất cả trả lời sẽ bị xóa cùng.')) {
+      return
+    }
+
+    try {
+      const response = await commentService.deleteComment(commentId)
+
+      if (response.success) {
+        if (isReply && parentId) {
+          // Remove from replies
+          const replies = loadedReplies[parentId] || []
+          setLoadedReplies({
+            ...loadedReplies,
+            [parentId]: replies.filter(r => r.id !== commentId)
+          })
+        } else {
+          // Remove from root comments
+          setComments(comments.filter(c => c.id !== commentId))
+          // Remove loaded replies for this comment
+          const { [commentId]: removed, ...rest } = loadedReplies
+          setLoadedReplies(rest)
+        }
+        
+        // Refresh comment count
+        const countResponse = await commentService.getCommentCount(id)
+        if (countResponse.success) {
+          setCommentCount(countResponse.result)
+        }
+        
+        toast.success('Xóa bình luận thành công!')
+      }
+    } catch (err) {
+      console.error('Error deleting comment:', err)
+      toast.error('Có lỗi xảy ra khi xóa bình luận')
+    }
   }
 
   // Format price
@@ -149,11 +431,12 @@ const ProductDetail = () => {
   // Format date
   const formatDate = (dateString) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = String(date.getFullYear()).slice(-2)
+    return `${hours}:${minutes} ${day}/${month}/${year}`
   }
 
   // Calculate average rating
@@ -412,133 +695,565 @@ const ProductDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Product Description */}
           <div className="lg:col-span-2 space-y-8">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Mô tả sản phẩm</h2>
-              <div className="prose max-w-none text-gray-600">
-                {product.fullDescription ? (
-                  <p className="whitespace-pre-wrap">{product.fullDescription}</p>
-                ) : (
-                  <p>{product.shortDescription || 'Chưa có mô tả chi tiết cho sản phẩm này.'}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Reviews Section */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Đánh giá ({reviews.length})
-                </h2>
-                {isAuthenticated && (
+            {/* Tabs Navigation */}
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="border-b border-gray-200">
+                <nav className="flex -mb-px">
                   <button
-                    onClick={() => setShowReviewForm(!showReviewForm)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    onClick={() => setActiveTab('description')}
+                    className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+                      activeTab === 'description'
+                        ? 'border-b-2 border-blue-600 text-blue-600'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
                   >
-                    Viết đánh giá
+                    Mô tả sản phẩm
                   </button>
-                )}
+                  <button
+                    onClick={() => setActiveTab('comments')}
+                    className={`flex-1 py-4 px-6 text-center font-medium transition-colors relative ${
+                      activeTab === 'comments'
+                        ? 'border-b-2 border-blue-600 text-blue-600'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center space-x-2">
+                      <MessageCircle className="h-5 w-5" />
+                      <span>Thảo luận</span>
+                      <span className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">
+                        {commentCount}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('reviews')}
+                    className={`flex-1 py-4 px-6 text-center font-medium transition-colors relative ${
+                      activeTab === 'reviews'
+                        ? 'border-b-2 border-blue-600 text-blue-600'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center space-x-2">
+                      <Star className="h-5 w-5" />
+                      <span>Đánh giá</span>
+                      <span className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">
+                        {reviews.length}
+                      </span>
+                    </div>
+                  </button>
+                </nav>
               </div>
 
-              {/* Review Form */}
-              {showReviewForm && (
-                <form onSubmit={handleSubmitReview} className="mb-8 p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-medium text-gray-900 mb-4">Đánh giá của bạn</h3>
-                  
-                  {/* Rating Stars */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Đánh giá sao
-                    </label>
-                    <div className="flex space-x-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setNewReview({ ...newReview, rating: star })}
-                          className="focus:outline-none"
-                        >
-                          <Star
-                            className={`h-8 w-8 ${
-                              star <= newReview.rating
-                                ? 'text-yellow-400 fill-yellow-400'
-                                : 'text-gray-300'
-                            }`}
-                          />
-                        </button>
-                      ))}
+              {/* Tab Content */}
+              <div className="p-6">
+                {/* Description Tab */}
+                {activeTab === 'description' && (
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Thông tin chi tiết</h2>
+                    <div className="prose max-w-none text-gray-600">
+                      {product.fullDescription ? (
+                        <p className="whitespace-pre-wrap">{product.fullDescription}</p>
+                      ) : (
+                        <p>{product.shortDescription || 'Chưa có mô tả chi tiết cho sản phẩm này.'}</p>
+                      )}
                     </div>
                   </div>
+                )}
 
-                  {/* Comment */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nhận xét của bạn
-                    </label>
-                    <textarea
-                      value={newReview.comment}
-                      onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm..."
-                      required
-                    />
-                  </div>
+                {/* Comments Tab */}
+                {activeTab === 'comments' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        Thảo luận về sản phẩm
+                      </h2>
+                      <span className="text-sm text-gray-500">
+                        {commentCount} bình luận
+                      </span>
+                    </div>
 
-                  <div className="flex space-x-3">
-                    <button
-                      type="submit"
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                    >
-                      Gửi đánh giá
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowReviewForm(false)}
-                      className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Hủy
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* Reviews List */}
-              <div className="space-y-6">
-                {reviews.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">
-                    Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá sản phẩm này!
-                  </p>
-                ) : (
-                  reviews.map((review) => (
-                    <div key={review.id} className="border-b border-gray-200 last:border-0 pb-6 last:pb-0">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <p className="font-medium text-gray-900">{review.userName}</p>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <div className="flex">
-                              {[...Array(5)].map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`h-4 w-4 ${
-                                    i < review.rating
-                                      ? 'text-yellow-400 fill-yellow-400'
-                                      : 'text-gray-300'
-                                  }`}
-                                />
-                              ))}
+                    {/* Comment Form */}
+                    {isAuthenticated ? (
+                      <form onSubmit={handleSubmitComment} className="mb-6">
+                        <div className="flex space-x-3">
+                          <div className="flex-shrink-0">
+                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                              <span className="text-blue-600 font-medium">
+                                {(user?.fullName || user?.username || 'U').charAt(0).toUpperCase()}
+                              </span>
                             </div>
-                            <span className="text-sm text-gray-500">
-                              {formatDate(review.createdAt)}
-                            </span>
+                          </div>
+                          <div className="flex-1">
+                            <div className="relative">
+                              <textarea
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                rows={3}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                placeholder="Đặt câu hỏi hoặc thảo luận về sản phẩm..."
+                              />
+                              <div className="mt-2 flex justify-between items-center">
+                                <p className="text-xs text-gray-500">
+                                  <MessageCircle className="h-3 w-3 inline mr-1" />
+                                  Mọi người đều có thể xem và trả lời
+                                </p>
+                                <button
+                                  type="submit"
+                                  disabled={!newComment.trim()}
+                                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <Send className="h-4 w-4" />
+                                  <span>Gửi</span>
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
+                      </form>
+                    ) : (
+                      <div className="mb-6 p-4 bg-gray-50 rounded-lg text-center">
+                        <p className="text-gray-600 mb-3">
+                          Đăng nhập để tham gia thảo luận
+                        </p>
+                        <button
+                          onClick={() => navigate('/login')}
+                          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          Đăng nhập
+                        </button>
                       </div>
-                      <p className="text-gray-600 mb-3">{review.comment}</p>
-                      <button className="text-sm text-gray-500 hover:text-gray-700">
-                        Hữu ích ({review.helpful})
-                      </button>
+                    )}
+
+                    {/* Comments List */}
+                    <div className="space-y-6">
+                      {commentsLoading ? (
+                        <div className="flex items-center justify-center py-12">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        </div>
+                      ) : comments.length === 0 ? (
+                        <div className="text-center py-12">
+                          <MessageCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-500">
+                            Chưa có câu hỏi nào. Hãy là người đầu tiên đặt câu hỏi!
+                          </p>
+                        </div>
+                      ) : (
+                        comments.map((comment) => (
+                          <div key={comment.id} className="border-b border-gray-200 pb-6 last:border-0">
+                            {/* Root Comment */}
+                            <div className="flex space-x-3">
+                              <div className="flex-shrink-0">
+                                <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                  <span className="text-gray-600 font-medium">
+                                    {(comment.fullName || comment.username || 'U').charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center space-x-2 mb-1">
+                                  <p className="font-medium text-gray-900">
+                                    {comment.fullName || comment.username || 'Anonymous'}
+                                  </p>
+                                  <span className="text-sm text-gray-500">
+                                    {formatDate(comment.createdAt)}
+                                  </span>
+                                </div>
+                                
+                                {/* Edit mode */}
+                                {editingComment === comment.id ? (
+                                  <div className="mt-2">
+                                    <textarea
+                                      value={editContent}
+                                      onChange={(e) => setEditContent(e.target.value)}
+                                      rows={3}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                    />
+                                    <div className="mt-2 flex space-x-2">
+                                      <button
+                                        onClick={() => handleEditComment(comment.id)}
+                                        className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                                      >
+                                        Lưu
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingComment(null)
+                                          setEditContent('')
+                                        }}
+                                        className="px-4 py-1.5 border border-gray-300 text-sm rounded-lg hover:bg-gray-50"
+                                      >
+                                        Hủy
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <p className="text-gray-600 whitespace-pre-wrap">{comment.content}</p>
+                                    
+                                    {/* Action buttons */}
+                                    <div className="mt-2 flex items-center space-x-4">
+                                      <button
+                                        onClick={() => setReplyingTo(comment.id)}
+                                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                      >
+                                        Trả lời
+                                      </button>
+                                      
+                                      {isAuthenticated && user?.id === comment.userId && (
+                                        <>
+                                          <button
+                                            onClick={() => {
+                                              setEditingComment(comment.id)
+                                              setEditContent(comment.content)
+                                            }}
+                                            className="text-sm text-gray-600 hover:text-gray-700"
+                                          >
+                                            Sửa
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteComment(comment.id)}
+                                            className="text-sm text-red-600 hover:text-red-700"
+                                          >
+                                            Xóa
+                                          </button>
+                                        </>
+                                      )}
+                                      
+                                      {replyCounts[comment.id] > 0 && (
+                                        <button
+                                          onClick={() => handleLoadReplies(comment.id)}
+                                          className="text-sm text-gray-600 hover:text-gray-700"
+                                        >
+                                          {loadedReplies[comment.id] 
+                                            ? 'Ẩn trả lời' 
+                                            : `Xem trả lời (${replyCounts[comment.id]})`}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </>
+                                )}
+
+                                {/* Reply Form */}
+                                {replyingTo === comment.id && (
+                                  <div className="mt-4 pl-4 border-l-2 border-blue-200">
+                                    <textarea
+                                      value={replyContent}
+                                      onChange={(e) => setReplyContent(e.target.value)}
+                                      rows={3}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                      placeholder="Viết trả lời của bạn..."
+                                    />
+                                    <div className="mt-2 flex space-x-2">
+                                      <button
+                                        onClick={() => handleSubmitReply(comment.id)}
+                                        className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                                      >
+                                        Gửi
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setReplyingTo(null)
+                                          setReplyContent('')
+                                        }}
+                                        className="px-4 py-1.5 border border-gray-300 text-sm rounded-lg hover:bg-gray-50"
+                                      >
+                                        Hủy
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Replies */}
+                                {loadedReplies[comment.id] && (
+                                  <div className="mt-4 space-y-4 pl-4 border-l-2 border-gray-200">
+                                    {loadedReplies[comment.id].length === 0 ? (
+                                      <p className="text-sm text-gray-500 italic">Chưa có trả lời nào</p>
+                                    ) : (
+                                      loadedReplies[comment.id].map((reply) => (
+                                        <div key={reply.id} className="flex space-x-3">
+                                          <div className="flex-shrink-0">
+                                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                              <span className="text-blue-600 text-sm font-medium">
+                                                {(reply.fullName || reply.username || 'U').charAt(0).toUpperCase()}
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center space-x-2 mb-1">
+                                              <p className="text-sm font-medium text-gray-900">
+                                                {reply.fullName || reply.username || 'Anonymous'}
+                                              </p>
+                                              <span className="text-xs text-gray-500">
+                                                {formatDate(reply.createdAt)}
+                                              </span>
+                                            </div>
+                                            
+                                            {editingComment === reply.id ? (
+                                              <div className="mt-2">
+                                                <textarea
+                                                  value={editContent}
+                                                  onChange={(e) => setEditContent(e.target.value)}
+                                                  rows={2}
+                                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                                                />
+                                                <div className="mt-2 flex space-x-2">
+                                                  <button
+                                                    onClick={() => handleEditComment(reply.id)}
+                                                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                                                  >
+                                                    Lưu
+                                                  </button>
+                                                  <button
+                                                    onClick={() => {
+                                                      setEditingComment(null)
+                                                      setEditContent('')
+                                                    }}
+                                                    className="px-3 py-1 border border-gray-300 text-xs rounded hover:bg-gray-50"
+                                                  >
+                                                    Hủy
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <>
+                                                <p className="text-sm text-gray-600 whitespace-pre-wrap">{reply.content}</p>
+                                                
+                                                {isAuthenticated && user?.id === reply.userId && (
+                                                  <div className="mt-1 flex items-center space-x-3">
+                                                    <button
+                                                      onClick={() => {
+                                                        setEditingComment(reply.id)
+                                                        setEditContent(reply.content)
+                                                      }}
+                                                      className="text-xs text-gray-600 hover:text-gray-700"
+                                                    >
+                                                      Sửa
+                                                    </button>
+                                                    <button
+                                                      onClick={() => handleDeleteComment(reply.id, true, comment.id)}
+                                                      className="text-xs text-red-600 hover:text-red-700"
+                                                    >
+                                                      Xóa
+                                                    </button>
+                                                  </div>
+                                                )}
+                                              </>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
-                  ))
+                  </div>
+                )}
+
+                {/* Reviews Tab */}
+                {activeTab === 'reviews' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-900">
+                          Đánh giá từ khách hàng
+                        </h2>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Chỉ khách hàng đã mua sản phẩm mới có thể đánh giá
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center space-x-2">
+                          <Star className="h-6 w-6 text-yellow-400 fill-yellow-400" />
+                          <span className="text-3xl font-bold text-gray-900">{averageRating}</span>
+                        </div>
+                        <p className="text-sm text-gray-500">{reviews.length} đánh giá</p>
+                      </div>
+                    </div>
+
+                    {/* Review Form - Only for purchased users */}
+                    {isAuthenticated && hasPurchased && !userReview && (
+                      <div className="mb-8 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-4">
+                          <Check className="h-5 w-5 text-green-600" />
+                          <p className="font-medium text-gray-900">
+                            Bạn đã mua sản phẩm này. Hãy chia sẻ đánh giá của bạn!
+                          </p>
+                        </div>
+                        
+                        {!showReviewForm ? (
+                          <button
+                            onClick={() => setShowReviewForm(true)}
+                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                          >
+                            Viết đánh giá
+                          </button>
+                        ) : (
+                          <form onSubmit={handleSubmitReview} className="bg-white p-4 rounded-lg">
+                            <h3 className="font-medium text-gray-900 mb-4">Đánh giá của bạn</h3>
+                            
+                            {/* Rating Stars */}
+                            <div className="mb-4">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Đánh giá sao <span className="text-red-500">*</span>
+                              </label>
+                              <div className="flex space-x-1">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => setNewReview({ ...newReview, rating: star })}
+                                    className="focus:outline-none transition-transform hover:scale-110"
+                                  >
+                                    <Star
+                                      className={`h-8 w-8 ${
+                                        star <= newReview.rating
+                                          ? 'text-yellow-400 fill-yellow-400'
+                                          : 'text-gray-300'
+                                      }`}
+                                    />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Comment */}
+                            <div className="mb-4">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Nhận xét chi tiết <span className="text-red-500">*</span>
+                              </label>
+                              <textarea
+                                value={newReview.content}
+                                onChange={(e) => setNewReview({ ...newReview, content: e.target.value })}
+                                rows={4}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Chia sẻ trải nghiệm của bạn về chất lượng, tính năng, độ bền..."
+                                required
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                Đánh giá của bạn sẽ giúp khách hàng khác đưa ra quyết định mua hàng
+                              </p>
+                            </div>
+
+                            <div className="flex space-x-3">
+                              <button
+                                type="submit"
+                                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                              >
+                                Gửi đánh giá
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowReviewForm(false)
+                                  setNewReview({ rating: 5, content: '' })
+                                }}
+                                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                              >
+                                Hủy
+                              </button>
+                            </div>
+                          </form>
+                        )}
+                      </div>
+                    )}
+
+                    {/* User's existing review */}
+                    {userReview && (
+                      <div className="mb-8 p-6 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <Check className="h-5 w-5 text-green-600" />
+                          <p className="font-medium text-gray-900">Đánh giá của bạn</p>
+                        </div>
+                        <div className="flex items-center space-x-2 mb-2">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`h-5 w-5 ${
+                                i < userReview.rating
+                                  ? 'text-yellow-400 fill-yellow-400'
+                                  : 'text-gray-300'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <p className="text-gray-600">{userReview.content}</p>
+                      </div>
+                    )}
+
+                    {/* Not purchased message */}
+                    {isAuthenticated && !hasPurchased && (
+                      <div className="mb-8 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                        <p className="text-gray-600 mb-2">
+                          Bạn cần mua sản phẩm này trước khi có thể đánh giá
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Điều này giúp đảm bảo tính chính xác của các đánh giá
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Reviews List */}
+                    <div className="space-y-6">
+                      {reviews.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Star className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-500">
+                            Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá sản phẩm này!
+                          </p>
+                        </div>
+                      ) : (
+                        reviews.map((review) => (
+                          <div key={review.id} className="border-b border-gray-200 last:border-0 pb-6 last:pb-0">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-start space-x-3">
+                                <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-gray-600 font-medium">
+                                    {review.userName.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-900">{review.userName}</p>
+                                  <div className="flex items-center space-x-2 mt-1">
+                                    <div className="flex">
+                                      {[...Array(5)].map((_, i) => (
+                                        <Star
+                                          key={i}
+                                          className={`h-4 w-4 ${
+                                            i < review.rating
+                                              ? 'text-yellow-400 fill-yellow-400'
+                                              : 'text-gray-300'
+                                          }`}
+                                        />
+                                      ))}
+                                    </div>
+                                    <span className="text-sm text-gray-500">•</span>
+                                    <span className="text-sm text-gray-500">
+                                      {formatDate(review.createdAt)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-1 text-green-600 text-sm">
+                                <Check className="h-4 w-4" />
+                                <span>Đã mua hàng</span>
+                              </div>
+                            </div>
+                            <p className="text-gray-600 mb-3 ml-13">{review.content}</p>
+                            <button className="text-sm text-gray-500 hover:text-gray-700 flex items-center space-x-1 ml-13">
+                              <ThumbsUp className="h-4 w-4" />
+                              <span>Hữu ích ({review.helpful})</span>
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

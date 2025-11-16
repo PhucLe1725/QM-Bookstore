@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -187,7 +189,24 @@ public class NotificationController {
     public ApiResponse<Long> getUnreadNotificationCount(@PathVariable UUID userId) {
         log.info("Getting unread notification count for user: {}", userId);
         
-        Long count = notificationService.getUnreadNotificationCount(userId);
+        // Lấy thông tin authentication để kiểm tra role
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdminOrManager = authentication.getAuthorities().stream()
+                .anyMatch(authority -> 
+                    authority.getAuthority().equals("ROLE_admin") || 
+                    authority.getAuthority().equals("ROLE_manager")
+                );
+        
+        Long count;
+        if (isAdminOrManager) {
+            // Admin/Manager đếm cả global message
+            count = notificationService.getUnreadNotificationCountForAdmin(userId);
+            log.info("Admin/Manager - counted {} unread notifications (including global)", count);
+        } else {
+            // Customer chỉ đếm notification của riêng mình (không bao gồm global)
+            count = notificationService.getUnreadNotificationCountForUser(userId);
+            log.info("Customer - counted {} unread notifications (personal only)", count);
+        }
         
         return ApiResponse.<Long>builder()
                 .result(count)
@@ -215,6 +234,21 @@ public class NotificationController {
         log.info("Marking all notifications as read for user: {}", userId);
         
         notificationService.markAllNotificationsAsRead(userId);
+        
+        return ApiResponse.<Void>builder()
+                .build();
+    }
+
+    /**
+     * Đánh dấu tất cả global notifications (NEW_MESSAGE) là đã đọc
+     * Chỉ admin/manager mới có quyền gọi API này
+     */
+    @PutMapping("/global/mark-all-read")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ApiResponse<Void> markAllGlobalNotificationsAsRead() {
+        log.info("Marking all global NEW_MESSAGE notifications as read");
+        
+        notificationService.markAllGlobalNotificationsAsRead();
         
         return ApiResponse.<Void>builder()
                 .build();

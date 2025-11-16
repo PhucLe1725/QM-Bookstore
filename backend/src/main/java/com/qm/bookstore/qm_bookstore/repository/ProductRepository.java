@@ -31,20 +31,20 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p FROM Product p WHERE p.stockQuantity <= p.reorderLevel AND p.reorderLevel > 0")
     List<Product> findLowStockProducts();
     
-    // Paginated queries with filters
-    @Query(value = "SELECT p.* FROM products p WHERE " +
-           "(:name IS NULL OR CAST(p.name AS TEXT) ILIKE CONCAT('%', CAST(:name AS TEXT), '%')) AND " +
-           "(:sku IS NULL OR CAST(p.sku AS TEXT) ILIKE CONCAT('%', CAST(:sku AS TEXT), '%')) AND " +
+    // Paginated queries with filters - Using native query with explicit type casting
+    @Query(value = "SELECT * FROM products p WHERE " +
+           "(:name IS NULL OR LOWER(p.name::text) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
+           "(:sku IS NULL OR LOWER(p.sku::text) LIKE LOWER(CONCAT('%', :sku, '%'))) AND " +
            "(:categoryId IS NULL OR p.category_id = :categoryId) AND " +
-           "(:brand IS NULL OR CAST(p.brand AS TEXT) ILIKE CONCAT('%', CAST(:brand AS TEXT), '%')) AND " +
+           "(:brand IS NULL OR LOWER(p.brand::text) LIKE LOWER(CONCAT('%', :brand, '%'))) AND " +
            "(:minPrice IS NULL OR p.price >= :minPrice) AND " +
            "(:maxPrice IS NULL OR p.price <= :maxPrice) AND " +
-           "(:availability IS NULL OR p.availability = :availability)", 
+           "(:availability IS NULL OR p.availability = :availability)",
            countQuery = "SELECT COUNT(*) FROM products p WHERE " +
-           "(:name IS NULL OR CAST(p.name AS TEXT) ILIKE CONCAT('%', CAST(:name AS TEXT), '%')) AND " +
-           "(:sku IS NULL OR CAST(p.sku AS TEXT) ILIKE CONCAT('%', CAST(:sku AS TEXT), '%')) AND " +
+           "(:name IS NULL OR LOWER(p.name::text) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
+           "(:sku IS NULL OR LOWER(p.sku::text) LIKE LOWER(CONCAT('%', :sku, '%'))) AND " +
            "(:categoryId IS NULL OR p.category_id = :categoryId) AND " +
-           "(:brand IS NULL OR CAST(p.brand AS TEXT) ILIKE CONCAT('%', CAST(:brand AS TEXT), '%')) AND " +
+           "(:brand IS NULL OR LOWER(p.brand::text) LIKE LOWER(CONCAT('%', :brand, '%'))) AND " +
            "(:minPrice IS NULL OR p.price >= :minPrice) AND " +
            "(:maxPrice IS NULL OR p.price <= :maxPrice) AND " +
            "(:availability IS NULL OR p.availability = :availability)",
@@ -58,21 +58,4 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("maxPrice") BigDecimal maxPrice,
             @Param("availability") Boolean availability,
             Pageable pageable);
-    
-    @Query("SELECT COUNT(p) FROM Product p WHERE " +
-           "(:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
-           "(:sku IS NULL OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :sku, '%'))) AND " +
-           "(:categoryId IS NULL OR p.category.id = :categoryId) AND " +
-           "(:brand IS NULL OR LOWER(p.brand) LIKE LOWER(CONCAT('%', :brand, '%'))) AND " +
-           "(:minPrice IS NULL OR p.price >= :minPrice) AND " +
-           "(:maxPrice IS NULL OR p.price <= :maxPrice) AND " +
-           "(:availability IS NULL OR p.availability = :availability)")
-    Long countProductsWithFilters(
-            @Param("name") String name,
-            @Param("sku") String sku,
-            @Param("categoryId") Long categoryId,
-            @Param("brand") String brand,
-            @Param("minPrice") BigDecimal minPrice,
-            @Param("maxPrice") BigDecimal maxPrice,
-            @Param("availability") Boolean availability);
 }

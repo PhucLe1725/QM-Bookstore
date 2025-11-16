@@ -25,6 +25,7 @@ export const WebSocketProvider = ({ children }) => {
   const [adminNotifications, setAdminNotifications] = useState([]) // Admin notifications
   const [notifications, setNotifications] = useState([]) // Real-time notifications
   const [readStatusCallbacks, setReadStatusCallbacks] = useState([]) // Callbacks for read status updates
+  const [commentNotifications, setCommentNotifications] = useState([]) // Comment reply notifications
   
   // New: Notification handler for NotificationContext integration
   const [notificationHandler, setNotificationHandler] = useState(null)
@@ -249,7 +250,53 @@ export const WebSocketProvider = ({ children }) => {
       console.log('🚫 Not subscribing to global notifications - user is customer')
     }
 
-    // 6. Subscribe to read status updates
+    // 6. Subscribe to comment reply notifications (for all users)
+    if (user?.id) {
+      console.log('💬 Subscribing to comment reply notifications for user:', user.id)
+      stompClient.subscribe(`/user/${user.id}/queue/comment-reply`, function (message) {
+        const notification = JSON.parse(message.body)
+        console.log('🔔 Comment reply notification received:', notification)
+        
+        // Add to comment notifications state
+        setCommentNotifications(prev => [...prev, notification])
+        
+        // Also use notification handler if available
+        if (notificationHandler) {
+          console.log('📞 Calling notification handler for comment reply')
+          notificationHandler({
+            type: 'COMMENT_REPLY',
+            message: notification.message,
+            data: notification,
+            createdAt: notification.timestamp
+          })
+        }
+      })
+    }
+
+    // 7. Subscribe to customer comment notifications (admin/manager only)
+    if (isAdminOrManager(user) && user?.id) {
+      console.log('👔 Subscribing to customer comment notifications for admin/manager:', user.id)
+      stompClient.subscribe(`/user/${user.id}/queue/customer-comment`, function (message) {
+        const notification = JSON.parse(message.body)
+        console.log('🔔 Customer comment notification received:', notification)
+        
+        // Add to comment notifications state
+        setCommentNotifications(prev => [...prev, notification])
+        
+        // Also use notification handler if available
+        if (notificationHandler) {
+          console.log('📞 Calling notification handler for customer comment')
+          notificationHandler({
+            type: 'CUSTOMER_COMMENT',
+            message: notification.message,
+            data: notification,
+            createdAt: notification.timestamp
+          })
+        }
+      })
+    }
+
+    // 8. Subscribe to read status updates
     stompClient.subscribe('/topic/read-status', function (message) {
       const readStatus = JSON.parse(message.body)
       console.log('📖 Read status update:', readStatus)
@@ -554,6 +601,7 @@ export const WebSocketProvider = ({ children }) => {
     chatHistory, // Loaded history
     adminNotifications, // Admin notifications
     notifications, // Real-time notifications
+    commentNotifications, // Comment reply and customer comment notifications
     
     // Send methods
     sendMessage, // Generic
@@ -592,6 +640,7 @@ export const WebSocketProvider = ({ children }) => {
     chatHistory,
     adminNotifications,
     notifications,
+    commentNotifications,
     registerReadStatusCallback,
     connectWebSocket,
     disconnectWebSocket

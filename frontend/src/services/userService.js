@@ -27,6 +27,28 @@ const userService = {
     }
   },
 
+  // Lấy thông tin profile của user hiện tại (authenticated user)
+  getMyProfile: async () => {
+    try {
+      const response = await api.get('/users/profile/me')
+      return response
+    } catch (error) {
+      console.error('Error fetching my profile:', error)
+      throw error
+    }
+  },
+
+  // Cập nhật thông tin profile của user hiện tại
+  updateMyProfile: async (profileData) => {
+    try {
+      const response = await api.put('/users/profile/update', profileData)
+      return response
+    } catch (error) {
+      console.error('Error updating my profile:', error)
+      throw error
+    }
+  },
+
   // Cập nhật thông tin user (admin only)
   updateUser: async (userId, userData) => {
     try {

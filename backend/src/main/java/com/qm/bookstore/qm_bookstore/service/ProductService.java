@@ -42,12 +42,15 @@ public class ProductService {
     }
 
     public BaseGetAllResponse<ProductResponse> getAllProducts(ProductGetAllRequest request) {
-        // Create pageable
+        // Create pageable with field name mapping for native query
         Sort sort = Sort.unsorted();
         if (request.getSortBy() != null && !request.getSortBy().isEmpty()) {
             Sort.Direction direction = "desc".equalsIgnoreCase(request.getSortDirection()) 
                 ? Sort.Direction.DESC : Sort.Direction.ASC;
-            sort = Sort.by(direction, request.getSortBy());
+            
+            // Map camelCase to snake_case for native query
+            String sortField = convertToSnakeCase(request.getSortBy());
+            sort = Sort.by(direction, sortField);
         }
         
         Pageable pageable = PageRequest.of(
@@ -74,6 +77,14 @@ public class ProductService {
                 .data(productResponses)
                 .totalRecords(productPage.getTotalElements())
                 .build();
+    }
+    
+    // Helper method to convert camelCase to snake_case for database column names
+    private String convertToSnakeCase(String camelCase) {
+        if (camelCase == null || camelCase.isEmpty()) {
+            return camelCase;
+        }
+        return camelCase.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
     }
 
     @Transactional

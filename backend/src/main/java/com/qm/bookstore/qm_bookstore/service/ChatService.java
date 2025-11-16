@@ -27,6 +27,7 @@ public class ChatService {
     private final ChatMapper chatMapper;
     private final NotificationService notificationService;
     private final ChatNotificationService chatNotificationService;
+    private final com.qm.bookstore.qm_bookstore.repository.UserRepository userRepository;
 
     @Transactional
     public ChatMessageDto saveMessage(ChatMessageDto messageDto) {
@@ -224,7 +225,7 @@ public class ChatService {
      */
     private void createNotificationsForMessage(ChatMessage savedMessage, ChatMessageDto messageDto) {
         try {
-            String senderType = savedMessage.getSenderType().name();
+            String senderType = savedMessage.getSenderType() != null ? savedMessage.getSenderType().name() : (messageDto.getSenderType() != null ? messageDto.getSenderType() : "");
             UUID senderId = savedMessage.getSenderId();
             UUID receiverId = savedMessage.getReceiverId();
             String messagePreview = truncateMessage(savedMessage.getMessage());
@@ -254,22 +255,46 @@ public class ChatService {
                 
             } else if (("admin".equals(senderType) || "manager".equals(senderType)) && receiverId != null) {
                 // Admin/Manager gửi message cho customer → Tạo personal notification cho customer
-                log.info("Admin/Manager message detected - creating personal notification for customer {}", receiverId);
-                
-                String senderName = messageDto.getSenderUsername() != null ? 
+                log.info("Admin/Manager message detected - creating personal notification for recipient {}", receiverId);
+
+                String senderName = messageDto.getSenderUsername() != null ?
                     messageDto.getSenderUsername() : "Admin";
-                
-                // Tạo notification trong database
-                NotificationResponse personalNotification = notificationService.createNewMessageNotification(
-                    receiverId, // Customer ID
-                    senderName, 
-                    messagePreview
-                );
-                
-                log.info("Created personal notification for customer {} with ID: {}", receiverId, personalNotification.getId());
-                
-                // Broadcast notification real-time qua WebSocket
-                chatNotificationService.broadcastPersonalNotification(receiverId, personalNotification);
+
+                // Determine receiver role; if receiver is admin/manager then do NOT set anchor
+                String anchor = null;
+                try {
+                    var userOpt = userRepository.findById(receiverId);
+                    if (userOpt.isPresent() && userOpt.get().getRole() != null) {
+                        String roleName = userOpt.get().getRole().getName();
+                        if (!("admin".equalsIgnoreCase(roleName) || "manager".equalsIgnoreCase(roleName))) {
+                            // receiver is not admin/manager -> set chat anchor
+                            anchor = "/chat/" + receiverId;
+                        }
+                    } else {
+                        // If user not found or has no role, default to setting anchor so customer gets link
+                        anchor = "/chat/" + receiverId;
+                    }
+                } catch (Exception e) {
+                    log.warn("Could not determine receiver role for {} - defaulting anchor to chat link", receiverId, e);
+                    anchor = "/chat/" + receiverId;
+                }
+
+                // Build notification request manually so we can control anchor
+                com.qm.bookstore.qm_bookstore.dto.notification.request.NotificationCreateRequest notifRequest =
+                    new com.qm.bookstore.qm_bookstore.dto.notification.request.NotificationCreateRequest();
+                notifRequest.setUserId(receiverId);
+                notifRequest.setType(com.qm.bookstore.qm_bookstore.entity.Notification.NotificationType.NEW_MESSAGE);
+                notifRequest.setMessage(messagePreview);
+                notifRequest.setAnchor(anchor);
+
+                NotificationResponse personalNotification = notificationService.createNotification(notifRequest);
+
+                log.info("Created personal notification for recipient {} with ID: {} (anchor={})", receiverId, personalNotification != null ? personalNotification.getId() : null, anchor);
+
+                // Broadcast notification real-time via WebSocket (only if created)
+                if (personalNotification != null) {
+                    chatNotificationService.broadcastPersonalNotification(receiverId, personalNotification);
+                }
             }
             
             log.info("Notifications created and broadcasted successfully for message {}", savedMessage.getId());

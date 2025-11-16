@@ -1,6 +1,7 @@
 import React from 'react'
 import { WebSocketProvider, MessageProvider, ChatProvider, AuthProvider } from './store'
 import NotificationProvider from './store/NotificationContext'
+import { ToastProvider } from './contexts/ToastContext'
 import { AppRoutes } from './routes'
 import ChatButton from './components/ChatButton'
 import ChatModal from './components/ChatModal'
@@ -27,15 +28,17 @@ const AppContent = () => {
 function App() {
   return (
     <AuthProvider>
-      <WebSocketProvider>
-        <NotificationProvider>
-          <MessageProvider>
-            <ChatProvider>
-              <AppContent />
-            </ChatProvider>
-          </MessageProvider>
-        </NotificationProvider>
-      </WebSocketProvider>
+      <ToastProvider>
+        <WebSocketProvider>
+          <NotificationProvider>
+            <MessageProvider>
+              <ChatProvider>
+                <AppContent />
+              </ChatProvider>
+            </MessageProvider>
+          </NotificationProvider>
+        </WebSocketProvider>
+      </ToastProvider>
     </AuthProvider>
   )
 }

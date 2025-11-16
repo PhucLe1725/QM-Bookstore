@@ -55,6 +55,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/notifications/**").authenticated()
                         .requestMatchers("/api/notifications/admin/**").hasAnyRole("admin", "manager")
 
+                        // User profile endpoints (authenticated users can access their own profile)
+                        .requestMatchers("/api/users/profile/**").authenticated()
+
                         // Admin only endpoints
                         .requestMatchers("/api/admin/**").hasRole("admin")
                         .requestMatchers("/api/users/**").hasRole("admin")

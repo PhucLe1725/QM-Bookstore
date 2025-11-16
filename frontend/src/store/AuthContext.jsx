@@ -118,13 +118,26 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false)
   }
 
+  const updateUser = (updatedUserData) => {
+    // Cập nhật user state
+    setUser(updatedUserData)
+    
+    // Cập nhật localStorage
+    try {
+      localStorage.setItem('user', JSON.stringify(updatedUserData))
+    } catch (error) {
+      console.error('Error saving updated user to localStorage:', error)
+    }
+  }
+
   const value = {
     user,
     isAuthenticated,
     loading,
     login,
     register,
-    logout
+    logout,
+    updateUser
   }
 
   return (

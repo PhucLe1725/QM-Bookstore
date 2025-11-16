@@ -130,6 +130,16 @@ public class NotificationService {
         return notificationRepository.countUnreadNotificationsForAdmin(userId);
     }
 
+    public Long getUnreadNotificationCountForAdmin(UUID userId) {
+        // Admin/Manager: đếm cả personal và global notifications
+        return notificationRepository.countUnreadNotificationsForAdmin(userId);
+    }
+
+    public Long getUnreadNotificationCountForUser(UUID userId) {
+        // Customer: chỉ đếm notification cá nhân (không bao gồm global)
+        return notificationRepository.countByUserIdAndStatus(userId, Notification.NotificationStatus.UNREAD);
+    }
+
     @Transactional
     public void markNotificationAsRead(UUID notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
@@ -161,6 +171,12 @@ public class NotificationService {
             Notification.NotificationStatus.UNREAD,
             LocalDateTime.now()
         );
+    }
+
+    @Transactional
+    public void markAllGlobalNotificationsAsRead() {
+        int updated = notificationRepository.markGlobalNewMessageAsRead(LocalDateTime.now());
+        log.info("Marked {} global NEW_MESSAGE notifications as read", updated);
     }
 
     // Convenience methods for specific notification types

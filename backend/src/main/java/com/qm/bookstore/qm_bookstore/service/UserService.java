@@ -3,6 +3,7 @@ package com.qm.bookstore.qm_bookstore.service;
 
 import com.qm.bookstore.qm_bookstore.dto.base.response.BaseGetAllResponse;
 import com.qm.bookstore.qm_bookstore.dto.user.request.UserCreateRequest;
+import com.qm.bookstore.qm_bookstore.dto.user.request.UserProfileUpdateRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.request.UserUpdateRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.response.UserResponse;
 import com.qm.bookstore.qm_bookstore.entity.Role;
@@ -184,6 +185,38 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         userRepository.delete(user);
+    }
+
+    public UserResponse updateProfile(UUID userId, UserProfileUpdateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        
+        // Only update allowed fields
+        if (request.getFullName() != null) {
+            user.setFullName(request.getFullName());
+        }
+        
+        if (request.getPhoneNumber() != null) {
+            user.setPhoneNumber(request.getPhoneNumber());
+        }
+        
+        if (request.getAddress() != null) {
+            user.setAddress(request.getAddress());
+        }
+        
+        if (request.getEmail() != null) {
+            user.setEmail(request.getEmail());
+        }
+        
+        user.setUpdatedAt(LocalDateTime.now());
+        user = userRepository.save(user);
+        return userMapper.toUserResponse(user);
+    }
+
+    public UserResponse getMyProfile(String username) {
+        return userRepository.findByUsername(username)
+                .map(userMapper::toUserResponse)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
 

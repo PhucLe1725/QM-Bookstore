@@ -4,19 +4,19 @@ import com.qm.bookstore.qm_bookstore.dto.base.response.ApiResponse;
 import com.qm.bookstore.qm_bookstore.dto.base.response.BaseGetAllResponse;
 import com.qm.bookstore.qm_bookstore.dto.user.request.UserCreateRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.request.UserGetAllRequest;
+import com.qm.bookstore.qm_bookstore.dto.user.request.UserProfileUpdateRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.request.UserUpdateRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.response.UserResponse;
-import com.qm.bookstore.qm_bookstore.mapper.UserMapper;
 import com.qm.bookstore.qm_bookstore.service.UserService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -29,9 +29,33 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    @Autowired
-    private UserMapper userMapper;
+    // ===== CUSTOMER ENDPOINTS (Authenticated users can access) =====
+    
+    @GetMapping("/profile/me")
+    public ApiResponse<UserResponse> getMyProfile() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        UserResponse userResponse = userService.getMyProfile(username);
+        return ApiResponse.<UserResponse>builder()
+                .result(userResponse)
+                .build();
+    }
 
+    @PutMapping("/profile/update")
+    public ApiResponse<UserResponse> updateMyProfile(@RequestBody UserProfileUpdateRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        // Get user ID from username
+        UserResponse currentUser = userService.getUserByUsername(username);
+        UserResponse userResponse = userService.updateProfile(currentUser.getId(), request);
+        
+        return ApiResponse.<UserResponse>builder()
+                .result(userResponse)
+                .build();
+    }
+
+    // ===== ADMIN ONLY ENDPOINTS =====
 
     @GetMapping("getAll")
     public ApiResponse<BaseGetAllResponse<UserResponse>> getAllUsers() {

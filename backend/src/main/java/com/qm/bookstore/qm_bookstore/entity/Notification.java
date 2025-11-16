@@ -56,7 +56,9 @@ public class Notification {
         ORDER_UPDATE("ORDER_UPDATE"),
         PAYMENT_UPDATE("PAYMENT_UPDATE"),
         SYSTEM_NOTIFICATION("SYSTEM_NOTIFICATION"),
-        PROMOTION("PROMOTION");
+        PROMOTION("PROMOTION"),
+        COMMENT_REPLY("COMMENT_REPLY"),           // Khi comment được reply
+        NEW_CUSTOMER_COMMENT("NEW_CUSTOMER_COMMENT");  // Khi có comment mới từ customer (cho admin/manager)
 
         private final String value;
 
