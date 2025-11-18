@@ -58,7 +58,8 @@ public class Notification {
         SYSTEM_NOTIFICATION("SYSTEM_NOTIFICATION"),
         PROMOTION("PROMOTION"),
         COMMENT_REPLY("COMMENT_REPLY"),           // Khi comment được reply
-        NEW_CUSTOMER_COMMENT("NEW_CUSTOMER_COMMENT");  // Khi có comment mới từ customer (cho admin/manager)
+        NEW_CUSTOMER_COMMENT("NEW_CUSTOMER_COMMENT"),  // Khi có comment mới từ customer (cho admin/manager)
+        NEW_REVIEW("NEW_REVIEW");  // Khi có review mới từ customer (cho admin/manager)
 
         private final String value;
 

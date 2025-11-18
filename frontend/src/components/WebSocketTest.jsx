@@ -30,7 +30,7 @@ const WebSocketTest = () => {
   const loadUsers = async () => {
     try {
       const response = await userService.getAllUsers()
-      console.log('Users loaded:', response)
+      // console.log('Users loaded:', response)
       
       if (response.success && response.result && response.result.data) {
         setUsers(response.result.data)
@@ -45,7 +45,7 @@ const WebSocketTest = () => {
   const testAPI = async () => {
     try {
       const response = await chatService.getRecentMessages(10)
-      console.log('Recent messages:', response)
+      // console.log('Recent messages:', response)
       setApiTest({ success: true, data: response })
     } catch (error) {
       console.error('API test failed:', error)

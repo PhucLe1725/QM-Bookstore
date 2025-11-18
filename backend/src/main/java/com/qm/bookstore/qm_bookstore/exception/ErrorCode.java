@@ -19,6 +19,11 @@ public enum ErrorCode {
     PRODUCT_SKU_ALREADY_EXISTS(3002, "Product SKU already exists"),
     PRODUCT_OUT_OF_STOCK(3003, "Product is out of stock"),
     
+    // Review errors
+    REVIEW_NOT_FOUND(3101, "Review not found"),
+    REVIEW_ALREADY_EXISTS(3102, "You have already reviewed this product"),
+    INVALID_RATING(3103, "Rating must be between 1 and 5"),
+    
     // Category errors
     CATEGORY_NOT_FOUND(4001, "Category not found"),
 

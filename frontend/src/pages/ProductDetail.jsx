@@ -17,7 +17,7 @@ import {
   Send,
   ThumbsUp
 } from 'lucide-react'
-import { productService, commentService } from '../services'
+import { productService, commentService, reviewService } from '../services'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../contexts/ToastContext'
 
@@ -71,8 +71,8 @@ const ProductDetail = () => {
         
         if (response.success) {
           setProduct(response.result)
-          // TODO: Fetch reviews khi có API
-          // fetchReviews(id)
+          // Fetch reviews
+          await fetchReviews(id)
         } else {
           setError('Không thể tải thông tin sản phẩm')
         }
@@ -135,39 +135,6 @@ const ProductDetail = () => {
     fetchComments()
   }, [id])
 
-  // Mock reviews data (replace with API call)
-  useEffect(() => {
-    // Mock data - replace with actual API
-    setReviews([
-      {
-        id: 1,
-        userId: 'user-3',
-        userName: 'Lê Văn C',
-        rating: 5,
-        content: 'Sản phẩm rất tốt, chất lượng cao. Đã mua và dùng được 2 tuần rồi, rất hài lòng!',
-        createdAt: '2024-01-10T10:30:00',
-        helpful: 12
-      },
-      {
-        id: 2,
-        userId: 'user-4',
-        userName: 'Phạm Thị D',
-        rating: 4,
-        content: 'Giao hàng nhanh, đóng gói cẩn thận. Sản phẩm đúng như mô tả.',
-        createdAt: '2024-01-08T14:20:00',
-        helpful: 8
-      }
-    ])
-
-    // Mock: Check if current user has purchased and reviewed
-    if (isAuthenticated) {
-      setHasPurchased(true) // TODO: Replace with actual API check
-      // Check if user already reviewed
-      const existingReview = null // TODO: API call to check
-      setUserReview(existingReview)
-    }
-  }, [id, isAuthenticated])
-
   // Handle quantity change
   const handleQuantityChange = (type) => {
     if (type === 'increase' && quantity < (product?.stockQuantity || 1)) {
@@ -188,6 +155,27 @@ const ProductDetail = () => {
   const handleWishlistToggle = () => {
     // TODO: Implement wishlist API
     setIsInWishlist(!isInWishlist)
+  }
+
+  // Fetch reviews from API
+  const fetchReviews = async (productId) => {
+    try {
+      setReviewsLoading(true)
+      const reviews = await reviewService.getProductReviews(productId)
+      
+      setReviews(reviews)
+      
+      // Check if current user has reviewed
+      if (isAuthenticated && user) {
+        const myReview = reviews.find(r => r.userId === user.id)
+        setUserReview(myReview || null)
+      }
+    } catch (err) {
+      console.error('Error fetching reviews:', err)
+      setReviews([])
+    } finally {
+      setReviewsLoading(false)
+    }
   }
 
   // Handle submit review
@@ -1214,11 +1202,13 @@ const ProductDetail = () => {
                               <div className="flex items-start space-x-3">
                                 <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
                                   <span className="text-gray-600 font-medium">
-                                    {review.userName.charAt(0).toUpperCase()}
+                                    {(review.fullName || review.username || 'U').charAt(0).toUpperCase()}
                                   </span>
                                 </div>
                                 <div>
-                                  <p className="font-medium text-gray-900">{review.userName}</p>
+                                  <p className="font-medium text-gray-900">
+                                    {review.fullName || review.username || 'Anonymous'}
+                                  </p>
                                   <div className="flex items-center space-x-2 mt-1">
                                     <div className="flex">
                                       {[...Array(5)].map((_, i) => (
@@ -1245,10 +1235,6 @@ const ProductDetail = () => {
                               </div>
                             </div>
                             <p className="text-gray-600 mb-3 ml-13">{review.content}</p>
-                            <button className="text-sm text-gray-500 hover:text-gray-700 flex items-center space-x-1 ml-13">
-                              <ThumbsUp className="h-4 w-4" />
-                              <span>Hữu ích ({review.helpful})</span>
-                            </button>
                           </div>
                         ))
                       )}

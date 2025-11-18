@@ -37,6 +37,7 @@ public class ProductCommentService {
     ProductCommentMapper commentMapper;
     SimpMessagingTemplate messagingTemplate;
     NotificationService notificationService;
+    ChatNotificationService chatNotificationService;
 
     public ProductCommentResponse getCommentById(Long commentId) {
         ProductComment comment = commentRepository.findById(commentId)
@@ -122,29 +123,19 @@ public class ProductCommentService {
             
             String anchor = String.format("/products/%d#comment-%d", product.getId(), reply.getId());
 
-            // 1. Save notification to database
+            // 1. Save notification to database and get NotificationResponse
             NotificationCreateRequest notificationRequest = new NotificationCreateRequest();
             notificationRequest.setUserId(parentComment.getUserId());
             notificationRequest.setType(Notification.NotificationType.COMMENT_REPLY);
             notificationRequest.setMessage(message);
             notificationRequest.setAnchor(anchor);
-            notificationService.createNotification(notificationRequest);
+            
+            // Get the NotificationResponse from creation
+            com.qm.bookstore.qm_bookstore.dto.notification.response.NotificationResponse notificationResponse = 
+                    notificationService.createNotification(notificationRequest);
 
-            // 2. Send WebSocket notification to comment owner
-            messagingTemplate.convertAndSendToUser(
-                    parentComment.getUserId().toString(),
-                    "/queue/comment-reply",
-                    new CommentNotificationMessage(
-                            parentComment.getId(),
-                            reply.getId(),
-                            product.getId(),
-                            product.getName(),
-                            message,
-                            reply.getContent(),
-                            replyUserName,
-                            LocalDateTime.now()
-                    )
-            );
+            // 2. Broadcast notification via main notification channels (for navbar display)
+            chatNotificationService.broadcastPersonalNotification(parentComment.getUserId(), notificationResponse);
             
             log.info("Sent reply notification to user {} for comment {}", parentComment.getUserId(), parentComment.getId());
         } catch (Exception e) {
@@ -160,17 +151,6 @@ public class ProductCommentService {
             String anchor = String.format("/admin/comments?productId=%d&commentId=%d", 
                     product.getId(), comment.getId());
 
-            CommentNotificationMessage wsNotification = new CommentNotificationMessage(
-                    comment.getParentComment() != null ? comment.getParentComment().getId() : null,
-                    comment.getId(),
-                    product.getId(),
-                    product.getName(),
-                    message,
-                    comment.getContent(),
-                    commentUser.getUsername(),
-                    LocalDateTime.now()
-            );
-
             // Find all admin and manager users
             List<User> adminAndManagers = userRepository.findAll().stream()
                     .filter(user -> user.getRole() != null && 
@@ -180,20 +160,19 @@ public class ProductCommentService {
 
             // Send notification to each admin and manager
             for (User adminOrManager : adminAndManagers) {
-                // 1. Save notification to database
+                // 1. Save notification to database and get NotificationResponse
                 NotificationCreateRequest notificationRequest = new NotificationCreateRequest();
                 notificationRequest.setUserId(adminOrManager.getId());
                 notificationRequest.setType(Notification.NotificationType.NEW_CUSTOMER_COMMENT);
                 notificationRequest.setMessage(message);
                 notificationRequest.setAnchor(anchor);
-                notificationService.createNotification(notificationRequest);
                 
-                // 2. Send WebSocket notification
-                messagingTemplate.convertAndSendToUser(
-                        adminOrManager.getId().toString(),
-                        "/queue/customer-comment",
-                        wsNotification
-                );
+                // Get the NotificationResponse from creation
+                com.qm.bookstore.qm_bookstore.dto.notification.response.NotificationResponse notificationResponse = 
+                        notificationService.createNotification(notificationRequest);
+                
+                // 2. Broadcast notification via main notification channels (for navbar display)
+                chatNotificationService.broadcastPersonalNotification(adminOrManager.getId(), notificationResponse);
             }
 
             log.info("Sent customer comment notification to {} admin/manager users", adminAndManagers.size());
@@ -226,20 +205,5 @@ public class ProductCommentService {
         ProductComment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
         commentRepository.delete(comment);
-    }
-
-    // Inner class for WebSocket notification message
-    @lombok.Data
-    @lombok.AllArgsConstructor
-    @lombok.NoArgsConstructor
-    public static class CommentNotificationMessage {
-        private Long parentCommentId;
-        private Long replyCommentId;
-        private Long productId;
-        private String productName;
-        private String message;
-        private String commentContent;
-        private String username;
-        private LocalDateTime timestamp;
     }
 }

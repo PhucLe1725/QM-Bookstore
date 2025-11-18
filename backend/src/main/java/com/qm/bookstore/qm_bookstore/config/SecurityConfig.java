@@ -3,6 +3,7 @@ package com.qm.bookstore.qm_bookstore.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -71,9 +72,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/cart/**").hasAnyRole("customer", "admin", "manager")
                         .requestMatchers("/api/orders/my/**").hasAnyRole("customer", "admin", "manager")
 
-                        // Public read endpoints for products and categories
+                        // Public read endpoints for products, categories, reviews and comments
                         .requestMatchers("/api/products/**").permitAll()
                         .requestMatchers("/api/categories/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/product-reviews/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/product-comments/**").permitAll()
                         
                         .anyRequest().authenticated()
                 )

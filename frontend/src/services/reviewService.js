@@ -1,34 +1,28 @@
 import api from './api'
 
 /**
- * Review Service
+ * Product Review Service
  * Handles all product review-related API calls
  */
 
 export const reviewService = {
   // Get all reviews for a product
-  getProductReviews: async (productId, params = {}) => {
+  getProductReviews: async (productId) => {
     try {
-      const queryParams = new URLSearchParams({
-        skipCount: 0,
-        maxResultCount: 20,
-        sortDirection: 'desc',
-        ...params
-      })
-      
-      const response = await api.get(`/reviews/products/${productId}?${queryParams}`)
-      return response
+      const response = await api.get(`/product-reviews/product/${productId}`)
+      // API interceptor đã return response.data rồi, nên response chính là { success: true, result: [...] }
+      return response.result || []
     } catch (error) {
       console.error('Error fetching product reviews:', error)
-      throw error
+      return []
     }
   },
 
   // Get review by ID
   getReviewById: async (reviewId) => {
     try {
-      const response = await api.get(`/reviews/${reviewId}`)
-      return response
+      const response = await api.get(`/product-reviews/${reviewId}`)
+      return response.data
     } catch (error) {
       console.error('Error fetching review:', error)
       throw error
@@ -38,8 +32,8 @@ export const reviewService = {
   // Create a new review
   createReview: async (reviewData) => {
     try {
-      const response = await api.post('/reviews', reviewData)
-      return response
+      const response = await api.post('/product-reviews', reviewData)
+      return response.data
     } catch (error) {
       console.error('Error creating review:', error)
       throw error
@@ -49,8 +43,8 @@ export const reviewService = {
   // Update a review
   updateReview: async (reviewId, reviewData) => {
     try {
-      const response = await api.put(`/reviews/${reviewId}`, reviewData)
-      return response
+      const response = await api.put(`/product-reviews/${reviewId}`, reviewData)
+      return response.data
     } catch (error) {
       console.error('Error updating review:', error)
       throw error
@@ -60,8 +54,8 @@ export const reviewService = {
   // Delete a review
   deleteReview: async (reviewId) => {
     try {
-      const response = await api.delete(`/reviews/${reviewId}`)
-      return response
+      const response = await api.delete(`/product-reviews/${reviewId}`)
+      return response.data
     } catch (error) {
       console.error('Error deleting review:', error)
       throw error
@@ -69,51 +63,45 @@ export const reviewService = {
   },
 
   // Get user's reviews
-  getUserReviews: async (userId, params = {}) => {
+  getUserReviews: async (userId) => {
     try {
-      const queryParams = new URLSearchParams({
-        skipCount: 0,
-        maxResultCount: 20,
-        ...params
-      })
-      
-      const response = await api.get(`/reviews/user/${userId}?${queryParams}`)
-      return response
+      const response = await api.get(`/product-reviews/user/${userId}`)
+      return response.data
     } catch (error) {
       console.error('Error fetching user reviews:', error)
       throw error
     }
   },
 
-  // Mark review as helpful
-  markReviewHelpful: async (reviewId) => {
+  // Get my reviews
+  getMyReviews: async () => {
     try {
-      const response = await api.post(`/reviews/${reviewId}/helpful`)
-      return response
+      const response = await api.get('/product-reviews/my-reviews')
+      return response.data
     } catch (error) {
-      console.error('Error marking review as helpful:', error)
+      console.error('Error fetching my reviews:', error)
       throw error
     }
   },
 
-  // Get average rating for a product
-  getProductAverageRating: async (productId) => {
+  // Get review statistics for a product
+  getReviewStats: async (productId) => {
     try {
-      const response = await api.get(`/reviews/products/${productId}/average-rating`)
-      return response
+      const response = await api.get(`/product-reviews/stats/product/${productId}`)
+      return response.data
     } catch (error) {
-      console.error('Error fetching average rating:', error)
+      console.error('Error fetching review stats:', error)
       throw error
     }
   },
 
-  // Get rating statistics for a product
-  getProductRatingStats: async (productId) => {
+  // Get my review for a product
+  getMyReviewForProduct: async (productId) => {
     try {
-      const response = await api.get(`/reviews/products/${productId}/rating-stats`)
-      return response
+      const response = await api.get(`/product-reviews/product/${productId}/my-review`)
+      return response.data
     } catch (error) {
-      console.error('Error fetching rating stats:', error)
+      console.error('Error fetching my review for product:', error)
       throw error
     }
   }

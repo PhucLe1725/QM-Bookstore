@@ -31,10 +31,10 @@ const NotificationDropdown = () => {
 
   // Debug logs
   useEffect(() => {
-    console.log('🔍 NotificationDropdown - notifications:', notifications)
-    console.log('🔍 NotificationDropdown - unreadCount:', unreadCount)
-    console.log('🔍 NotificationDropdown - loading:', loading)
-    console.log('🔍 NotificationDropdown - error:', error)
+    // console.log('🔍 NotificationDropdown - notifications:', notifications)
+    // console.log('🔍 NotificationDropdown - unreadCount:', unreadCount)
+    // console.log('🔍 NotificationDropdown - loading:', loading)
+    // console.log('🔍 NotificationDropdown - error:', error)
   }, [notifications, unreadCount, loading, error])
 
   // Close dropdown when clicking outside
@@ -87,21 +87,21 @@ const NotificationDropdown = () => {
 
   // Handle notification click
   const handleNotificationClick = (notification) => {
-    console.log('🔔 Notification clicked (mark as read only):', notification)
+    // console.log('🔔 Notification clicked (mark as read only):', notification)
     
     // Click vào notification → chỉ mark as read
     if (notification.status === 'UNREAD') {
       markAsRead(notification.id)
     }
     
-    console.log('✅ Notification marked as read')
+    // console.log('✅ Notification marked as read')
   }
 
   const handleNavigationClick = (e, notification) => {
     // Ngăn event bubbling để không trigger handleNotificationClick
     e.stopPropagation()
     
-    console.log('🔗 Navigation button clicked:', notification)
+    // console.log('🔗 Navigation button clicked:', notification)
     
     // Mark as read trước khi navigate
     if (notification.status === 'UNREAD') {
@@ -124,11 +124,11 @@ const NotificationDropdown = () => {
     
     // Nếu vẫn không có targetUrl thì không làm gì
     if (!targetUrl) {
-      console.log('⚠️ No target URL found, skipping navigation')
+      // console.log('⚠️ No target URL found, skipping navigation')
       return
     }
     
-    console.log('📍 Navigating to:', targetUrl)
+    // console.log('📍 Navigating to:', targetUrl)
     window.location.href = targetUrl
     setIsOpen(false)
   }
