@@ -17,7 +17,7 @@ import {
   Send,
   ThumbsUp
 } from 'lucide-react'
-import { productService, commentService, reviewService } from '../services'
+import { productService, commentService, reviewService, cartService } from '../services'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../contexts/ToastContext'
 
@@ -33,6 +33,7 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
   const [isInWishlist, setIsInWishlist] = useState(false)
+  const [addingToCart, setAddingToCart] = useState(false)
   
   // Tab state
   const [activeTab, setActiveTab] = useState('description') // 'description', 'comments', 'reviews'
@@ -145,10 +146,22 @@ const ProductDetail = () => {
   }
 
   // Handle add to cart
-  const handleAddToCart = () => {
-    // TODO: Implement add to cart API
-    console.log('Add to cart:', { productId: id, quantity })
-    toast.success('Đã thêm vào giỏ hàng!')
+  const handleAddToCart = async () => {
+    if (addingToCart) return
+    
+    setAddingToCart(true)
+    try {
+      await cartService.addToCart(id, quantity)
+      toast.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng!`)
+      
+      // Refresh cart count in header (dispatch custom event)
+      window.dispatchEvent(new Event('cartUpdated'))
+    } catch (error) {
+      console.error('Error adding to cart:', error)
+      toast.error(error.response?.data?.message || 'Không thể thêm vào giỏ hàng')
+    } finally {
+      setAddingToCart(false)
+    }
   }
 
   // Handle wishlist toggle

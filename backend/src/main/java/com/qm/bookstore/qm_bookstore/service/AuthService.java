@@ -38,7 +38,7 @@ public class AuthService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         if (passwordEncoder.matches(password, user.getPasswordHash())) {
-            return jwtUtil.generateToken(user.getUsername(), user.getRole().getName());
+            return jwtUtil.generateToken(user.getUsername(), user.getRole().getName(), user.getId().toString());
         } else {
             throw new AppException(ErrorCode.INVALID_CREDENTIALS);
         }
@@ -65,7 +65,7 @@ public class AuthService {
         User user = userRepository.findById(token.getUserId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        return jwtUtil.generateToken(user.getUsername(), user.getRole().getName());
+        return jwtUtil.generateToken(user.getUsername(), user.getRole().getName(), user.getId().toString());
     }
 
     public void logout(String refreshToken) {

@@ -21,6 +21,17 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    
+    // Log headers for debugging (especially X-Session-ID)
+    if (config.url?.includes('/cart')) {
+      console.log('🛒 Cart API Request:', {
+        url: config.url,
+        method: config.method,
+        headers: config.headers,
+        hasToken: !!token
+      })
+    }
+    
     return config
   },
   (error) => {

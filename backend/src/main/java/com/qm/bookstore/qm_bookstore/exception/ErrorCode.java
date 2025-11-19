@@ -26,6 +26,13 @@ public enum ErrorCode {
     
     // Category errors
     CATEGORY_NOT_FOUND(4001, "Category not found"),
+    
+    // Cart errors
+    CART_NOT_FOUND(6001, "Cart not found"),
+    CART_ITEM_NOT_FOUND(6002, "Cart item not found"),
+    NO_ITEMS_SELECTED(6003, "No items selected for checkout"),
+    INVALID_REQUEST(6004, "Invalid request"),
+    PRODUCT_ALREADY_IN_CART(6005, "Product is already in your cart. Please update quantity from cart page"),
 
     // Notification errors
     NOTIFICATION_NOT_FOUND(5001, "Notification not found"),

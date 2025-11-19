@@ -1,12 +1,38 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
 import { isAdmin } from '../utils'
 import NotificationDropdown from '../components/NotificationDropdown'
+import { cartService } from '../services'
 
 const Header = () => {
   const { user, isAuthenticated, logout } = useAuth()
   const navigate = useNavigate()
+  const [cartItemCount, setCartItemCount] = useState(0)
+
+  useEffect(() => {
+    fetchCartCount()
+    
+    // Listen for cart updates
+    const handleCartUpdate = () => {
+      fetchCartCount()
+    }
+    
+    window.addEventListener('cartUpdated', handleCartUpdate)
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate)
+    }
+  }, [isAuthenticated])
+
+  const fetchCartCount = async () => {
+    try {
+      const cart = await cartService.getCart()
+      setCartItemCount(cart.totalItems || 0)
+    } catch (error) {
+      console.error('Failed to fetch cart count:', error)
+      setCartItemCount(0)
+    }
+  }
 
   const handleLogout = () => {
     logout()
@@ -31,6 +57,18 @@ const Header = () => {
             {isAuthenticated && (
               <Link to="/dashboard" className="text-gray-900 hover:text-blue-600">Dashboard</Link>
             )}
+            
+            {/* Cart Icon */}
+            <Link to="/cart" className="relative text-gray-900 hover:text-blue-600">
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              {cartItemCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {cartItemCount > 99 ? '99+' : cartItemCount}
+                </span>
+              )}
+            </Link>
             
             {/* Authentication Section */}
             {isAuthenticated ? (

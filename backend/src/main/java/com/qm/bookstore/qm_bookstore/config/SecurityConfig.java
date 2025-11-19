@@ -69,7 +69,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/orders/manage/**").hasAnyRole("admin", "manager")
                         
                         // Customer endpoints (authenticated users)
-                        .requestMatchers("/api/cart/**").hasAnyRole("customer", "admin", "manager")
+                        .requestMatchers("/api/cart/checkout").authenticated() // Checkout requires auth
+                        .requestMatchers("/api/cart/**").permitAll() // Other cart operations allow guests
                         .requestMatchers("/api/orders/my/**").hasAnyRole("customer", "admin", "manager")
 
                         // Public read endpoints for products, categories, reviews and comments

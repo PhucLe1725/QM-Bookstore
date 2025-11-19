@@ -1,6 +1,7 @@
 import { json } from 'react-router-dom'
 import Cookies from 'js-cookie'
 import api from './api'
+import { cartService } from './cartService'
 
 export const authService = {
   // Đăng nhập
@@ -63,6 +64,26 @@ export const authService = {
               updatedAt: userResponse.updatedAt
             }
             localStorage.setItem('user', JSON.stringify(userInfo))
+          }
+          
+          // Merge guest cart to user cart after successful login
+          try {
+            const sessionId = cartService.getSessionId()
+            if (sessionId) {
+              await api.post('/cart/merge', {}, {
+                headers: {
+                  'X-Session-ID': sessionId
+                }
+              })
+              // Clear session ID after merge
+              localStorage.removeItem('cart_session_id')
+              
+              // Trigger cart update
+              window.dispatchEvent(new Event('cartUpdated'))
+            }
+          } catch (error) {
+            console.error('Failed to merge cart:', error)
+            // Don't fail login if cart merge fails
           }
         }
       }

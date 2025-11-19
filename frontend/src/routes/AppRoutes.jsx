@@ -1,7 +1,7 @@
 import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { MainLayout } from '../layouts'
-import { Home, Login, Register, Dashboard, Profile, NotificationsPage, Products, ProductDetail } from '../pages'
+import { Home, Login, Register, Dashboard, Profile, NotificationsPage, Products, ProductDetail, Cart } from '../pages'
 import { AdminDashboard, AdminProducts } from '../pages/admin'
 import AdminMessages from '../pages/admin/AdminMessages'
 import WebSocketTest from '../components/WebSocketTest'
@@ -56,6 +56,12 @@ const AppRoutes = () => {
       <Route path="/products/:id" element={
         <MainLayout>
           <ProductDetail />
+        </MainLayout>
+      } />
+      
+      <Route path="/cart" element={
+        <MainLayout>
+          <Cart />
         </MainLayout>
       } />
       
