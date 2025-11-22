@@ -74,9 +74,13 @@ const Login = () => {
     setIsLoading(true)
     try {
       await login(formData)
-      // Redirect to the page user was trying to access or home
+      
+      // Reload trang để đảm bảo WebSocket và tất cả context được khởi tạo lại đúng
+      // Điều này giúp WebSocket nhận được user info ngay lập tức
       const from = location.state?.from?.pathname || '/'
-      navigate(from, { replace: true })
+      window.location.href = from
+      
+      // Note: Không dùng navigate() vì cần full page reload để WebSocket connect
     } catch (error) {
       console.error('Login error:', error)
       

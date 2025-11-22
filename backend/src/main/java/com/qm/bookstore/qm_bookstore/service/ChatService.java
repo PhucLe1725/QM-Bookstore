@@ -260,36 +260,14 @@ public class ChatService {
                 String senderName = messageDto.getSenderUsername() != null ?
                     messageDto.getSenderUsername() : "Admin";
 
-                // Determine receiver role; if receiver is admin/manager then do NOT set anchor
-                String anchor = null;
-                try {
-                    var userOpt = userRepository.findById(receiverId);
-                    if (userOpt.isPresent() && userOpt.get().getRole() != null) {
-                        String roleName = userOpt.get().getRole().getName();
-                        if (!("admin".equalsIgnoreCase(roleName) || "manager".equalsIgnoreCase(roleName))) {
-                            // receiver is not admin/manager -> set chat anchor
-                            anchor = "/chat/" + receiverId;
-                        }
-                    } else {
-                        // If user not found or has no role, default to setting anchor so customer gets link
-                        anchor = "/chat/" + receiverId;
-                    }
-                } catch (Exception e) {
-                    log.warn("Could not determine receiver role for {} - defaulting anchor to chat link", receiverId, e);
-                    anchor = "/chat/" + receiverId;
-                }
+                // Use the helper method with proper formatting "New message from {senderName}: {preview}"
+                NotificationResponse personalNotification = notificationService.createNewMessageNotification(
+                    receiverId,
+                    senderName,
+                    messagePreview
+                );
 
-                // Build notification request manually so we can control anchor
-                com.qm.bookstore.qm_bookstore.dto.notification.request.NotificationCreateRequest notifRequest =
-                    new com.qm.bookstore.qm_bookstore.dto.notification.request.NotificationCreateRequest();
-                notifRequest.setUserId(receiverId);
-                notifRequest.setType(com.qm.bookstore.qm_bookstore.entity.Notification.NotificationType.NEW_MESSAGE);
-                notifRequest.setMessage(messagePreview);
-                notifRequest.setAnchor(anchor);
-
-                NotificationResponse personalNotification = notificationService.createNotification(notifRequest);
-
-                log.info("Created personal notification for recipient {} with ID: {} (anchor={})", receiverId, personalNotification != null ? personalNotification.getId() : null, anchor);
+                //log.info("Created personal notification for recipient {} with ID: {} (anchor={})", receiverId, personalNotification != null ? personalNotification.getId() : null, anchor);
 
                 // Broadcast notification real-time via WebSocket (only if created)
                 if (personalNotification != null) {

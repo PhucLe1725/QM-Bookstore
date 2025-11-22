@@ -1,16 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useWebSocket } from '../store/WebSocketContext'
 import { useAuth } from '../hooks/useAuth'
+import { useNotificationContext } from '../store/NotificationContext'
 import { chatService } from '../services'
 
 const AdminChat = () => {
   const { user } = useAuth()
+  const { notifications } = useNotificationContext()
   const { 
     isConnected,
-    adminMessages,
-    privateMessages,
-    sendPrivateMessage,
-    sendUserMessage, // Add sendUserMessage for user-to-admin messages
+    sendUserMessage,
     subscribeToConversation,
     unsubscribeFromConversation,
     sendTypingIndicator,
@@ -57,35 +56,19 @@ const AdminChat = () => {
     }
   }, [])
 
-  // Listen for real-time WebSocket messages and reload conversation (like admin)
+  // Listen for NEW_MESSAGE notifications and reload conversation
   useEffect(() => {
-    if (user?.id) {
-      const reloadConversation = async () => {
-        try {
-
-          await loadConversation()
-        } catch (error) {
-          console.error('Error reloading conversation:', error)
-        }
-      }
-
-      // Check if there are new messages related to current user
-      const userMessages = [
-        ...(Array.isArray(adminMessages) ? adminMessages : []).filter(msg => 
-          msg.receiverId === user.id // Messages sent to this user
-        ),
-        ...(Array.isArray(privateMessages) ? privateMessages : []).filter(msg => 
-          (msg.senderType === 'admin' && msg.receiverId === user.id) || // From admin to user
-          (msg.senderId === user.id)    // From user (to admin)
-        )
-      ]
-
-      if (userMessages.length > 0) {
-
-        reloadConversation()
-      }
+    if (!user?.id || !notifications || notifications.length === 0) return
+    
+    // Get the latest notification
+    const latestNotification = notifications[0]
+    
+    // Only reload if it's a NEW_MESSAGE notification
+    if (latestNotification?.type === 'NEW_MESSAGE') {
+      console.log('💬 AdminChat: NEW_MESSAGE notification received, reloading conversation...')
+      loadConversation()
     }
-  }, [user?.id, adminMessages, privateMessages])
+  }, [notifications])
 
   const loadConversation = async () => {
     if (!user?.id) return

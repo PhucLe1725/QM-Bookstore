@@ -357,30 +357,61 @@ export const WebSocketProvider = ({ children }) => {
   // Create stable function references
   const connectWebSocketRef = useRef()
   const disconnectWebSocketRef = useRef()
+  const previousUserIdRef = useRef(null)
   
   connectWebSocketRef.current = connectWebSocket
   disconnectWebSocketRef.current = disconnectWebSocket
 
   useEffect(() => {
+    console.log('🔄 WebSocket useEffect triggered - User changed:', {
+      hasUser: !!user,
+      userId: user?.id,
+      previousUserId: previousUserIdRef.current,
+      isConnected: isConnectedRef.current
+    })
+
     // Chỉ kết nối khi có user và chưa connected
     if (!user) {
       // Disconnect if user logged out
       if (clientRef.current && clientRef.current.connected) {
+        console.log('👋 User logged out, disconnecting WebSocket...')
         disconnectWebSocketRef.current()
       }
+      previousUserIdRef.current = null
       return
     }
 
-    // Only connect if not already connected
-    if (!clientRef.current || !clientRef.current.connected) {
+    // Check if user ID changed (new login)
+    const userIdChanged = previousUserIdRef.current !== null && previousUserIdRef.current !== user.id
+    
+    if (userIdChanged) {
+      console.log('🔄 User ID changed, reconnecting WebSocket...', {
+        from: previousUserIdRef.current,
+        to: user.id
+      })
+      // Disconnect old connection first
+      if (clientRef.current && clientRef.current.connected) {
+        disconnectWebSocketRef.current()
+      }
+    }
+
+    // Update previous user ID
+    previousUserIdRef.current = user.id
+
+    // Only connect if not already connected or user changed
+    if (!clientRef.current || !clientRef.current.connected || userIdChanged) {
+      console.log('🔌 Initiating WebSocket connection for user:', user.id)
       connectWebSocketRef.current()
     }
 
     // Cleanup function
     return () => {
-      disconnectWebSocketRef.current()
+      // Don't disconnect on every render, only when component unmounts or user logs out
+      if (!user) {
+        disconnectWebSocketRef.current()
+      }
     }
-  }, [user])
+  }, [user?.id]) // Theo dõi user.id thay vì toàn bộ user object
 
   // === MESSAGE SENDING METHODS ===
 

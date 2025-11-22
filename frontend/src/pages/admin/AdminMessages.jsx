@@ -14,16 +14,16 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { userService, chatService } from '../../services'
 import { useWebSocket } from '../../store/WebSocketContext'
+import { useNotificationContext } from '../../store/NotificationContext'
 import useChatReadStatus from '../../hooks/useChatReadStatus'
-import NotificationButton from '../../components/NotificationButton'
+import NotificationDropdown from '../../components/NotificationDropdown'
 import NotificationTest from '../../components/NotificationTest'
 
 const AdminMessages = () => {
   const { user } = useAuth()
+  const { notifications } = useNotificationContext()
   const { 
-    isConnected, 
-    adminMessages, 
-    privateMessages,
+    isConnected,
     sendPrivateMessage
   } = useWebSocket()
   const { markMessagesRead } = useChatReadStatus()
@@ -43,28 +43,25 @@ const AdminMessages = () => {
     fetchUsers()
   }, [])
 
-  // Single effect to handle real-time message updates (simplified from old code)
+  // Reload conversation when receiving NEW_MESSAGE notifications for selected user
   useEffect(() => {
-    if (!selectedUser) return
+    if (!selectedUser || !notifications || notifications.length === 0) return
 
-    const relevantMessages = [
-      // Messages from user to admin (new ones only)
-      ...(Array.isArray(adminMessages) ? adminMessages : []).filter(msg => 
-        msg.senderId === selectedUser.id
-      ),
-      // Private messages involving this user (new ones only)
-      ...(Array.isArray(privateMessages) ? privateMessages : []).filter(msg => 
-        msg.senderId === selectedUser.id || msg.receiverId === selectedUser.id
-      )
-    ]
-
-    console.log('📨 Relevant messages for selected user:', {
-      userId: selectedUser.id,
-      messageCount: relevantMessages.length
-    })
-
-    // Only reload if there are actually new relevant messages
-    if (relevantMessages.length > 0) {
+    // Get the latest notification
+    const latestNotification = notifications[0]
+    
+    // Reload if it's a NEW_MESSAGE notification AND either:
+    // 1. Global notification (userId === null) - from customer to admin
+    // 2. Personal notification for the selected customer (userId === selectedUser.id) - from other admin to this customer
+    const isGlobalMessage = latestNotification?.type === 'NEW_MESSAGE' && latestNotification?.userId === null
+    const isMessageForSelectedUser = latestNotification?.type === 'NEW_MESSAGE' && latestNotification?.userId === selectedUser.id
+    
+    if (isGlobalMessage || isMessageForSelectedUser) {
+      console.log('💬 AdminMessages: NEW_MESSAGE notification received, reloading conversation for user:', selectedUser.id, {
+        isGlobal: isGlobalMessage,
+        isForSelectedUser: isMessageForSelectedUser
+      })
+      
       // Debounce to avoid too many API calls
       const timeoutId = setTimeout(async () => {
         try {
@@ -80,11 +77,11 @@ const AdminMessages = () => {
         } catch (error) {
           console.error('❌ Error reloading conversation:', error)
         }
-      }, 500) // Debounce time
+      }, 300) // Shorter debounce for better responsiveness
       
       return () => clearTimeout(timeoutId)
     }
-  }, [selectedUser?.id, adminMessages, privateMessages]) // Include adminMessages to listen for new user messages
+  }, [selectedUser?.id, notifications])
 
   const fetchUsers = async () => {
     try {
@@ -299,21 +296,15 @@ const AdminMessages = () => {
                 </div>
               </div>
               
-              {/* Notification Button */}
-              <div className="flex items-center">
-                <NotificationButton className="mr-4" />
-                <div className="flex items-center text-sm text-gray-500">
-                  WebSocket: 
-                  <span className={`ml-1 ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-                    {isConnected ? '✅ Connected' : '❌ Disconnected'}
-                  </span>
+              {/* Notification and User Info */}
+              <div className="flex items-center space-x-4">
+                <NotificationDropdown />
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Admin</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {user?.fullName || user?.username}
+                  </p>
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Admin</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {user?.fullName || user?.username}
-                </p>
               </div>
             </div>
           </div>

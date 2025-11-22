@@ -192,7 +192,8 @@ public class NotificationService {
             senderName != null ? senderName : "Unknown User", 
             messagePreview != null ? messagePreview : "");
         request.setMessage(formattedMessage);
-        request.setAnchor("/chat/" + userId);
+        // Tin nhắn từ admin đến user không cần anchor
+        request.setAnchor(null);
         
         return createNotification(request);
     }
@@ -208,7 +209,7 @@ public class NotificationService {
             senderName != null ? senderName : "Customer", 
             messagePreview != null ? messagePreview : "");
         request.setMessage(formattedMessage);
-        request.setAnchor("/admin/message");
+        request.setAnchor("/admin/messages");
         
         return createNotification(request);
     }
