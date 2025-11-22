@@ -29,11 +29,19 @@ export const AuthProvider = ({ children }) => {
     setLoading(false)
 
     // Listen for logout events từ API interceptor
-    const handleAuthLogout = () => {
+    const handleAuthLogout = (event) => {
       setUser(null)
       setIsAuthenticated(false)
-      // Redirect về trang chủ khi token hết hạn
-      window.location.href = '/'
+      
+      // Lấy thông tin về lý do logout (nếu có)
+      const reason = event?.detail?.reason || 'expired'
+      
+      // Redirect về trang login với thông báo phù hợp
+      if (reason === 'expired') {
+        window.location.href = '/login?session_expired=true'
+      } else {
+        window.location.href = '/login'
+      }
     }
 
     // Listen for browser navigation events (back/forward)

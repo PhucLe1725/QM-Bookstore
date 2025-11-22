@@ -1,8 +1,6 @@
 package com.qm.bookstore.qm_bookstore.controller;
 
-import com.qm.bookstore.qm_bookstore.dto.auth.request.LoginRequest;
-import com.qm.bookstore.qm_bookstore.dto.auth.request.LogoutRequest;
-import com.qm.bookstore.qm_bookstore.dto.auth.request.RefreshTokenRequest;
+import com.qm.bookstore.qm_bookstore.dto.auth.request.*;
 import com.qm.bookstore.qm_bookstore.dto.auth.response.AuthResponse;
 import com.qm.bookstore.qm_bookstore.dto.auth.response.LoginResponse;
 import com.qm.bookstore.qm_bookstore.dto.base.response.ApiResponse;
@@ -13,6 +11,8 @@ import com.qm.bookstore.qm_bookstore.exception.ErrorCode;
 import com.qm.bookstore.qm_bookstore.mapper.UserMapper;
 import com.qm.bookstore.qm_bookstore.repository.UserRepository;
 import com.qm.bookstore.qm_bookstore.service.AuthService;
+import com.qm.bookstore.qm_bookstore.service.RegistrationService;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -24,8 +24,13 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+    
+    @Autowired
+    private RegistrationService registrationService;
+    
     @Autowired
     private UserRepository userRepository;
+    
     @Autowired
     private UserMapper userMapper;
 
@@ -70,6 +75,51 @@ public class AuthController {
 
         return ApiResponse.<String>builder()
                 .result("Logged out successfully")
+                .build();
+    }
+
+    /**
+     * Step 1: Register và gửi OTP
+     * POST /api/auth/register
+     */
+    @PostMapping("/register")
+    public ApiResponse<String> register(@Valid @RequestBody RegisterRequest request) {
+        log.info("Registration request for email: {}", request.getEmail());
+        String message = registrationService.register(request);
+        
+        return ApiResponse.<String>builder()
+                .success(true)
+                .result(message)
+                .build();
+    }
+
+    /**
+     * Step 2: Verify OTP và tạo tài khoản
+     * POST /api/auth/verify-otp
+     */
+    @PostMapping("/verify-otp")
+    public ApiResponse<String> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        log.info("OTP verification request for email: {}", request.getEmail());
+        String message = registrationService.verifyOtp(request);
+        
+        return ApiResponse.<String>builder()
+                .success(true)
+                .result(message)
+                .build();
+    }
+
+    /**
+     * Step 3: Resend OTP
+     * POST /api/auth/resend-otp
+     */
+    @PostMapping("/resend-otp")
+    public ApiResponse<String> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
+        log.info("Resend OTP request for email: {}", request.getEmail());
+        String message = registrationService.resendOtp(request.getEmail());
+        
+        return ApiResponse.<String>builder()
+                .success(true)
+                .result(message)
                 .build();
     }
 }

@@ -98,7 +98,35 @@ export const authService = {
   // Đăng ký
   register: async (userData) => {
     try {
-      const response = await api.post('/auth/register', userData)
+      const response = await api.post('/auth/register', {
+        email: userData.email,
+        username: userData.username,
+        phoneNumber: userData.phoneNumber,
+        password: userData.password
+      })
+      return response
+    } catch (error) {
+      throw error
+    }
+  },
+
+  // Xác thực OTP
+  verifyOtp: async (email, otpCode) => {
+    try {
+      const response = await api.post('/auth/verify-otp', {
+        email,
+        otpCode
+      })
+      return response
+    } catch (error) {
+      throw error
+    }
+  },
+
+  // Gửi lại OTP
+  resendOtp: async (email) => {
+    try {
+      const response = await api.post('/auth/resend-otp', { email })
       return response
     } catch (error) {
       throw error

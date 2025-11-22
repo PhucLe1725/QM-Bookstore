@@ -8,6 +8,12 @@ public enum ErrorCode {
     REFRESH_TOKEN_EXPIRED(1004, "Refresh token has expired"),
     USER_ALREADY_EXISTS(1005, "Username already exists"),
     EMAIL_ALREADY_EXISTS(1006, "Email already exists"),
+    
+    // OTP & Registration errors
+    INVALID_OTP(1010, "Invalid OTP code"),
+    OTP_EXPIRED(1011, "OTP code has expired. Please request a new one"),
+    PENDING_USER_NOT_FOUND(1012, "No pending registration found for this email"),
+    EMAIL_SEND_FAILED(1013, "Failed to send verification email"),
 
     // Chat errors
     CHAT_MESSAGE_NOT_FOUND(2001, "Chat message not found"),
