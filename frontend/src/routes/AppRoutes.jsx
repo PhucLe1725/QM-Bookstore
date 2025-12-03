@@ -1,10 +1,11 @@
 import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { MainLayout } from '../layouts'
-import { Home, Login, Register, Dashboard, Profile, NotificationsPage, Products, ProductDetail, Cart } from '../pages'
+import { Home, Login, Register, Dashboard, Profile, NotificationsPage, Products, ProductDetail, Cart, Checkout, Orders, OrderDetail, Vouchers } from '../pages'
 import { AdminDashboard, AdminProducts } from '../pages/admin'
 import AdminMessages from '../pages/admin/AdminMessages'
-import WebSocketTest from '../components/WebSocketTest'
+import AdminOrders from '../pages/admin/AdminOrders'
+import SystemConfig from '../pages/admin/SystemConfig'
 import ProtectedRoute from '../components/ProtectedRoute'
 import AdminRoute from '../components/AdminRoute'
 
@@ -65,6 +66,36 @@ const AppRoutes = () => {
         </MainLayout>
       } />
       
+      <Route path="/vouchers" element={
+        <MainLayout>
+          <Vouchers />
+        </MainLayout>
+      } />
+      
+      <Route path="/checkout" element={
+        <ProtectedRoute>
+          <MainLayout>
+            <Checkout />
+          </MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/orders" element={
+        <ProtectedRoute>
+          <MainLayout>
+            <Orders />
+          </MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/orders/:orderId" element={
+        <ProtectedRoute>
+          <MainLayout>
+            <OrderDetail />
+          </MainLayout>
+        </ProtectedRoute>
+      } />
+      
       {/* Admin Routes - Chỉ admin mới truy cập được */}
       <Route path="/admin" element={
         <AdminRoute>
@@ -84,13 +115,16 @@ const AppRoutes = () => {
         </AdminRoute>
       } />
       
-      {/* Test route for WebSocket */}
-      <Route path="/test" element={
-        <ProtectedRoute>
-          <MainLayout>
-            <WebSocketTest />
-          </MainLayout>
-        </ProtectedRoute>
+      <Route path="/admin/orders" element={
+        <AdminRoute>
+          <AdminOrders />
+        </AdminRoute>
+      } />
+      
+      <Route path="/admin/system-config" element={
+        <AdminRoute>
+          <SystemConfig />
+        </AdminRoute>
       } />
       
       {/* Thêm các route khác ở đây */}

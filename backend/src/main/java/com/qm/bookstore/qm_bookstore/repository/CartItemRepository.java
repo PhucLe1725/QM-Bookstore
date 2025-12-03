@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {
@@ -18,6 +19,9 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     
     @Query("SELECT ci FROM CartItem ci WHERE ci.cartId = :cartId AND ci.isSelected = true")
     List<CartItem> findSelectedItemsByCartId(@Param("cartId") Long cartId);
+    
+    @Query("SELECT ci FROM CartItem ci JOIN ci.cart c WHERE c.userId = :userId AND ci.isSelected = true")
+    List<CartItem> findSelectedItemsByUserId(@Param("userId") UUID userId);
     
     @Query("SELECT ci FROM CartItem ci WHERE ci.cartId = :cartId AND ci.productId = :productId")
     Optional<CartItem> findByCartIdAndProductId(@Param("cartId") Long cartId, @Param("productId") Long productId);
@@ -30,5 +34,10 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     @Query("DELETE FROM CartItem ci WHERE ci.cartId = :cartId AND ci.isSelected = true")
     void deleteSelectedItemsByCartId(@Param("cartId") Long cartId);
     
+    @Modifying
+    @Query("DELETE FROM CartItem ci WHERE ci.cart.userId = :userId AND ci.isSelected = true")
+    void deleteSelectedItemsByUserId(@Param("userId") UUID userId);
+    
     boolean existsByCartIdAndProductId(Long cartId, Long productId);
 }
+

@@ -547,7 +547,8 @@ const Cart = () => {
                       toast.warning('Vui lòng chọn sản phẩm để thanh toán')
                       return
                     }
-                    setShowCheckoutForm(true)
+                    // Chuyển đến trang checkout
+                    navigate('/checkout')
                   }}
                   disabled={cart.summary.selectedItems === 0}
                   className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2"

@@ -41,7 +41,14 @@ const userService = {
   // Cập nhật thông tin profile của user hiện tại
   updateMyProfile: async (profileData) => {
     try {
+      // Backend sẽ tự lấy user từ authentication context
       const response = await api.put('/users/profile/update', profileData)
+      
+      // Cập nhật lại user trong localStorage nếu update thành công
+      if (response.success && response.result) {
+        localStorage.setItem('user', JSON.stringify(response.result))
+      }
+      
       return response
     } catch (error) {
       console.error('Error updating my profile:', error)

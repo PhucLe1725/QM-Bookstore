@@ -34,8 +34,9 @@ public class UserController {
     @GetMapping("/profile/me")
     public ApiResponse<UserResponse> getMyProfile() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        UserResponse userResponse = userService.getMyProfile(username);
+        String userId = authentication.getName(); // This is userId (set in JwtAuthenticationFilter)
+        
+        UserResponse userResponse = userService.getUserById(UUID.fromString(userId));
         return ApiResponse.<UserResponse>builder()
                 .result(userResponse)
                 .build();
@@ -44,11 +45,10 @@ public class UserController {
     @PutMapping("/profile/update")
     public ApiResponse<UserResponse> updateMyProfile(@RequestBody UserProfileUpdateRequest request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
+        String userId = authentication.getName(); // This is userId (set in JwtAuthenticationFilter)
         
-        // Get user ID from username
-        UserResponse currentUser = userService.getUserByUsername(username);
-        UserResponse userResponse = userService.updateProfile(currentUser.getId(), request);
+        // Convert String userId to UUID
+        UserResponse userResponse = userService.updateProfile(UUID.fromString(userId), request);
         
         return ApiResponse.<UserResponse>builder()
                 .result(userResponse)

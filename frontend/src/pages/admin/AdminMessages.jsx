@@ -17,7 +17,6 @@ import { useWebSocket } from '../../store/WebSocketContext'
 import { useNotificationContext } from '../../store/NotificationContext'
 import useChatReadStatus from '../../hooks/useChatReadStatus'
 import NotificationDropdown from '../../components/NotificationDropdown'
-import NotificationTest from '../../components/NotificationTest'
 
 const AdminMessages = () => {
   const { user } = useAuth()
@@ -579,9 +578,6 @@ const AdminMessages = () => {
           </div>
         </div>
       </div>
-      
-      {/* Notification Test Panel (for development) */}
-      <NotificationTest />
     </div>
   )
 }

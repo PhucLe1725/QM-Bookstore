@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react'
 import { Search, Filter, ShoppingCart, X, ChevronDown, Grid, List } from 'lucide-react'
-import { productService } from '../services'
+import { productService, cartService } from '../services'
 import { useNavigate } from 'react-router-dom'
+import { useToast } from '../contexts/ToastContext'
 
 const Products = () => {
   const navigate = useNavigate()
+  const toast = useToast()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  
+  // Add to cart state
+  const [addingToCartId, setAddingToCartId] = useState(null)
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -25,12 +30,30 @@ const Products = () => {
   
   // Categories (mock data - replace with API call if available)
   const categories = [
-    { id: 1, name: 'Sách giáo khoa' },
-    { id: 2, name: 'Văn phòng phẩm' },
+    { id: 10, name: 'SGK Chân Trời Sáng Tạo' },
+    { id: 42, name: 'SGK Kết nối tri thức với cuộc sống' },
     { id: 3, name: 'Dụng cụ học tập' },
     { id: 4, name: 'Đồ dùng nghệ thuật' },
     { id: 5, name: 'Thiết bị văn phòng' }
   ]
+
+  // Handle add to cart
+  const handleAddToCart = async (productId, e) => {
+    e.stopPropagation() // Prevent navigating to product detail
+    if (addingToCartId) return
+    
+    setAddingToCartId(productId)
+    try {
+      await cartService.addToCart(productId, 1) // Always add 1 quantity from this page
+      toast.success('Đã thêm sản phẩm vào giỏ hàng!')
+      window.dispatchEvent(new Event('cartUpdated'))
+    } catch (error) {
+      console.error('Error adding to cart:', error)
+      toast.error(error.response?.data?.message || 'Không thể thêm vào giỏ hàng')
+    } finally {
+      setAddingToCartId(null)
+    }
+  }
 
   // Fetch products
   const fetchProducts = async () => {
@@ -355,13 +378,26 @@ const Products = () => {
                               <ShoppingCart className="h-20 w-20 text-gray-300" />
                             </div>
                           )}
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-300 z-10"></div>
                           {!product.availability && (
-                            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30">
                               <span className="bg-red-500 text-white px-4 py-2 rounded-full font-medium">
                                 Hết hàng
                               </span>
                             </div>
                           )}
+                           <button
+                              onClick={(e) => handleAddToCart(product.id, e)}
+                              disabled={addingToCartId === product.id || !product.availability}
+                              className="absolute bottom-3 right-3 bg-blue-600 text-white p-2 rounded-full shadow-lg opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed z-20"
+                              aria-label="Thêm vào giỏ hàng"
+                            >
+                              {addingToCartId === product.id ? (
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                              ) : (
+                                <ShoppingCart className="h-6 w-6" />
+                              )}
+                            </button>
                         </div>
                         <div className="p-4">
                           <h3 className="text-sm font-medium text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
@@ -415,13 +451,26 @@ const Products = () => {
                                 <ShoppingCart className="h-16 w-16 text-gray-300" />
                               </div>
                             )}
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-300 z-10"></div>
                             {!product.availability && (
-                              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30">
                                 <span className="bg-red-500 text-white px-4 py-2 rounded-full font-medium text-sm">
                                   Hết hàng
                                 </span>
                               </div>
                             )}
+                             <button
+                                onClick={(e) => handleAddToCart(product.id, e)}
+                                disabled={addingToCartId === product.id || !product.availability}
+                                className="absolute bottom-3 right-3 bg-blue-600 text-white p-2 rounded-full shadow-lg opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed z-20"
+                                aria-label="Thêm vào giỏ hàng"
+                              >
+                                {addingToCartId === product.id ? (
+                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                                ) : (
+                                  <ShoppingCart className="h-6 w-6" />
+                                )}
+                              </button>
                           </div>
                           <div className="flex-1 p-6">
                             <div className="flex flex-col h-full">

@@ -36,49 +36,57 @@ public class SecurityConfig {
                 }))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
+                        // ========== PUBLIC ENDPOINTS ==========
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         
-                        // WebSocket endpoints
+                        // ========== WEBSOCKET ENDPOINTS ==========
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/app/**").permitAll()
                         .requestMatchers("/topic/**").permitAll()
                         .requestMatchers("/queue/**").permitAll()
                         
-                        // Chat endpoints
+                        // ========== CHAT ENDPOINTS ==========
                         .requestMatchers("/api/chat/history/**").authenticated()
                         .requestMatchers("/api/chat/admin/**").hasAnyRole("admin", "manager")
                         .requestMatchers("/api/chat/conversations").hasAnyRole("admin", "manager")
 
-                        // Notification endpoints
+                        // ========== NOTIFICATION ENDPOINTS ==========
                         .requestMatchers("/api/notifications/user/**").permitAll()
                         .requestMatchers("/api/notifications/**").authenticated()
                         .requestMatchers("/api/notifications/admin/**").hasAnyRole("admin", "manager")
 
-                        // User profile endpoints (authenticated users can access their own profile)
+                        // ========== USER ENDPOINTS ==========
                         .requestMatchers("/api/users/profile/**").authenticated()
-
-                        // Admin only endpoints
-                        .requestMatchers("/api/admin/**").hasRole("admin")
                         .requestMatchers("/api/users/**").hasRole("admin")
+
+                        // ========== CART ENDPOINTS ==========
+                        .requestMatchers("/api/cart/**").permitAll() // Guests can use cart with session
                         
-                        // Manager and Admin endpoints
-                        .requestMatchers("/api/products/manage/**").hasAnyRole("admin", "manager")
-                        .requestMatchers("/api/categories/manage/**").hasAnyRole("admin", "manager")
+                        // ========== ORDER ENDPOINTS ==========
+                        // Customer order endpoints (requires authentication)
+                        .requestMatchers("/api/orders/checkout").authenticated()
+                        .requestMatchers("/api/orders/my-orders").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/orders/*").authenticated() // GET /api/orders/{orderId}
+                        .requestMatchers(HttpMethod.POST, "/api/orders/*/cancel").authenticated() // POST /api/orders/{orderId}/cancel
+                        .requestMatchers(HttpMethod.POST, "/api/orders/*/reorder").authenticated() // POST /api/orders/{orderId}/reorder
+                        
+                        // Admin/Manager order endpoints
+                        .requestMatchers(HttpMethod.PATCH, "/api/orders/*/status").hasAnyRole("admin", "manager")
                         .requestMatchers("/api/orders/manage/**").hasAnyRole("admin", "manager")
                         
-                        // Customer endpoints (authenticated users)
-                        .requestMatchers("/api/cart/checkout").authenticated() // Checkout requires auth
-                        .requestMatchers("/api/cart/**").permitAll() // Other cart operations allow guests
-                        .requestMatchers("/api/orders/my/**").hasAnyRole("customer", "admin", "manager")
-
-                        // Public read endpoints for products, categories, reviews and comments
-                        .requestMatchers("/api/products/**").permitAll()
-                        .requestMatchers("/api/categories/**").permitAll()
+                        // ========== PRODUCT & CATEGORY ENDPOINTS ==========
+                        .requestMatchers("/api/products/manage/**").hasAnyRole("admin", "manager")
+                        .requestMatchers("/api/categories/manage/**").hasAnyRole("admin", "manager")
+                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/product-reviews/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/product-comments/**").permitAll()
                         
+                        // ========== ADMIN ENDPOINTS ==========
+                        .requestMatchers("/api/admin/**").hasRole("admin")
+                        
+                        // ========== DEFAULT ==========
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

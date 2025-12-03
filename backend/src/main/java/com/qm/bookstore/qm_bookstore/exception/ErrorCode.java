@@ -44,6 +44,32 @@ public enum ErrorCode {
     NOTIFICATION_NOT_FOUND(5001, "Notification not found"),
     NOTIFICATION_ACCESS_DENIED(5002, "Access denied to this notification"),
 
+    // Order errors (7000-7099)
+    ORDER_NOT_FOUND(7001, "Order not found"),
+    ORDER_ACCESS_DENIED(7002, "You don't have permission to access this order"),
+    CANNOT_CANCEL_ORDER(7003, "Cannot cancel order with current status"),
+    CART_EMPTY(7004, "No items selected in cart for checkout"),
+    INSUFFICIENT_STOCK(7005, "Insufficient stock for product: {0}"),
+    INVALID_STATUS_TRANSITION(7006, "Invalid status transition from {0} to {1}"),
+    VOUCHER_INVALID(7007, "Voucher is invalid or expired"),
+    SHIPPING_FEE_CALCULATION_FAILED(7008, "Failed to calculate shipping fee"),
+
+    // System Config errors (8000-8099)
+    SYSTEM_CONFIG_NOT_FOUND(8001, "System configuration not found"),
+    SYSTEM_CONFIG_ALREADY_EXISTS(8002, "Configuration with this key already exists"),
+
+    // Voucher errors (7100-7199)
+    VOUCHER_NOT_FOUND(7101, "Voucher not found"),
+    VOUCHER_CODE_EXISTED(7102, "Voucher code already exists"),
+    VOUCHER_INACTIVE(7103, "Voucher is not active"),
+    VOUCHER_EXPIRED(7104, "Voucher has expired"),
+    VOUCHER_NOT_YET_VALID(7105, "Voucher is not yet valid"),
+    VOUCHER_USAGE_LIMIT_REACHED(7106, "Voucher usage limit has been reached"),
+    ORDER_BELOW_MIN_AMOUNT(7107, "Order total must be at least {0} to use this voucher"),
+    INVALID_VOUCHER_DATE_RANGE(7108, "Valid from date must be before valid to date"),
+    INVALID_DISCOUNT_PERCENT(7109, "Discount percent must be between 0 and 100"),
+    MAX_DISCOUNT_NOT_ALLOWED_FOR_FIXED(7110, "Max discount is only applicable for PERCENT type vouchers"),
+
     // Generic errors
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error"),
     INVALID_KEY(1005, "Invalid message key"),
