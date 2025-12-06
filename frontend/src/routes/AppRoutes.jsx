@@ -5,6 +5,7 @@ import { Home, Login, Register, Dashboard, Profile, NotificationsPage, Products,
 import { AdminDashboard, AdminProducts } from '../pages/admin'
 import AdminMessages from '../pages/admin/AdminMessages'
 import AdminOrders from '../pages/admin/AdminOrders'
+import AdminTransactions from '../pages/admin/AdminTransactions'
 import SystemConfig from '../pages/admin/SystemConfig'
 import ProtectedRoute from '../components/ProtectedRoute'
 import AdminRoute from '../components/AdminRoute'
@@ -124,6 +125,12 @@ const AppRoutes = () => {
       <Route path="/admin/system-config" element={
         <AdminRoute>
           <SystemConfig />
+        </AdminRoute>
+      } />
+      
+      <Route path="/admin/transactions" element={
+        <AdminRoute>
+          <AdminTransactions />
         </AdminRoute>
       } />
       

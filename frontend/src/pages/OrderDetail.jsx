@@ -1,19 +1,24 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { orderService } from '../services/orderService'
+import transactionService from '../services/transactionService'
+import QRPayment from '../components/QRPayment'
+import { useToast } from '../contexts/ToastContext'
 import { 
   Package, MapPin, Phone, User, Tag, Truck, CreditCard, 
-  Calendar, CheckCircle, XCircle, Clock, AlertCircle, ArrowLeft 
+  Calendar, CheckCircle, XCircle, Clock, AlertCircle, ArrowLeft, RefreshCw 
 } from 'lucide-react'
 
 const OrderDetail = () => {
   const { orderId } = useParams()
   const navigate = useNavigate()
+  const toast = useToast()
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelling, setCancelling] = useState(false)
+  const [validating, setValidating] = useState(false)
 
   useEffect(() => {
     loadOrderDetail()
@@ -39,7 +44,7 @@ const OrderDetail = () => {
 
   const handleCancelOrder = async () => {
     if (!cancelReason.trim()) {
-      alert('Vui lòng nhập lý do hủy đơn')
+      toast.warning('Vui lòng nhập lý do hủy đơn')
       return
     }
 
@@ -48,15 +53,20 @@ const OrderDetail = () => {
       const result = await orderService.cancelOrder(orderId, cancelReason)
       
       if (result.success) {
-        alert('Đã hủy đơn hàng thành công')
+        toast.success('Đã hủy đơn hàng thành công')
         setShowCancelModal(false)
         loadOrderDetail()
       } else {
-        alert(result.error?.message || 'Không thể hủy đơn hàng')
+        // Handle error code 7003: CANNOT_CANCEL_ORDER
+        if (result.error?.code === 7003) {
+          toast.error('Không thể hủy đơn hàng với trạng thái hiện tại')
+        } else {
+          toast.error(result.error?.message || 'Không thể hủy đơn hàng')
+        }
       }
     } catch (error) {
       console.error('Cancel order error:', error)
-      alert('Có lỗi xảy ra khi hủy đơn hàng')
+      toast.error('Có lỗi xảy ra khi hủy đơn hàng')
     } finally {
       setCancelling(false)
     }
@@ -94,9 +104,99 @@ const OrderDetail = () => {
     return configs[status] || { label: status, color: 'gray', icon: AlertCircle }
   }
 
+  const getPaymentStatusLabel = () => {
+    if (!order) return ''
+    
+    if (order.paymentStatus === 'pending') {
+      // Phân biệt COD và Prepaid khi chưa thanh toán
+      if (order.paymentMethod === 'prepaid') {
+        return 'Chờ chuyển khoản'
+      } else {
+        return 'Thanh toán khi nhận hàng'
+      }
+    }
+    
+    // Các trạng thái khác giống nhau
+    const statusLabels = {
+      paid: 'Đã thanh toán',
+      failed: 'Thanh toán thất bại',
+      refunded: 'Đã hoàn tiền'
+    }
+    
+    return statusLabels[order.paymentStatus] || order.paymentStatus
+  }
+
+  const getPaymentStatusColor = () => {
+    if (!order) return 'bg-gray-100 text-gray-800 border-gray-200'
+    
+    if (order.paymentStatus === 'pending') {
+      // Prepaid: màu vàng (cảnh báo cần thanh toán)
+      // COD: màu xanh nhạt (thông tin bình thường)
+      if (order.paymentMethod === 'prepaid') {
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      } else {
+        return 'bg-blue-50 text-blue-700 border-blue-200'
+      }
+    }
+    
+    const statusColors = {
+      paid: 'bg-green-100 text-green-800 border-green-200',
+      failed: 'bg-red-100 text-red-800 border-red-200',
+      refunded: 'bg-blue-100 text-blue-800 border-blue-200'
+    }
+    
+    return statusColors[order.paymentStatus] || 'bg-gray-100 text-gray-800 border-gray-200'
+  }
+
   const canCancelOrder = () => {
     // Chỉ có thể hủy khi orderStatus = confirmed và paymentStatus != paid
     return order && order.orderStatus === 'confirmed' && order.paymentStatus !== 'paid'
+  }
+
+  const shouldShowQRPayment = () => {
+    // Hiển thị QR khi: paymentMethod = prepaid VÀ paymentStatus = pending
+    return order && order.paymentMethod === 'prepaid' && order.paymentStatus === 'pending'
+  }
+
+  const handleValidatePayment = async () => {
+    try {
+      setValidating(true)
+      
+      // Step 1: Fetch latest transactions from email first
+      toast.info('🔄 Đang kiểm tra giao dịch mới từ ngân hàng...')
+      try {
+        await transactionService.fetchFromEmail(10)
+      } catch (fetchError) {
+        console.warn('Failed to fetch emails:', fetchError)
+        // Continue anyway - transaction might already exist in DB
+      }
+      
+      // Step 2: Validate payment
+      const response = await orderService.validatePayment(orderId)
+      
+      if (response.success) {
+        if (response.result.paymentConfirmed) {
+          toast.success('✅ Thanh toán đã được xác nhận!')
+          loadOrderDetail() // Reload để cập nhật trạng thái
+        } else {
+          toast.warning('⏳ Chưa nhận được thanh toán. Vui lòng thử lại sau vài phút.')
+        }
+      } else {
+        // Handle error codes
+        if (response.error?.code === 7209) {
+          toast.error('Đơn hàng không dùng phương thức chuyển khoản')
+        } else if (response.error?.code === 7210) {
+          toast.error('Đơn hàng đã được thanh toán rồi')
+        } else {
+          toast.error(response.error?.message || 'Không thể kiểm tra thanh toán')
+        }
+      }
+    } catch (error) {
+      console.error('Validate payment error:', error)
+      toast.error('Có lỗi xảy ra khi kiểm tra thanh toán')
+    } finally {
+      setValidating(false)
+    }
   }
 
   if (loading) {
@@ -147,16 +247,8 @@ const OrderDetail = () => {
             
             <div className="flex flex-wrap gap-2">
               {/* Payment Status */}
-              <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border
-                ${order.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : ''}
-                ${order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800 border-green-200' : ''}
-                ${order.paymentStatus === 'failed' ? 'bg-red-100 text-red-800 border-red-200' : ''}
-                ${order.paymentStatus === 'refunded' ? 'bg-blue-100 text-blue-800 border-blue-200' : ''}
-              `}>
-                {order.paymentStatus === 'pending' && 'Chờ thanh toán'}
-                {order.paymentStatus === 'paid' && 'Đã thanh toán'}
-                {order.paymentStatus === 'failed' && 'Thanh toán thất bại'}
-                {order.paymentStatus === 'refunded' && 'Đã hoàn tiền'}
+              <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border ${getPaymentStatusColor()}`}>
+                {getPaymentStatusLabel()}
               </span>
               
               {/* Fulfillment Status */}
@@ -313,7 +405,71 @@ const OrderDetail = () => {
                   </p>
                 </div>
               )}
+              
+              {/* Payment Method Info */}
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Phương thức thanh toán:</span>
+                  <span className="text-sm font-medium text-gray-800">
+                    {order.paymentMethod === 'prepaid' ? 'Chuyển khoản ngân hàng' : 'Tiền mặt (COD)'}
+                  </span>
+                </div>
+                
+                {order.paymentStatus === 'pending' && (
+                  <div className="mt-2 pt-2 border-t border-gray-200">
+                    {order.paymentMethod === 'prepaid' ? (
+                      <p className="text-xs text-yellow-700">
+                        ⏳ Vui lòng chuyển khoản và kiểm tra thanh toán bên dưới
+                      </p>
+                    ) : (
+                      <p className="text-xs text-blue-700">
+                        💵 Thanh toán khi nhận hàng
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* QR Payment Section */}
+            {shouldShowQRPayment() && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <CreditCard className="w-5 h-5 mr-2 text-blue-600" />
+                  Quét mã thanh toán
+                </h2>
+                
+                <QRPayment
+                  amount={order.totalAmount}
+                  orderCode={`QMORD${order.orderId}`}
+                  showInstructions={false}
+                />
+                
+                <div className="mt-4 space-y-3">
+                  <button
+                    onClick={handleValidatePayment}
+                    disabled={validating}
+                    className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {validating ? (
+                      <>
+                        <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                        Đang kiểm tra...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-5 h-5 mr-2" />
+                        Kiểm tra thanh toán
+                      </>
+                    )}
+                  </button>
+                  
+                  <p className="text-xs text-gray-500 text-center">
+                    Sau khi chuyển khoản, bấm nút trên để kiểm tra và xác nhận thanh toán
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Actions */}
             {canCancelOrder() && (

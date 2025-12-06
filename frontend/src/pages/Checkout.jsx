@@ -388,13 +388,8 @@ const Checkout = () => {
       const result = await orderService.checkout(checkoutData)
 
       if (result.success) {
-        // Nếu prepaid và có paymentUrl → redirect thanh toán
-        if (formData.paymentMethod === 'prepaid' && result.result.paymentUrl) {
-          window.location.href = result.result.paymentUrl
-        } else {
-          // COD hoặc không có paymentUrl → redirect order detail
-          navigate(`/orders/${result.result.orderId}`)
-        }
+        // Redirect đến trang chi tiết đơn hàng (có QR payment nếu prepaid)
+        navigate(`/orders/${result.result.orderId}`)
       } else {
         setError(result.error?.message || 'Đặt hàng thất bại')
       }

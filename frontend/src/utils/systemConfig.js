@@ -117,5 +117,54 @@ export const CONFIG_KEYS = {
   FREE_SHIPPING_THRESHOLD: 'free_shipping_threshold',
   TAX_RATE: 'tax_rate',
   MAX_CART_ITEMS: 'max_cart_items',
-  MAINTENANCE_MODE: 'maintenance_mode'
+  MAINTENANCE_MODE: 'maintenance_mode',
+  // VietQR Payment Configuration
+  VIETQR_BANK_ID: 'vietqr_bank_id',
+  VIETQR_ACCOUNT_NO: 'vietqr_account_no',
+  VIETQR_ACCOUNT_NAME: 'vietqr_account_name',
+  VIETQR_TEMPLATE: 'vietqr_template'
+}
+
+// Helper function to generate VietQR URL
+export const generateVietQRUrl = (amount, orderCode, accountName = null, accountNo = null, bankId = null, template = null) => {
+  const bank = bankId || 'sacombank'
+  const account = accountNo || '17251725'
+  const name = accountName || 'LE XUAN PHUC'
+  const qrTemplate = template || 'compact2'
+  
+  const baseUrl = `https://img.vietqr.io/image/${bank}-${account}-${qrTemplate}.png`
+  const params = new URLSearchParams({
+    amount: amount,
+    addInfo: orderCode,
+    accountName: name
+  })
+  
+  return `${baseUrl}?${params.toString()}`
+}
+
+// Helper function to get VietQR config from system config
+export const getVietQRConfig = async () => {
+  try {
+    const [bankId, accountNo, accountName, template] = await Promise.all([
+      getConfigValue(CONFIG_KEYS.VIETQR_BANK_ID),
+      getConfigValue(CONFIG_KEYS.VIETQR_ACCOUNT_NO),
+      getConfigValue(CONFIG_KEYS.VIETQR_ACCOUNT_NAME),
+      getConfigValue(CONFIG_KEYS.VIETQR_TEMPLATE)
+    ])
+    
+    return {
+      bankId: bankId || 'sacombank',
+      accountNo: accountNo || '17251725',
+      accountName: accountName || 'LE XUAN PHUC',
+      template: template || 'compact2'
+    }
+  } catch (error) {
+    console.warn('Failed to fetch VietQR config, using defaults:', error)
+    return {
+      bankId: 'sacombank',
+      accountNo: '17251725',
+      accountName: 'LE XUAN PHUC',
+      template: 'compact2'
+    }
+  }
 }

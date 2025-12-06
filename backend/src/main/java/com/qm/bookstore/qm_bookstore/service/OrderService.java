@@ -39,6 +39,8 @@ public class OrderService {
     VoucherRepository voucherRepository;
     VoucherService voucherService;
     OrderMapper orderMapper;
+    TransactionRepository transactionRepository;
+    TransactionService transactionService;
 
     /**
      * Checkout - Tạo đơn hàng từ giỏ hàng (Updated with new schema)
@@ -166,13 +168,16 @@ public class OrderService {
         order = orderRepository.save(order);
         log.info("[checkout] Created order id={}", order.getId());
 
-        // 7.5. Record voucher usage immediately (prevents abuse even if order is cancelled)
-        if (voucherId != null) {
-            voucherService.incrementVoucherUsage(voucherId);
-            voucherService.recordVoucherUsage(voucherId, userId, order.getId());
-            log.info("[checkout] Recorded voucher usage - voucherId={}, userId={}, orderId={}", 
-                    voucherId, userId, order.getId());
-        }
+        // 7.5. Generate and save transfer content (QMORD{id})
+        String transferContent = "QMORD" + order.getId();
+        order.setTransferContent(transferContent);
+        order = orderRepository.save(order);
+        log.info("[checkout] Generated transferContent: {}", transferContent);
+
+        // 7.6. KHÔNG increment voucher tại đây nữa
+        // Voucher sẽ được increment SAU KHI payment được confirm (trong validatePayment method)
+        // Điều này đảm bảo voucher chỉ được tính khi user thực sự thanh toán
+        // Nếu order bị cancel trước khi thanh toán, voucher không bị mất
 
         // 8. Save OrderItems với orderId
         for (OrderItem orderItem : orderItems) {
@@ -268,6 +273,7 @@ public class OrderService {
 
         // Update order status
         order.setOrderStatus("cancelled");
+        order.setCancelReason(request.getReason());  // Save cancel reason
         orderRepository.save(order);
 
         // Restore inventory
@@ -277,6 +283,105 @@ public class OrderService {
             product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
             productRepository.save(product);
         }
+
+        log.info("[cancelOrder] Order {} cancelled successfully", orderId);
+    }
+
+    /**
+     * Validate payment - Kiểm tra thanh toán cho prepaid order
+     */
+    public ValidatePaymentResponse validatePayment(UUID userId, Long orderId) {
+        log.info("[validatePayment] User {} validating payment for order {}", userId, orderId);
+
+        // 1. Kiểm tra order tồn tại
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        // 2. Check permission
+        if (!order.getUserId().equals(userId)) {
+            throw new AppException(ErrorCode.ORDER_ACCESS_DENIED);
+        }
+
+        // 3. Kiểm tra paymentMethod
+        if (!"prepaid".equals(order.getPaymentMethod())) {
+            throw new AppException(ErrorCode.INVALID_PAYMENT_METHOD);
+        }
+
+        // 4. Nếu đã paid rồi
+        if ("paid".equals(order.getPaymentStatus())) {
+            return ValidatePaymentResponse.builder()
+                    .paymentConfirmed(true)
+                    .message("Đơn hàng đã được thanh toán trước đó")
+                    .build();
+        }
+
+        // 5. Nếu order đã bị cancel
+        if ("cancelled".equals(order.getOrderStatus())) {
+            throw new AppException(ErrorCode.ORDER_ALREADY_CANCELLED);
+        }
+
+        // 6. Tìm transaction trong database
+        // Note: Transactions should be fetched separately via POST /api/transactions/fetch-from-email
+        // to avoid timeout issues during payment validation
+        String expectedTransferContent = "QMORD" + orderId;
+        
+        // Trừ 2 phút buffer vì transactionDate có thể bị làm tròn (mất giây)
+        // hoặc user chuyển khoản trước rồi mới tạo order
+        LocalDateTime searchFromDate = order.getCreatedAt().minusMinutes(2);
+        
+        var transactionOpt = transactionRepository
+                .findByTransferContentAndAmountAndDateAfter(
+                        expectedTransferContent,
+                        order.getTotalAmount(),
+                        searchFromDate
+                );
+
+        // 7. Nếu CHƯA tìm thấy transaction
+        if (transactionOpt.isEmpty()) {
+            log.info("[validatePayment] Transaction not found for order {}", orderId);
+            return ValidatePaymentResponse.builder()
+                    .paymentConfirmed(false)
+                    .message("Chưa phát hiện giao dịch thanh toán. Vui lòng thử lại sau.")
+                    .build();
+        }
+
+        // 8. Tìm thấy transaction - Validate và update
+        Transaction transaction = transactionOpt.get();
+        
+        log.info("[validatePayment] Found transaction {} for order {}", transaction.getId(), orderId);
+
+        // Update order status
+        order.setPaymentStatus("paid");
+        order.setTransactionId(transaction.getId());  // FK to transactions table
+        order.setTransferContent(expectedTransferContent);  // QMORD format for reference
+        orderRepository.save(order);
+
+        // Update transaction verified status
+        transaction.setVerified(true);
+        transactionRepository.save(transaction);
+
+        // INCREMENT VOUCHER USAGE (nếu có)
+        if (order.getVoucherId() != null) {
+            log.info("[validatePayment] Incrementing voucher usage for voucherId={}, userId={}, orderId={}", 
+                    order.getVoucherId(), userId, orderId);
+            
+            // Increment voucher usage counter
+            voucherService.incrementVoucherUsage(order.getVoucherId());
+            
+            // Record voucher usage history
+            voucherService.recordVoucherUsage(order.getVoucherId(), userId, orderId);
+        }
+
+        log.info("[validatePayment] Payment validated successfully for order {}", orderId);
+
+        return ValidatePaymentResponse.builder()
+                .paymentConfirmed(true)
+                .transactionId(transaction.getId())
+                .transactionAmount(transaction.getAmount())
+                .transactionTime(transaction.getTransactionDate())
+                .transferContent(expectedTransferContent)
+                .message("Thanh toán đã được xác nhận thành công")
+                .build();
     }
 
     /**

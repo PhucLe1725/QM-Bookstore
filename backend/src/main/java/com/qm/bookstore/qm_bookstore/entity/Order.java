@@ -76,6 +76,20 @@ public class Order {
     @JoinColumn(name = "voucher_id", insertable = false, updatable = false)
     Voucher voucher;
 
+    // ========== TRANSACTION ==========
+    @Column(name = "transaction_id")
+    Long transactionId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "transaction_id", referencedColumnName = "id", insertable = false, updatable = false)
+    Transaction transaction;
+
+    @Column(name = "transfer_content", length = 200)
+    String transferContent;
+
+    @Column(name = "cancel_reason", columnDefinition = "TEXT")
+    String cancelReason;
+
     // ========== SHIPPING & DELIVERY INFO ==========
     @Column(name = "shipping_fee", precision = 12, scale = 2)
     BigDecimal shippingFee;

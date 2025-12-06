@@ -121,6 +121,29 @@ public class OrderController {
     }
 
     /**
+     * Validate payment - Kiểm tra thanh toán cho prepaid order
+     * POST /api/orders/{orderId}/validate-payment
+     */
+    @PostMapping("/{orderId}/validate-payment")
+    public ApiResponse<ValidatePaymentResponse> validatePayment(
+            @PathVariable Long orderId,
+            Authentication authentication) {
+
+        UUID userId = UUID.fromString(authentication.getName());
+        log.info("[validatePayment] User {} validating payment for order {}", userId, orderId);
+
+        ValidatePaymentResponse response = orderService.validatePayment(userId, orderId);
+
+        return ApiResponse.<ValidatePaymentResponse>builder()
+                .code(1000)
+                .message(response.getPaymentConfirmed() 
+                    ? "Payment validated successfully" 
+                    : "Payment not found yet")
+                .result(response)
+                .build();
+    }
+
+    /**
      * Reorder - Đặt lại đơn hàng cũ
      * POST /api/orders/{orderId}/reorder
      */

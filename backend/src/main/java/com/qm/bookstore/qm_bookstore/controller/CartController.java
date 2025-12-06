@@ -1,7 +1,6 @@
 package com.qm.bookstore.qm_bookstore.controller;
 
 import com.qm.bookstore.qm_bookstore.dto.cart.request.AddToCartRequest;
-import com.qm.bookstore.qm_bookstore.dto.cart.request.CheckoutRequest;
 import com.qm.bookstore.qm_bookstore.dto.cart.request.SelectAllItemsRequest;
 import com.qm.bookstore.qm_bookstore.dto.cart.request.ToggleItemSelectionRequest;
 import com.qm.bookstore.qm_bookstore.dto.cart.request.UpdateCartItemRequest;
@@ -177,21 +176,6 @@ public class CartController {
         return ApiResponse.<CartResponse>builder()
                 .success(true)
                 .result(cart)
-                .build();
-    }
-
-    /**
-     * Checkout (requires authentication)
-     * POST /api/cart/checkout
-     */
-    @PostMapping("/checkout")
-    public ApiResponse<String> checkout(@Valid @RequestBody CheckoutRequest request) {
-        UUID userId = getUserId();
-        String result = cartService.checkout(request, userId);
-        
-        return ApiResponse.<String>builder()
-                .success(true)
-                .result(result)
                 .build();
     }
 

@@ -69,6 +69,19 @@ public enum ErrorCode {
     INVALID_VOUCHER_DATE_RANGE(7108, "Valid from date must be before valid to date"),
     INVALID_DISCOUNT_PERCENT(7109, "Discount percent must be between 0 and 100"),
     MAX_DISCOUNT_NOT_ALLOWED_FOR_FIXED(7110, "Max discount is only applicable for PERCENT type vouchers"),
+    VOUCHER_USER_LIMIT_EXCEEDED(7111, "You have exceeded the usage limit for this voucher"),
+
+    // Transaction errors (7200-7299)
+    TRANSACTION_NOT_FOUND(7201, "Transaction not found"),
+    TRANSACTION_ALREADY_VERIFIED(7202, "Transaction has already been verified"),
+    TRANSACTION_EXPIRED(7203, "Transaction has expired"),
+    TRANSACTION_AMOUNT_MISMATCH(7204, "Transaction amount does not match expected amount"),
+    TRANSACTION_INVALID_ACCOUNT(7205, "Invalid credit account"),
+    EMAIL_FETCH_FAILED(7206, "Failed to fetch emails from server"),
+    PAYMENT_ALREADY_CONFIRMED(7207, "Payment has already been confirmed"),
+    ORDER_ALREADY_CANCELLED(7208, "Order has already been cancelled"),
+    INVALID_PAYMENT_METHOD(7209, "Order does not use prepaid payment method"),
+    ORDER_ALREADY_PAID(7210, "Order is already paid"),
 
     // Generic errors
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error"),

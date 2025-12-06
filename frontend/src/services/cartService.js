@@ -137,18 +137,5 @@ export const cartService = {
       console.error('Error clearing cart:', error)
       throw error
     }
-  },
-
-  // Checkout
-  checkout: async (checkoutData) => {
-    try {
-      const response = await api.post('/cart/checkout', checkoutData, {
-        headers: getCartHeaders()
-      })
-      return response
-    } catch (error) {
-      console.error('Error during checkout:', error)
-      throw error
-    }
   }
 }

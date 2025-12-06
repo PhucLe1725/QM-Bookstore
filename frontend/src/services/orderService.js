@@ -99,6 +99,28 @@ export const orderService = {
       console.error('Update order status error:', error)
       return { success: false, error: error.response?.data }
     }
+  },
+
+  // Get order by ID (alias for getOrderDetail)
+  getOrderById: async (orderId) => {
+    try {
+      const response = await api.get(`/orders/${orderId}`)
+      return { success: true, result: response.result || response }
+    } catch (error) {
+      console.error('Get order by ID error:', error)
+      return { success: false, error: error.response?.data }
+    }
+  },
+
+  // Validate payment - Kiểm tra xem đơn hàng đã được thanh toán chưa
+  validatePayment: async (orderId) => {
+    try {
+      const response = await api.post(`/orders/${orderId}/validate-payment`)
+      return { success: true, result: response.result || response }
+    } catch (error) {
+      console.error('Validate payment error:', error)
+      return { success: false, error: error.response?.data }
+    }
   }
 }
 

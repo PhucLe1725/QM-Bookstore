@@ -1,7 +1,6 @@
 package com.qm.bookstore.qm_bookstore.service;
 
 import com.qm.bookstore.qm_bookstore.dto.cart.request.AddToCartRequest;
-import com.qm.bookstore.qm_bookstore.dto.cart.request.CheckoutRequest;
 import com.qm.bookstore.qm_bookstore.dto.cart.request.ToggleItemSelectionRequest;
 import com.qm.bookstore.qm_bookstore.dto.cart.request.UpdateCartItemRequest;
 import com.qm.bookstore.qm_bookstore.dto.cart.response.CartItemResponse;
@@ -311,31 +310,6 @@ public class CartService {
         cartItemRepository.deleteByCartId(cart.getId());
 
         return getCart(userId, sessionId);
-    }
-
-    /**
-     * Checkout (requires authentication)
-     */
-    @Transactional
-    public String checkout(CheckoutRequest request, UUID userId) {
-        if (userId == null) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
-
-        Cart cart = cartRepository.findByUserId(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
-
-        List<CartItem> selectedItems = cartItemRepository.findSelectedItemsByCartId(cart.getId());
-
-        if (selectedItems.isEmpty()) {
-            throw new AppException(ErrorCode.NO_ITEMS_SELECTED);
-        }
-
-        // TODO: Create order, process payment, etc.
-        // For now, just delete selected items
-        cartItemRepository.deleteSelectedItemsByCartId(cart.getId());
-
-        return "Checkout successful";
     }
 
     /**
