@@ -12,6 +12,7 @@ import com.qm.bookstore.qm_bookstore.entity.User;
 import com.qm.bookstore.qm_bookstore.exception.AppException;
 import com.qm.bookstore.qm_bookstore.exception.ErrorCode;
 import com.qm.bookstore.qm_bookstore.mapper.ProductReviewMapper;
+import com.qm.bookstore.qm_bookstore.repository.OrderRepository;
 import com.qm.bookstore.qm_bookstore.repository.ProductRepository;
 import com.qm.bookstore.qm_bookstore.repository.ProductReviewRepository;
 import com.qm.bookstore.qm_bookstore.repository.UserRepository;
@@ -34,6 +35,7 @@ public class ProductReviewService {
     ProductReviewRepository productReviewRepository;
     ProductRepository productRepository;
     UserRepository userRepository;
+    OrderRepository orderRepository;
     ProductReviewMapper productReviewMapper;
     NotificationService notificationService;
     ChatNotificationService chatNotificationService;
@@ -56,6 +58,11 @@ public class ProductReviewService {
         // Check if user already reviewed this product
         if (productReviewRepository.existsByProductIdAndUserId(request.getProductId(), request.getUserId())) {
             throw new AppException(ErrorCode.REVIEW_ALREADY_EXISTS);
+        }
+        
+        // Check if user has purchased this product
+        if (!orderRepository.hasUserPurchasedProduct(request.getUserId(), request.getProductId())) {
+            throw new AppException(ErrorCode.USER_NOT_PURCHASED_PRODUCT);
         }
         
         // Create review
@@ -137,6 +144,10 @@ public class ProductReviewService {
         ProductReview review = productReviewRepository.findByProductIdAndUserId(productId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.REVIEW_NOT_FOUND));
         return productReviewMapper.toProductReviewResponse(review);
+    }
+    
+    public boolean hasUserPurchasedProduct(Long productId, UUID userId) {
+        return orderRepository.hasUserPurchasedProduct(userId, productId);
     }
     
     private void sendReviewNotificationToAdminAndManager(ProductReview review, User reviewUser, Product product) {

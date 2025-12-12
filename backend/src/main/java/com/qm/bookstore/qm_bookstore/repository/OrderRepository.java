@@ -71,5 +71,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     
     // Check if order belongs to user
     boolean existsByIdAndUserId(Long id, UUID userId);
+    
+    // Check if user has purchased a product (paid and delivered orders)
+    @Query("SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END " +
+           "FROM Order o JOIN o.orderItems oi " +
+           "WHERE o.userId = :userId " +
+           "AND oi.productId = :productId " +
+           "AND o.paymentStatus = 'paid' " +
+           "AND o.orderStatus != 'cancelled'")
+    boolean hasUserPurchasedProduct(@Param("userId") UUID userId, @Param("productId") Long productId);
 }
 

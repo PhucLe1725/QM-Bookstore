@@ -29,6 +29,7 @@ public enum ErrorCode {
     REVIEW_NOT_FOUND(3101, "Review not found"),
     REVIEW_ALREADY_EXISTS(3102, "You have already reviewed this product"),
     INVALID_RATING(3103, "Rating must be between 1 and 5"),
+    USER_NOT_PURCHASED_PRODUCT(3104, "You must purchase this product before reviewing"),
     
     // Category errors
     CATEGORY_NOT_FOUND(4001, "Category not found"),

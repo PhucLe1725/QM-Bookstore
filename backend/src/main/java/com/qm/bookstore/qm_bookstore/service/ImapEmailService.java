@@ -77,7 +77,14 @@ public class ImapEmailService {
                         log.info("📧 Processing email from: {}", from);
                         String htmlContent = getHtmlFromMessage(message);
                         Transaction transaction = emailParsingService.parseHtmlContent(htmlContent);
-                        transactions.add(transaction);
+                        
+                        // Check logic lọc mail ở đây (ví dụ chỉ lấy giao dịch chuyển vào)
+                        if (transaction.getOrderNumber() != null && !transaction.getOrderNumber().trim().isEmpty()) {
+                            transactions.add(transaction);
+                            log.info("Added transaction with order number: {}", transaction.getOrderNumber());
+                        } else {
+                            log.info("Skipping outgoing transaction (no order_number)");
+                        }
                         
                         // Mark as SEEN
                         message.setFlag(Flags.Flag.SEEN, true);

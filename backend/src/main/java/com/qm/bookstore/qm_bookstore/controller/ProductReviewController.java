@@ -111,4 +111,15 @@ public class ProductReviewController {
                 .result(review)
                 .build();
     }
+    
+    @GetMapping("/product/{productId}/check-purchase")
+    public ApiResponse<Boolean> checkUserPurchasedProduct(@PathVariable Long productId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UUID userId = UUID.fromString(authentication.getName());
+        
+        boolean hasPurchased = productReviewService.hasUserPurchasedProduct(productId, userId);
+        return ApiResponse.<Boolean>builder()
+                .result(hasPurchased)
+                .build();
+    }
 }

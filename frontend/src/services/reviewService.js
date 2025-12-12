@@ -104,6 +104,17 @@ export const reviewService = {
       console.error('Error fetching my review for product:', error)
       throw error
     }
+  },
+
+  // Check if user has purchased the product
+  checkUserPurchased: async (productId) => {
+    try {
+      const response = await api.get(`/product-reviews/product/${productId}/check-purchase`)
+      return response.result
+    } catch (error) {
+      console.error('Error checking user purchase:', error)
+      return false
+    }
   }
 }
 

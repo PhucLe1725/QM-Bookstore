@@ -182,6 +182,10 @@ const ProductDetail = () => {
       if (isAuthenticated && user) {
         const myReview = reviews.find(r => r.userId === user.id)
         setUserReview(myReview || null)
+        
+        // Check if user has purchased this product
+        const purchased = await reviewService.checkUserPurchased(productId)
+        setHasPurchased(purchased)
       }
     } catch (err) {
       console.error('Error fetching reviews:', err)
@@ -211,18 +215,33 @@ const ProductDetail = () => {
       return
     }
 
-    // TODO: Implement review API
-    console.log('Submit review:', {
-      productId: id,
-      userId: user?.id,
-      rating: newReview.rating,
-      content: newReview.content
-    })
+    try {
+      const reviewData = {
+        productId: parseInt(id),
+        userId: user?.id,
+        rating: newReview.rating,
+        content: newReview.content
+      }
 
-    // Reset form
-    setNewReview({ rating: 5, content: '' })
-    setShowReviewForm(false)
-    toast.success('Cảm ơn bạn đã đánh giá!')
+      const response = await reviewService.createReview(reviewData)
+      
+      if (response.success) {
+        toast.success('Cảm ơn bạn đã đánh giá!')
+        
+        // Refresh reviews
+        await fetchReviews(id)
+        
+        // Reset form
+        setNewReview({ rating: 5, content: '' })
+        setShowReviewForm(false)
+      } else {
+        toast.error('Có lỗi khi gửi đánh giá. Vui lòng thử lại')
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error)
+      const errorMessage = error.response?.data?.message || 'Có lỗi khi gửi đánh giá. Vui lòng thử lại'
+      toast.error(errorMessage)
+    }
   }
 
   // Handle submit comment
