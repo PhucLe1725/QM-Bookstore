@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -80,5 +81,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
            "AND o.paymentStatus = 'paid' " +
            "AND o.orderStatus != 'cancelled'")
     boolean hasUserPurchasedProduct(@Param("userId") UUID userId, @Param("productId") Long productId);
+    
+    // Find orders by date range (for reports)
+    @Query("SELECT o FROM Order o WHERE o.createdAt >= :startDate AND o.createdAt <= :endDate")
+    List<Order> findByCreatedAtBetween(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 }
 

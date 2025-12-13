@@ -40,7 +40,7 @@ public class VoucherController {
      * POST /api/vouchers
      */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+   @PreAuthorize("hasRole('admin')")
     public ResponseEntity<ApiResponse<VoucherResponse>> createVoucher(
             @Valid @RequestBody VoucherCreateRequest request) {
         log.info("Creating new voucher with code: {}", request.getCode());
@@ -58,7 +58,7 @@ public class VoucherController {
      * PUT /api/vouchers/{id}
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+   @PreAuthorize("hasRole('admin')")
     public ResponseEntity<ApiResponse<VoucherResponse>> updateVoucher(
             @PathVariable Long id,
             @Valid @RequestBody VoucherUpdateRequest request) {
@@ -76,7 +76,7 @@ public class VoucherController {
      * DELETE /api/vouchers/{id}
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+   @PreAuthorize("hasRole('admin')")
     public ResponseEntity<ApiResponse<Void>> deleteVoucher(@PathVariable Long id) {
         log.info("Deleting voucher id: {}", id);
         voucherService.deleteVoucher(id);
@@ -105,7 +105,7 @@ public class VoucherController {
      * GET /api/vouchers/admin/all?page=0&size=10&status=true&applyTo=ORDER
      */
     @GetMapping("/admin/all")
-    @PreAuthorize("hasRole('ADMIN')")
+   @PreAuthorize("hasRole('admin')")
     public ResponseEntity<ApiResponse<Page<VoucherResponse>>> getAllVouchers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,

@@ -41,6 +41,7 @@ public class OrderService {
     OrderMapper orderMapper;
     TransactionRepository transactionRepository;
     TransactionService transactionService;
+    UserRepository userRepository;
 
     /**
      * Checkout - Tạo đơn hàng từ giỏ hàng (Updated with new schema)
@@ -151,7 +152,7 @@ public class OrderService {
 
         // Set fulfillment_status based on fulfillment_method
         if ("pickup".equals(request.getFulfillmentMethod())) {
-            order.setFulfillmentStatus("pickup");
+            order.setFulfillmentStatus("pending_pickup");  // Changed from "pickup" to "pending_pickup"
         } else {
             order.setFulfillmentStatus("shipping");
         }
@@ -234,6 +235,7 @@ public class OrderService {
 
     /**
      * Get order detail
+     * Admin can view all orders, regular users can only view their own
      */
     public OrderDetailResponse getOrderDetail(UUID userId, Long orderId) {
         log.info("[getOrderDetail] User {} requesting order {}", userId, orderId);
@@ -241,8 +243,13 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
 
-        // Check permission
-        if (!order.getUserId().equals(userId)) {
+        // Check permission - Admin can view all orders
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        
+        boolean isAdmin = user.getRole() != null && "admin".equalsIgnoreCase(user.getRole().getName());
+        
+        if (!isAdmin && !order.getUserId().equals(userId)) {
             throw new AppException(ErrorCode.ORDER_ACCESS_DENIED);
         }
 

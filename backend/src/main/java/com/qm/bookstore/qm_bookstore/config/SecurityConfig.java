@@ -59,6 +59,7 @@ public class SecurityConfig {
                         // ========== USER ENDPOINTS ==========
                         .requestMatchers("/api/users/profile/**").authenticated()
                         .requestMatchers("/api/users/**").hasRole("admin")
+                        .requestMatchers("/api/roles/**").hasRole("admin")
 
                         // ========== CART ENDPOINTS ==========
                         .requestMatchers("/api/cart/**").permitAll() // Guests can use cart with session

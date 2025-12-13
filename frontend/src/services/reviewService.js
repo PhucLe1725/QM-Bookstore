@@ -33,7 +33,8 @@ export const reviewService = {
   createReview: async (reviewData) => {
     try {
       const response = await api.post('/product-reviews', reviewData)
-      return response.data
+      console.log('[reviewService] Create review response:', response)
+      return response
     } catch (error) {
       console.error('Error creating review:', error)
       throw error

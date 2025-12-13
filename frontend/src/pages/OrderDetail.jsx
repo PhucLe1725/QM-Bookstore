@@ -255,12 +255,16 @@ const OrderDetail = () => {
               <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border
                 ${order.fulfillmentStatus === 'shipping' ? 'bg-blue-100 text-blue-800 border-blue-200' : ''}
                 ${order.fulfillmentStatus === 'delivered' ? 'bg-green-100 text-green-800 border-green-200' : ''}
+                ${order.fulfillmentStatus === 'pending_pickup' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : ''}
+                ${order.fulfillmentStatus === 'picked_up' ? 'bg-purple-100 text-purple-800 border-purple-200' : ''}
                 ${order.fulfillmentStatus === 'pickup' ? 'bg-purple-100 text-purple-800 border-purple-200' : ''}
                 ${order.fulfillmentStatus === 'returned' ? 'bg-orange-100 text-orange-800 border-orange-200' : ''}
               `}>
                 {order.fulfillmentStatus === 'shipping' && 'Đang giao hàng'}
                 {order.fulfillmentStatus === 'delivered' && 'Đã giao hàng'}
-                {order.fulfillmentStatus === 'pickup' && 'Tự lấy hàng'}
+                {order.fulfillmentStatus === 'pending_pickup' && 'Chờ lấy tại quầy'}
+                {order.fulfillmentStatus === 'picked_up' && 'Đã nhận hàng'}
+                {order.fulfillmentStatus === 'pickup' && 'Đã nhận hàng'}
                 {order.fulfillmentStatus === 'returned' && 'Đã trả hàng'}
               </span>
               

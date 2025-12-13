@@ -36,4 +36,8 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
            "GROUP BY oi.productId " +
            "ORDER BY SUM(oi.quantity) DESC")
     List<Object[]> findTopSellingProducts(Pageable pageable);
+    
+    // Find by order IDs (for reports)
+    @Query("SELECT oi FROM OrderItem oi WHERE oi.orderId IN :orderIds")
+    List<OrderItem> findByOrderIdIn(List<Long> orderIds);
 }

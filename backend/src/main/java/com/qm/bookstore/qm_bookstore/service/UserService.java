@@ -219,5 +219,8 @@ public class UserService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
+    public List<Role> getAllRoles() {
+        return roleRepository.findAll();
+    }
 
 }

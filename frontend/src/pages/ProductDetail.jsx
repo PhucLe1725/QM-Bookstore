@@ -90,6 +90,28 @@ const ProductDetail = () => {
     }
   }, [id])
 
+  // Check purchase status when user logs in or changes
+  useEffect(() => {
+    const checkPurchaseStatus = async () => {
+      if (isAuthenticated && user && id) {
+        try {
+          console.log('[ProductDetail] Checking purchase status for user:', user.id, 'product:', id)
+          const purchased = await reviewService.checkUserPurchased(id)
+          console.log('[ProductDetail] Purchase status:', purchased)
+          setHasPurchased(purchased)
+        } catch (err) {
+          console.error('Error checking purchase status:', err)
+          setHasPurchased(false)
+        }
+      } else {
+        console.log('[ProductDetail] Not checking purchase - isAuthenticated:', isAuthenticated, 'user:', user, 'id:', id)
+        setHasPurchased(false)
+      }
+    }
+
+    checkPurchaseStatus()
+  }, [isAuthenticated, user, id])
+
   // Fetch comments for product
   useEffect(() => {
     const fetchComments = async () => {
@@ -182,10 +204,6 @@ const ProductDetail = () => {
       if (isAuthenticated && user) {
         const myReview = reviews.find(r => r.userId === user.id)
         setUserReview(myReview || null)
-        
-        // Check if user has purchased this product
-        const purchased = await reviewService.checkUserPurchased(productId)
-        setHasPurchased(purchased)
       }
     } catch (err) {
       console.error('Error fetching reviews:', err)
@@ -223,9 +241,12 @@ const ProductDetail = () => {
         content: newReview.content
       }
 
+      console.log('[ProductDetail] Submitting review:', reviewData)
       const response = await reviewService.createReview(reviewData)
+      console.log('[ProductDetail] Review response:', response)
       
-      if (response.success) {
+      // API response format: { success: true, result: {...} }
+      if (response && (response.success || response.result)) {
         toast.success('Cảm ơn bạn đã đánh giá!')
         
         // Refresh reviews
@@ -1179,6 +1200,30 @@ const ProductDetail = () => {
                             </div>
                           </form>
                         )}
+                      </div>
+                    )}
+
+                    {/* Message for non-purchased users */}
+                    {isAuthenticated && !hasPurchased && !userReview && (
+                      <div className="mb-8 p-6 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <AlertCircle className="h-5 w-5 text-amber-600" />
+                          <p className="font-medium text-gray-900">
+                            Bạn cần mua sản phẩm này trước khi có thể đánh giá
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Message for non-authenticated users */}
+                    {!isAuthenticated && (
+                      <div className="mb-8 p-6 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <AlertCircle className="h-5 w-5 text-gray-600" />
+                          <p className="font-medium text-gray-900">
+                            Vui lòng <button onClick={() => navigate('/login')} className="text-blue-600 hover:underline">đăng nhập</button> để đánh giá sản phẩm
+                          </p>
+                        </div>
                       </div>
                     )}
 

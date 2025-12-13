@@ -13,6 +13,23 @@ const userService = {
     }
   },
 
+  // Lấy danh sách users với phân trang và sắp xếp (admin only)
+  getAllUsersPaginated: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams()
+      if (params.skipCount !== undefined) queryParams.append('skipCount', params.skipCount)
+      if (params.maxResultCount !== undefined) queryParams.append('maxResultCount', params.maxResultCount)
+      if (params.sortBy) queryParams.append('sortBy', params.sortBy)
+      if (params.sortDirection) queryParams.append('sortDirection', params.sortDirection)
+      
+      const response = await api.get(`/users/getAllPaginated?${queryParams.toString()}`)
+      return response
+    } catch (error) {
+      console.error('Error fetching paginated users:', error)
+      throw error
+    }
+  },
+
   // Lấy thông tin user theo ID
   getUserById: async (userId) => {
     console.log('🔍 userService.getUserById called with userId:', userId)
@@ -23,6 +40,17 @@ const userService = {
       return response
     } catch (error) {
       console.error('❌ userService.getUserById error for userId:', userId, error)
+      throw error
+    }
+  },
+
+  // Lấy thông tin user theo username (admin only)
+  getUserByUsername: async (username) => {
+    try {
+      const response = await api.get(`/users/getByUsername/${username}`)
+      return response
+    } catch (error) {
+      console.error('Error fetching user by username:', error)
       throw error
     }
   },
@@ -67,6 +95,17 @@ const userService = {
     }
   },
 
+  // Tạo user mới (admin only)
+  createUser: async (userData) => {
+    try {
+      const response = await api.post('/users/create', userData)
+      return response
+    } catch (error) {
+      console.error('Error creating user:', error)
+      throw error
+    }
+  },
+
   // Xóa user (admin only)
   deleteUser: async (userId) => {
     try {
@@ -74,6 +113,17 @@ const userService = {
       return response
     } catch (error) {
       console.error('Error deleting user:', error)
+      throw error
+    }
+  },
+
+  // Lấy danh sách roles (admin only)
+  getAllRoles: async () => {
+    try {
+      const response = await api.get('/users/roles')
+      return response
+    } catch (error) {
+      console.error('Error fetching roles:', error)
       throw error
     }
   },

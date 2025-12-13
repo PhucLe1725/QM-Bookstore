@@ -2,10 +2,11 @@ import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { MainLayout } from '../layouts'
 import { Home, Login, Register, Dashboard, Profile, NotificationsPage, Products, ProductDetail, Cart, Checkout, Orders, OrderDetail, Vouchers } from '../pages'
-import { AdminDashboard, AdminProducts } from '../pages/admin'
+import { AdminDashboard, AdminProducts, AdminReviews, AdminComments, AdminVouchers, AdminUsers, AdminRoles } from '../pages/admin'
 import AdminMessages from '../pages/admin/AdminMessages'
 import AdminOrders from '../pages/admin/AdminOrders'
 import AdminTransactions from '../pages/admin/AdminTransactions'
+import AdminReports from '../pages/admin/AdminReports'
 import SystemConfig from '../pages/admin/SystemConfig'
 import ProtectedRoute from '../components/ProtectedRoute'
 import AdminRoute from '../components/AdminRoute'
@@ -131,6 +132,42 @@ const AppRoutes = () => {
       <Route path="/admin/transactions" element={
         <AdminRoute>
           <AdminTransactions />
+        </AdminRoute>
+      } />
+      
+      <Route path="/admin/reviews" element={
+        <AdminRoute>
+          <AdminReviews />
+        </AdminRoute>
+      } />
+      
+      <Route path="/admin/comments" element={
+        <AdminRoute>
+          <AdminComments />
+        </AdminRoute>
+      } />
+      
+      <Route path="/admin/vouchers" element={
+        <AdminRoute>
+          <AdminVouchers />
+        </AdminRoute>
+      } />
+      
+      <Route path="/admin/users" element={
+        <AdminRoute>
+          <AdminUsers />
+        </AdminRoute>
+      } />
+      
+      <Route path="/admin/roles" element={
+        <AdminRoute>
+          <AdminRoles />
+        </AdminRoute>
+      } />
+      
+      <Route path="/admin/reports" element={
+        <AdminRoute>
+          <AdminReports />
         </AdminRoute>
       } />
       

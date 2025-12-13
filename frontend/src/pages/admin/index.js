@@ -1,3 +1,9 @@
 // Admin pages exports
 export { default as AdminDashboard } from './AdminDashboard'
 export { default as AdminProducts } from './AdminProducts'
+export { default as AdminReviews } from './AdminReviews'
+export { default as AdminComments } from './AdminComments'
+export { default as AdminVouchers } from './AdminVouchers'
+export { default as AdminUsers } from './AdminUsers'
+export { default as AdminRoles } from './AdminRoles'
+export { default as AdminReports } from './AdminReports'

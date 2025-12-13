@@ -47,11 +47,18 @@ const Orders = () => {
       icon: CheckCircle
     },
     { 
-      key: 'pickup', 
-      label: 'Tự lấy', 
-      filter: { fulfillmentStatus: 'pickup' },
-      color: 'purple',
+      key: 'pending_pickup', 
+      label: 'Chờ lấy hàng', 
+      filter: { fulfillmentStatus: 'pending_pickup' },
+      color: 'yellow',
       icon: Store
+    },
+    { 
+      key: 'picked_up', 
+      label: 'Đã nhận hàng', 
+      filter: { fulfillmentStatus: 'picked_up' },
+      color: 'purple',
+      icon: CheckCircle
     },
     { 
       key: 'cancelled', 
@@ -138,7 +145,9 @@ const Orders = () => {
     const fulfillmentColors = {
       shipping: 'bg-blue-100 text-blue-800',
       delivered: 'bg-green-100 text-green-800',
-      pickup: 'bg-purple-100 text-purple-800',
+      pending_pickup: 'bg-yellow-100 text-yellow-800',
+      picked_up: 'bg-purple-100 text-purple-800',
+      pickup: 'bg-purple-100 text-purple-800',  // backward compatibility
       returned: 'bg-orange-100 text-orange-800'
     }
     
@@ -158,7 +167,9 @@ const Orders = () => {
     const fulfillmentLabels = {
       shipping: 'Đang giao hàng',
       delivered: 'Đã giao hàng',
-      pickup: 'Tự lấy hàng',
+      pending_pickup: 'Chờ lấy tại quầy',
+      picked_up: 'Đã nhận hàng',
+      pickup: 'Đã nhận hàng',  // backward compatibility
       returned: 'Đã trả hàng'
     }
     

@@ -90,7 +90,8 @@ public enum ErrorCode {
     UNAUTHENTICATED(1006, "Unauthenticated"),
     UNAUTHORIZED(1007, "You do not have permission"),
     INVALID_DOB(1008, "Your age must be at least {min}"),
-    ROLE_NOT_EXISTED(1009, "Role does not exist");
+    ROLE_NOT_EXISTED(1009, "Role does not exist"),
+    ROLE_EXISTED(1010, "Role already exists");
 
     ErrorCode(int code, String message) {
         this.code = code;

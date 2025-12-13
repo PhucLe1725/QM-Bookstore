@@ -112,7 +112,7 @@ public class NotificationController {
      * Tạo thông báo mới
      */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ApiResponse<NotificationResponse> createNotification(@RequestBody NotificationCreateRequest request) {
         log.info("Creating new notification for user: {}", request.getUserId());
         
@@ -144,7 +144,7 @@ public class NotificationController {
      * Xóa thông báo
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+   @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ApiResponse<Void> deleteNotification(@PathVariable UUID id) {
         log.info("Deleting notification id: {}", id);
         
@@ -244,7 +244,7 @@ public class NotificationController {
      * Chỉ admin/manager mới có quyền gọi API này
      */
     @PutMapping("/global/mark-all-read")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+   @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ApiResponse<Void> markAllGlobalNotificationsAsRead() {
         log.info("Marking all global NEW_MESSAGE notifications as read");
         
@@ -260,7 +260,7 @@ public class NotificationController {
      * Tạo thông báo tin nhắn mới
      */
     @PostMapping("/new-message")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+   @PreAuthorize("hasRole('admin') or hasRole('MANAGER') or hasRole('USER')")
     public ApiResponse<NotificationResponse> createNewMessageNotification(
             @RequestParam UUID userId,
             @RequestParam String senderName,
@@ -278,7 +278,7 @@ public class NotificationController {
      * Tạo thông báo cập nhật đơn hàng
      */
     @PostMapping("/order-update")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+   @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ApiResponse<NotificationResponse> createOrderUpdateNotification(
             @RequestParam UUID userId,
             @RequestParam String orderNumber,
@@ -296,7 +296,7 @@ public class NotificationController {
      * Tạo thông báo cập nhật thanh toán
      */
     @PostMapping("/payment-update")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+   @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ApiResponse<NotificationResponse> createPaymentUpdateNotification(
             @RequestParam UUID userId,
             @RequestParam String paymentId,
@@ -314,7 +314,7 @@ public class NotificationController {
      * Tạo thông báo hệ thống
      */
     @PostMapping("/system")
-    @PreAuthorize("hasRole('ADMIN')")
+   @PreAuthorize("hasRole('admin')")
     public ApiResponse<NotificationResponse> createSystemNotification(
             @RequestParam UUID userId,
             @RequestParam String message) {
@@ -331,7 +331,7 @@ public class NotificationController {
      * Tạo thông báo khuyến mãi
      */
     @PostMapping("/promotion")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+   @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ApiResponse<NotificationResponse> createPromotionNotification(
             @RequestParam UUID userId,
             @RequestParam String promotionTitle,
@@ -350,7 +350,7 @@ public class NotificationController {
      * Những notification này có userId = null và type = NEW_MESSAGE
      */
     @GetMapping("/global")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+   @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ApiResponse<List<NotificationResponse>> getGlobalNotifications() {
         log.info("Getting global notifications for admin/manager");
         
@@ -365,7 +365,7 @@ public class NotificationController {
      * Lấy tất cả thông báo bao gồm cả personal và global cho admin/manager
      */
     @GetMapping("/admin/all")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+   @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ApiResponse<List<NotificationResponse>> getAllNotificationsForAdmin(
             @RequestParam UUID adminUserId) {
         log.info("Getting all notifications (personal + global) for admin/manager: {}", adminUserId);

@@ -54,8 +54,8 @@ const AdminProducts = () => {
   
   // Categories (mock - replace with API)
   const categories = [
-    { id: 1, name: 'Sách giáo khoa' },
-    { id: 2, name: 'Văn phòng phẩm' },
+    { id: 10, name: 'SGK Chân Trời Sáng Tạo' },
+    { id: 42, name: 'SGK Kết nối tri thức với cuộc sống' },
     { id: 3, name: 'Dụng cụ học tập' },
     { id: 4, name: 'Đồ dùng nghệ thuật' },
     { id: 5, name: 'Thiết bị văn phòng' }
@@ -256,7 +256,7 @@ const AdminProducts = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
                   type="text"
-                  placeholder="Tìm kiếm theo tên hoặc SKU..."
+                  placeholder="Tìm kiếm theo tên hoặc mã sản phẩm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -333,7 +333,7 @@ const AdminProducts = () => {
                         Sản phẩm
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        SKU
+                        Mã sản phẩm
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Danh mục

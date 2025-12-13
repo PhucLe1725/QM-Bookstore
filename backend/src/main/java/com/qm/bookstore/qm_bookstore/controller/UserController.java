@@ -8,16 +8,19 @@ import com.qm.bookstore.qm_bookstore.dto.user.request.UserProfileUpdateRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.request.UserUpdateRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.response.UserResponse;
 import com.qm.bookstore.qm_bookstore.service.UserService;
+import com.qm.bookstore.qm_bookstore.entity.Role;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -58,6 +61,7 @@ public class UserController {
     // ===== ADMIN ONLY ENDPOINTS =====
 
     @GetMapping("getAll")
+   @PreAuthorize("hasRole('admin')")
     public ApiResponse<BaseGetAllResponse<UserResponse>> getAllUsers() {
         return ApiResponse.<BaseGetAllResponse<UserResponse>>builder()
                 .result(userService.getAllUsers())
@@ -65,6 +69,7 @@ public class UserController {
     }
 
     @GetMapping("getAllPaginated")
+   @PreAuthorize("hasRole('admin')")
     public ApiResponse<BaseGetAllResponse<UserResponse>> getAllUsersWithSort(
             @RequestParam(defaultValue = "0") Integer skipCount,
             @RequestParam(defaultValue = "10") Integer maxResultCount,
@@ -75,6 +80,7 @@ public class UserController {
                 .build();
     }
 
+   @PreAuthorize("hasRole('admin')")
     @GetMapping("getByUsername/{username}")
     public ApiResponse<UserResponse> getUserByUsername(@PathVariable String username) {
         UserResponse userResponse = userService.getUserByUsername(username);
@@ -83,6 +89,7 @@ public class UserController {
                 .build();
     }
 
+   @PreAuthorize("hasRole('admin')")
     @GetMapping("getById/{id}")
     public ApiResponse<UserResponse> getUserById(@PathVariable UUID id) {
         UserResponse userResponse = userService.getUserById(id);
@@ -91,6 +98,7 @@ public class UserController {
                 .build();
     }
 
+   @PreAuthorize("hasRole('admin')")
     @PostMapping("create")
     public ApiResponse<UserResponse> createUser(@RequestBody UserCreateRequest request) {
         UserResponse userResponse = userService.createUser(request);
@@ -98,7 +106,8 @@ public class UserController {
                 .result(userResponse)
                 .build();
     }
-
+@PreAuthorize("hasRole('ADMIN')")
+    
     @PutMapping("update/{id}")
     public ApiResponse<UserResponse> updateUser(@PathVariable UUID id ,@RequestBody UserUpdateRequest request) {
         request.setId(id);
@@ -107,12 +116,21 @@ public class UserController {
                 .result(userResponse)
                 .build();
     }
-
-    @DeleteMapping("delete/{id}")
+@PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<String> deleteUser(@PathVariable UUID id) {
         userService.deleteUser(id);
         return ApiResponse.<String>builder()
                 .result("User deleted successfully")
+                .build();
+    }
+
+    // ===== ROLE MANAGEMENT =====
+
+    @GetMapping("/roles")
+   @PreAuthorize("hasRole('admin')")
+    public ApiResponse<List<Role>> getAllRoles() {
+        return ApiResponse.<List<Role>>builder()
+                .result(userService.getAllRoles())
                 .build();
     }
 }
