@@ -95,16 +95,13 @@ const ProductDetail = () => {
     const checkPurchaseStatus = async () => {
       if (isAuthenticated && user && id) {
         try {
-          console.log('[ProductDetail] Checking purchase status for user:', user.id, 'product:', id)
           const purchased = await reviewService.checkUserPurchased(id)
-          console.log('[ProductDetail] Purchase status:', purchased)
           setHasPurchased(purchased)
         } catch (err) {
           console.error('Error checking purchase status:', err)
           setHasPurchased(false)
         }
       } else {
-        console.log('[ProductDetail] Not checking purchase - isAuthenticated:', isAuthenticated, 'user:', user, 'id:', id)
         setHasPurchased(false)
       }
     }
@@ -241,9 +238,7 @@ const ProductDetail = () => {
         content: newReview.content
       }
 
-      console.log('[ProductDetail] Submitting review:', reviewData)
       const response = await reviewService.createReview(reviewData)
-      console.log('[ProductDetail] Review response:', response)
       
       // API response format: { success: true, result: {...} }
       if (response && (response.success || response.result)) {

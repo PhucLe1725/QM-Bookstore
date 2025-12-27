@@ -18,11 +18,13 @@ import {
   Shield,
   ArrowUp,
   ArrowDown,
-  Loader2
+  Loader2,
+  FolderTree
 } from 'lucide-react'
 import { reportService } from '../../services/reportService'
 import orderService from '../../services/orderService'
 import chatService from '../../services/chatService'
+import NotificationDropdown from '../../components/NotificationDropdown'
 
 const AdminDashboard = () => {
   const { user } = useAuth()
@@ -160,6 +162,13 @@ const AdminDashboard = () => {
       color: 'border-green-200 hover:border-green-300'
     },
     {
+      title: 'Quản lý danh mục',
+      description: 'Quản lý cây phân cấp danh mục',
+      icon: FolderTree,
+      href: '/admin/categories',
+      color: 'border-teal-200 hover:border-teal-300'
+    },
+    {
       title: 'Đơn hàng',
       description: 'Theo dõi và xử lý đơn hàng',
       icon: FileText,
@@ -232,16 +241,19 @@ const AdminDashboard = () => {
                   Chào mừng trở lại, {user?.fullName || user?.username}
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Hôm nay</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {new Date().toLocaleDateString('vi-VN', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </p>
+              <div className="flex items-center space-x-4">
+                <NotificationDropdown />
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Hôm nay</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {new Date().toLocaleDateString('vi-VN', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

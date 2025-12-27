@@ -31,7 +31,7 @@ export const WebSocketProvider = ({ children }) => {
 
   // Debug notification handler changes
   useEffect(() => {
-    console.log('🔔 NotificationHandler changed:', notificationHandler ? 'SET' : 'NULL')
+    // console.log('🔔 NotificationHandler changed:', notificationHandler ? 'SET' : 'NULL')
   }, [notificationHandler])
 
   const clientRef = useRef(null)
@@ -73,7 +73,7 @@ export const WebSocketProvider = ({ children }) => {
     // 1. Subscribe admin broadcast messages (cho tất cả users)
     stompClient.subscribe('/topic/messages', function (message) {
       const chatMessage = JSON.parse(message.body)
-      console.log('Admin broadcast message:', chatMessage)
+      // console.log('Admin broadcast message:', chatMessage)
       setMessages(prev => [...prev, chatMessage])
       
       // Trigger read status update for new admin message
@@ -90,18 +90,18 @@ export const WebSocketProvider = ({ children }) => {
     // 2. Subscribe private messages
     stompClient.subscribe('/user/queue/private-messages', function (message) {
       const privateMessage = JSON.parse(message.body)
-      console.log('💬 Private message received:', privateMessage)
+      // console.log('💬 Private message received:', privateMessage)
       
       // Skip auto-adding admin's own messages to avoid duplicates
       // AdminMessages component will handle its own messages via API reload
       if (user?.roleName === 'admin' && privateMessage.senderId === user.id) {
-        console.log('🚫 Skipping admin own message auto-add to prevent duplicate')
+        // console.log('🚫 Skipping admin own message auto-add to prevent duplicate')
         return
       }
       
       setPrivateMessages(prev => {
         const newMessages = [...prev, privateMessage]
-        console.log('📝 Updated privateMessages count:', newMessages.length)
+        // console.log('📝 Updated privateMessages count:', newMessages.length)
         return newMessages
       })
     })
@@ -109,7 +109,7 @@ export const WebSocketProvider = ({ children }) => {
     // 3. Subscribe chat history
     stompClient.subscribe('/user/queue/chat-history', function (message) {
       const history = JSON.parse(message.body)
-      console.log('Chat history loaded:', history)
+      // console.log('Chat history loaded:', history)
       setChatHistory(history)
     })
 
@@ -117,10 +117,10 @@ export const WebSocketProvider = ({ children }) => {
     if (user?.roleName === 'admin' || user?.roleName === 'manager') {
       stompClient.subscribe('/topic/admin-messages', function (message) {
         const userMessage = JSON.parse(message.body)
-        console.log('📨 User message to admin received:', userMessage)
+        // console.log('📨 User message to admin received:', userMessage)
         setAdminMessages(prev => {
           const newMessages = [...prev, userMessage]
-          console.log('📝 Updated adminMessages count:', newMessages.length)
+          // console.log('📝 Updated adminMessages count:', newMessages.length)
           return newMessages
         })
         
@@ -138,12 +138,12 @@ export const WebSocketProvider = ({ children }) => {
       // Admin-specific notifications
       stompClient.subscribe('/topic/admin-notifications', function (message) {
         const notification = JSON.parse(message.body)
-        console.log('🔔 Admin notification received:', notification)
+        // console.log('🔔 Admin notification received:', notification)
         setAdminNotifications(prev => [notification, ...prev])
         
         // Handle different notification types for chat updates
         if (notification.type === 'new_user_message') {
-          console.log('📨 Converting new_user_message notification to adminMessage for chat update')
+          // console.log('📨 Converting new_user_message notification to adminMessage for chat update')
           const adminMessage = {
             id: notification.messageId,
             senderId: notification.senderId,
@@ -155,11 +155,11 @@ export const WebSocketProvider = ({ children }) => {
           }
           setAdminMessages(prev => {
             const newMessages = [...prev, adminMessage]
-            console.log('📝 Updated adminMessages count from user notification:', newMessages.length)
+            // console.log('📝 Updated adminMessages count from user notification:', newMessages.length)
             return newMessages
           })
         } else if (notification.type === 'conversation_update') {
-          console.log('📨 Converting conversation_update notification to privateMessage for chat update')
+          // console.log('📨 Converting conversation_update notification to privateMessage for chat update')
           const privateMessage = {
             id: notification.messageId,
             senderId: notification.senderId,
@@ -175,7 +175,7 @@ export const WebSocketProvider = ({ children }) => {
           if (notification.senderId !== user.id) {
             setPrivateMessages(prev => {
               const newMessages = [...prev, privateMessage]
-              console.log('📝 Updated privateMessages count from admin notification:', newMessages.length)
+              // console.log('📝 Updated privateMessages count from admin notification:', newMessages.length)
               return newMessages
             })
           }
@@ -183,70 +183,70 @@ export const WebSocketProvider = ({ children }) => {
       })
     }
 
-    console.log('🔗 Setting up WebSocket subscriptions for user:', {
-      userId: user?.id,
-      roleName: user?.roleName,
-      roles: user?.roles,
-      isAdmin: user && (user.roles?.includes('ADMIN') || user.roles?.includes('MANAGER') || 
-                       user.roleName === 'admin' || user.roleName === 'manager')
-    })
+    // console.log('🔗 Setting up WebSocket subscriptions for user:', {
+    //   userId: user?.id,
+    //   roleName: user?.roleName,
+    //   roles: user?.roles,
+    //   isAdmin: user && (user.roles?.includes('ADMIN') || user.roles?.includes('MANAGER') || 
+    //                    user.roleName === 'admin' || user.roleName === 'manager')
+    // });
 
     // 5. Subscribe user-specific private notifications
     if (user?.id) {
-      console.log('📡 Subscribing to private notifications for user:', user.id, 'role:', user.roleName || user.roles)
+      // console.log('📡 Subscribing to private notifications for user:', user.id, 'role:', user.roleName || user.roles)
       
       stompClient.subscribe(`/user/${user.id}/queue/notifications`, function (message) {
         const notification = JSON.parse(message.body)
-        console.log('🔔 Private notification received via /user/queue:', notification)
+        // console.log('🔔 Private notification received via /user/queue:', notification)
         
         // Use notification handler instead of local state
         if (notificationHandler) {
-          console.log('📞 Calling notification handler for private notification')
+          // console.log('📞 Calling notification handler for private notification')
           notificationHandler(notification)
         } else {
-          console.warn('⚠️ No notification handler available for private notification')
+          // console.warn('⚠️ No notification handler available for private notification')
         }
       })
       
       // Subscribe to user-specific notifications channel (per documentation)
       stompClient.subscribe(`/topic/notifications/${user.id}`, function (message) {
         const notification = JSON.parse(message.body)
-        console.log('🔔 User-specific notification received via /topic:', notification)
+        // console.log('🔔 User-specific notification received via /topic:', notification)
         
         // Only use notification handler, don't update local WebSocket state
         if (notificationHandler) {
-          console.log('📞 Calling notification handler for user-specific notification')
+          // console.log('📞 Calling notification handler for user-specific notification')
           notificationHandler(notification)
         } else {
-          console.warn('⚠️ No notification handler available for user-specific notification')
+          // console.warn('⚠️ No notification handler available for user-specific notification')
         }
       })
     }
     
     // 5.1. Subscribe to all notifications (for admin/manager ONLY)
     if (isAdminOrManager(user)) {
-      console.log('🔐 Subscribing to global notifications for admin/manager:', user.roleName || user.roles)
+      // console.log('🔐 Subscribing to global notifications for admin/manager:', user.roleName || user.roles)
       stompClient.subscribe('/topic/notifications', function (message) {
         const notification = JSON.parse(message.body)
-        console.log('🔔 Global notification received:', {
-          id: notification.id,
-          userId: notification.userId,
-          type: notification.type,
-          message: notification.message,
-          isGlobal: notification.userId === null
-        })
+        // console.log('🔔 Global notification received:', {
+        //   id: notification.id,
+        //   userId: notification.userId,
+        //   type: notification.type,
+        //   message: notification.message,
+        //   isGlobal: notification.userId === null
+        // })
         
         // Only use notification handler, don't update local WebSocket state
         // Let NotificationContext handle the state management
         if (notificationHandler) {
-          console.log('📞 Calling notification handler for global notification')
+          // console.log('📞 Calling notification handler for global notification')
           notificationHandler(notification)
         } else {
-          console.warn('⚠️ No notification handler available for global notification')
+          // console.warn('⚠️ No notification handler available for global notification')
         }
       })
     } else {
-      console.log('🚫 Not subscribing to global notifications - user is customer')
+      // console.log('🚫 Not subscribing to global notifications - user is customer')
     }
 
     // Note: Comment notifications (COMMENT_REPLY and NEW_CUSTOMER_COMMENT) are now sent 
@@ -256,7 +256,7 @@ export const WebSocketProvider = ({ children }) => {
     // 6. Subscribe to read status updates
     stompClient.subscribe('/topic/read-status', function (message) {
       const readStatus = JSON.parse(message.body)
-      console.log('📖 Read status update:', readStatus)
+      // console.log('📖 Read status update:', readStatus)
       
       // Trigger callbacks for components using read status
       triggerReadStatusUpdate({
@@ -268,7 +268,7 @@ export const WebSocketProvider = ({ children }) => {
     // 7. Subscribe to user status updates (online/offline)
     stompClient.subscribe('/topic/user-status', function (message) {
       const userStatus = JSON.parse(message.body)
-      console.log('👤 User status update:', userStatus)
+      // console.log('👤 User status update:', userStatus)
       // Handle user status updates
     })
 
@@ -297,7 +297,7 @@ export const WebSocketProvider = ({ children }) => {
   const connectWebSocket = useCallback(() => {
     // Tránh multiple connections
     if (clientRef.current && clientRef.current.connected) {
-      console.log('WebSocket already connected, skipping...')
+      // console.log('WebSocket already connected, skipping...')
       return
     }
 
@@ -319,16 +319,14 @@ export const WebSocketProvider = ({ children }) => {
     const socket = new SockJS('http://localhost:8080/ws')
     const stompClient = Stomp.over(socket)
     
-    // Enable debug
-    stompClient.debug = function (str) {
-      console.log('STOMP: ' + str)
-    }
+    // Disable STOMP debug logs
+    stompClient.debug = null
 
     // Connect với headers authentication
     stompClient.connect({
       'Authorization': `Bearer ${getToken()}`
     }, function (frame) {
-      console.log('WebSocket Connected: ' + frame)
+      // console.log('WebSocket Connected: ' + frame)
       setIsConnected(true)
 
       // Subscribe các channels theo API guide
@@ -344,7 +342,7 @@ export const WebSocketProvider = ({ children }) => {
       // Thử kết nối lại sau 5s (không gọi recursive)
       setTimeout(() => {
         if (!isConnectedRef.current && user) {
-          console.log('Attempting to reconnect...')
+          // console.log('Attempting to reconnect...')
           // Trigger reconnect thông qua state thay vì gọi function
           setIsConnected(false) // This will trigger useEffect
         }
@@ -363,18 +361,18 @@ export const WebSocketProvider = ({ children }) => {
   disconnectWebSocketRef.current = disconnectWebSocket
 
   useEffect(() => {
-    console.log('🔄 WebSocket useEffect triggered - User changed:', {
-      hasUser: !!user,
-      userId: user?.id,
-      previousUserId: previousUserIdRef.current,
-      isConnected: isConnectedRef.current
-    })
+    // console.log('🔄 WebSocket useEffect triggered - User changed:', {
+    //   hasUser: !!user,
+    //   userId: user?.id,
+    //   previousUserId: previousUserIdRef.current,
+    //   isConnected: isConnectedRef.current
+    // })
 
     // Chỉ kết nối khi có user và chưa connected
     if (!user) {
       // Disconnect if user logged out
       if (clientRef.current && clientRef.current.connected) {
-        console.log('👋 User logged out, disconnecting WebSocket...')
+        // console.log('👋 User logged out, disconnecting WebSocket...')
         disconnectWebSocketRef.current()
       }
       previousUserIdRef.current = null
@@ -385,10 +383,10 @@ export const WebSocketProvider = ({ children }) => {
     const userIdChanged = previousUserIdRef.current !== null && previousUserIdRef.current !== user.id
     
     if (userIdChanged) {
-      console.log('🔄 User ID changed, reconnecting WebSocket...', {
-        from: previousUserIdRef.current,
-        to: user.id
-      })
+      // console.log('🔄 User ID changed, reconnecting WebSocket...', {
+      //   from: previousUserIdRef.current,
+      //   to: user.id
+      // })
       // Disconnect old connection first
       if (clientRef.current && clientRef.current.connected) {
         disconnectWebSocketRef.current()
@@ -400,7 +398,7 @@ export const WebSocketProvider = ({ children }) => {
 
     // Only connect if not already connected or user changed
     if (!clientRef.current || !clientRef.current.connected || userIdChanged) {
-      console.log('🔌 Initiating WebSocket connection for user:', user.id)
+      // console.log('🔌 Initiating WebSocket connection for user:', user.id)
       connectWebSocketRef.current()
     }
 
@@ -438,7 +436,7 @@ export const WebSocketProvider = ({ children }) => {
         message: message,
         senderType: 'user'
       }
-      console.log('📤 Sending user message:', payload)
+      // console.log('📤 Sending user message:', payload)
       clientRef.current.send('/app/user-message', {}, JSON.stringify(payload))
     } else {
       console.error('Cannot send user message: not connected')
@@ -456,7 +454,7 @@ export const WebSocketProvider = ({ children }) => {
         senderType: user?.roleName === 'admin' ? 'admin' : 'user'
       }
       
-      console.log('📤 Sending private message:', payload)
+      // console.log('📤 Sending private message:', payload)
       clientRef.current.send('/app/private-message', {}, JSON.stringify(payload))
     } else {
       console.error('Cannot send private message: not connected')
@@ -509,14 +507,14 @@ export const WebSocketProvider = ({ children }) => {
       if (user?.roleName === 'admin' || user?.roleName === 'manager') {
         // Admin subscribes to specific user conversation
         channelName = `/topic/conversation/${userId}`
-        console.log(`🔗 Admin subscribing to channel: ${channelName}`)
+        // console.log(`🔗 Admin subscribing to channel: ${channelName}`)
         subscription = clientRef.current.subscribe(channelName, function (message) {
           const conversationUpdate = JSON.parse(message.body)
-          console.log(`📨 Admin received conversation update for user ${userId}:`, conversationUpdate)
+          // console.log(`📨 Admin received conversation update for user ${userId}:`, conversationUpdate)
           
           // Skip auto-adding admin's own messages to avoid duplicates
           if (conversationUpdate.senderId === user.id) {
-            console.log('🚫 Skipping admin own message auto-add to prevent duplicate')
+            // console.log('🚫 Skipping admin own message auto-add to prevent duplicate')
             return
           }
           
@@ -530,10 +528,10 @@ export const WebSocketProvider = ({ children }) => {
         // Regular user subscribes to their own conversation with admin
         // Use the same channel format for consistency
         channelName = `/topic/conversation/${user.id}`
-        console.log(`🔗 User subscribing to channel: ${channelName}`)
+        // console.log(`🔗 User subscribing to channel: ${channelName}`)
         subscription = clientRef.current.subscribe(channelName, function (message) {
           const conversationUpdate = JSON.parse(message.body)
-          console.log(`📨 User received conversation update:`, conversationUpdate)
+          // console.log(`📨 User received conversation update:`, conversationUpdate)
           if (onMessageReceived) {
             onMessageReceived(conversationUpdate)
           } else {
@@ -544,7 +542,7 @@ export const WebSocketProvider = ({ children }) => {
       
       return subscription
     }
-    console.log('❌ Cannot subscribe: WebSocket not connected or user not available')
+    // console.log('❌ Cannot subscribe: WebSocket not connected or user not available')
     return null
   }
 

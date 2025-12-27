@@ -21,19 +21,6 @@ export const useChatVisibility = () => {
     const showChat = isAuthenticated && user && !isAdmin(user)
     setShouldShowChat(showChat)
 
-    // Debug info (có thể bỏ trong production)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 Chat Visibility Debug:', {
-        isAuthenticated,
-        hasUser: !!user,
-        userRole: user?.role,
-        userRoleName: user?.roleName,
-        isAdminUser: isAdmin(user),
-        shouldShowChat: showChat,
-        loading,
-        forceUpdate
-      })
-    }
   }, [isAuthenticated, user, loading, forceUpdate])
 
   // Listen for auth state changes

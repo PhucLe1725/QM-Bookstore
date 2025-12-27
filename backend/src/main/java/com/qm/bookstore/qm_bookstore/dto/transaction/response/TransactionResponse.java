@@ -16,12 +16,7 @@ public class TransactionResponse {
     Long id;
     String fingerprint;
     LocalDateTime transactionDate;
-    String orderNumber;
-    String debitAccount;
-    String remitterName;
     String creditAccount;
-    String beneficiaryName;
-    String beneficiaryBank;
     BigDecimal amount;
     String paymentDetails;
     Boolean verified;

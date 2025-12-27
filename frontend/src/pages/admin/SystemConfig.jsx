@@ -13,6 +13,7 @@ import {
 import systemConfigService from '../../services/systemConfigService'
 import { useToast } from '../../contexts/ToastContext'
 import { clearConfigCache } from '../../utils/systemConfig'
+import AdminPageHeader from '../../components/AdminPageHeader'
 
 const SystemConfig = () => {
   const toast = useToast()
@@ -164,29 +165,21 @@ const SystemConfig = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                <Settings className="h-8 w-8 mr-3 text-blue-600" />
-                Cấu hình hệ thống
-              </h1>
-              <p className="mt-2 text-gray-600">
-                Quản lý các thiết lập và cấu hình của hệ thống
-              </p>
-            </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Thêm cấu hình
-            </button>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <AdminPageHeader
+        title="Cấu hình hệ thống"
+        description="Quản lý các thiết lập và cấu hình của hệ thống"
+        actions={
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Thêm cấu hình
+          </button>
+        }
+      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Search */}
         <div className="mb-6">

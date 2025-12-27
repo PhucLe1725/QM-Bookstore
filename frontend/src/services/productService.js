@@ -6,6 +6,20 @@ import api from './api'
  */
 
 export const productService = {
+  /**
+   * Lấy sản phẩm theo category ID
+   * @param {number} categoryId - Category ID
+   */
+  getProductsByCategory: async (categoryId) => {
+    try {
+      const response = await api.get(`/products/category/${categoryId}`)
+      return response // api.js đã unwrap response.data
+    } catch (error) {
+      console.error('Error fetching products by category:', error)
+      throw error
+    }
+  },
+
   // Get all products with pagination and filters
   getAllProducts: async (params = {}) => {
     const queryParams = new URLSearchParams({

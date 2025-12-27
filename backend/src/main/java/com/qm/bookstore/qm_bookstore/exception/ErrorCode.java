@@ -84,6 +84,14 @@ public enum ErrorCode {
     INVALID_PAYMENT_METHOD(7209, "Order does not use prepaid payment method"),
     ORDER_ALREADY_PAID(7210, "Order is already paid"),
 
+    // Shipping & Goong API errors (6000-6099)
+    GEOCODING_FAILED(6001, "Failed to convert address to coordinates"),
+    ROUTE_CALCULATION_FAILED(6002, "Failed to calculate route"),
+    INVALID_ADDRESS(6003, "Invalid address format"),
+    GOONG_API_ERROR(6004, "Error calling Goong API"),
+    SHIPPING_CALCULATION_FAILED(6005, "Failed to calculate shipping fee"),
+    STORE_LOCATION_NOT_CONFIGURED(6006, "Store location not configured in system settings"),
+
     // Generic errors
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error"),
     INVALID_KEY(1005, "Invalid message key"),

@@ -11,9 +11,13 @@ import {
   Package,
   Image as ImageIcon
 } from 'lucide-react'
-import { productService } from '../../services'
+import { productService, categoryService } from '../../services'
+import { useToast } from '../../contexts/ToastContext'
+import AdminPageHeader from '../../components/AdminPageHeader'
+import SearchableSelect from '../../components/SearchableSelect'
 
 const AdminProducts = () => {
+  const { showToast } = useToast()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -52,14 +56,9 @@ const AdminProducts = () => {
   
   const [formErrors, setFormErrors] = useState({})
   
-  // Categories (mock - replace with API)
-  const categories = [
-    { id: 10, name: 'SGK Chân Trời Sáng Tạo' },
-    { id: 42, name: 'SGK Kết nối tri thức với cuộc sống' },
-    { id: 3, name: 'Dụng cụ học tập' },
-    { id: 4, name: 'Đồ dùng nghệ thuật' },
-    { id: 5, name: 'Thiết bị văn phòng' }
-  ]
+  // Categories - fetch from API
+  const [categories, setCategories] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
 
   // Fetch products
   const fetchProducts = async () => {
@@ -94,6 +93,43 @@ const AdminProducts = () => {
   useEffect(() => {
     fetchProducts()
   }, [currentPage, selectedCategory])
+
+  // Fetch categories on mount
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  const fetchCategories = async () => {
+    setCategoriesLoading(true)
+    try {
+      const response = await categoryService.getCategoryTree()
+      // Flatten tree to get all categories with indentation for display
+      const flatCategories = flattenCategoryTree(response)
+      setCategories(flatCategories)
+    } catch (err) {
+      console.error('Error fetching categories:', err)
+      showToast('Không thể tải danh mục', 'error')
+    } finally {
+      setCategoriesLoading(false)
+    }
+  }
+
+  // Helper to flatten category tree with level indication
+  const flattenCategoryTree = (tree, level = 0) => {
+    let result = []
+    for (const node of tree) {
+      result.push({
+        id: node.id,
+        name: node.name,
+        level: level,
+        displayName: '—'.repeat(level) + (level > 0 ? ' ' : '') + node.name
+      })
+      if (node.children && node.children.length > 0) {
+        result = [...result, ...flattenCategoryTree(node.children, level + 1)]
+      }
+    }
+    return result
+  }
 
   // Handle search
   const handleSearch = (e) => {
@@ -197,11 +233,11 @@ const AdminProducts = () => {
       if (response.success) {
         setShowModal(false)
         fetchProducts()
-        alert(modalMode === 'create' ? 'Tạo sản phẩm thành công!' : 'Cập nhật sản phẩm thành công!')
+        showToast(modalMode === 'create' ? 'Tạo sản phẩm thành công!' : 'Cập nhật sản phẩm thành công!', 'success')
       }
     } catch (err) {
       console.error('Error saving product:', err)
-      alert('Có lỗi xảy ra: ' + (err.response?.data?.message || err.message))
+      showToast('Có lỗi xảy ra: ' + (err.response?.data?.message || err.message), 'error')
     }
   }
 
@@ -219,11 +255,11 @@ const AdminProducts = () => {
         setShowDeleteConfirm(false)
         setProductToDelete(null)
         fetchProducts()
-        alert('Xóa sản phẩm thành công!')
+        showToast('Xóa sản phẩm thành công!', 'success')
       }
     } catch (err) {
       console.error('Error deleting product:', err)
-      alert('Có lỗi xảy ra khi xóa sản phẩm')
+      showToast('Có lỗi xảy ra khi xóa sản phẩm', 'error')
     }
   }
 
@@ -239,13 +275,21 @@ const AdminProducts = () => {
   const totalPages = Math.ceil(totalRecords / pageSize)
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Quản lý sản phẩm</h1>
-          <p className="text-gray-600">Thêm, sửa, xóa và quản lý sản phẩm trong hệ thống</p>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <AdminPageHeader
+        title="Quản lý sản phẩm"
+        description="Thêm, sửa, xóa và quản lý sản phẩm trong hệ thống"
+        actions={
+          <button
+            onClick={handleCreate}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+          >
+            <Plus className="w-5 h-5" />
+            Thêm sản phẩm
+          </button>
+        }
+      />
+      <div className="max-w-7xl mx-auto p-6">
 
         {/* Toolbar */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
@@ -271,16 +315,15 @@ const AdminProducts = () => {
             </form>
 
             {/* Category Filter */}
-            <select
-              value={selectedCategory || ''}
-              onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : null)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Tất cả danh mục</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
+            <div className="w-64">
+              <SearchableSelect
+                options={categories}
+                value={selectedCategory}
+                onChange={(value) => setSelectedCategory(value ? Number(value) : null)}
+                placeholder="Tất cả danh mục"
+                disabled={categoriesLoading}
+              />
+            </div>
 
             {/* Add Button */}
             <button
@@ -527,16 +570,13 @@ const AdminProducts = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Danh mục
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={categories}
                     value={formData.categoryId}
-                    onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Chọn danh mục</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
+                    onChange={(value) => setFormData({ ...formData, categoryId: value })}
+                    placeholder={categoriesLoading ? 'Đang tải...' : 'Chọn danh mục'}
+                    disabled={categoriesLoading}
+                  />
                 </div>
 
                 {/* Price */}

@@ -1,12 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
 import { 
-  ArrowLeft,
   Users,
   MessageSquare,
   Search,
-  Mail,
-  MailOpen,
   Clock,
   User,
   Send
@@ -17,6 +13,7 @@ import { useWebSocket } from '../../store/WebSocketContext'
 import { useNotificationContext } from '../../store/NotificationContext'
 import useChatReadStatus from '../../hooks/useChatReadStatus'
 import NotificationDropdown from '../../components/NotificationDropdown'
+import AdminPageHeader from '../../components/AdminPageHeader'
 
 const AdminMessages = () => {
   const { user } = useAuth()
@@ -55,22 +52,15 @@ const AdminMessages = () => {
     const isGlobalMessage = latestNotification?.type === 'NEW_MESSAGE' && latestNotification?.userId === null
     const isMessageForSelectedUser = latestNotification?.type === 'NEW_MESSAGE' && latestNotification?.userId === selectedUser.id
     
-    if (isGlobalMessage || isMessageForSelectedUser) {
-      console.log('💬 AdminMessages: NEW_MESSAGE notification received, reloading conversation for user:', selectedUser.id, {
-        isGlobal: isGlobalMessage,
-        isForSelectedUser: isMessageForSelectedUser
-      })
-      
+    if (isGlobalMessage || isMessageForSelectedUser) {  
       // Debounce to avoid too many API calls
       const timeoutId = setTimeout(async () => {
         try {
-          console.log('🔄 Reloading conversation for user:', selectedUser.id)
           const conversation = await chatService.getRecentConversationMessages(selectedUser.id, 50)
           if (conversation.success && conversation.result) {
             const newMessages = Array.isArray(conversation.result) ? conversation.result : []
             // Sort messages by createdAt ascending (oldest first) for proper chat display
             const sortedMessages = newMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-            console.log('✅ Conversation reloaded:', sortedMessages.length, 'messages')
             setChatMessages(sortedMessages)
           }
         } catch (error) {
@@ -88,7 +78,6 @@ const AdminMessages = () => {
       setError(null)
       
       const response = await userService.getAllUsers()
-      console.log('Users API Response:', response)
       
       // Process response based on actual API structure
       let userData = []
@@ -102,7 +91,6 @@ const AdminMessages = () => {
         userData = response.result
       }
       
-      console.log('Processed userData:', userData)
       setUsers(userData)
     } catch (err) {
       console.error('Error fetching users:', err)
@@ -127,41 +115,24 @@ const AdminMessages = () => {
   })
 
   const handleUserSelect = async (selectedUserData) => {
-    console.log('👤 Selecting user:', selectedUserData.username)
     setSelectedUser(selectedUserData)
-    setChatMessages([]) // Clear previous conversation
-    
-    // Debug: Test mark as read API call
-    try {
-      console.log('🔧 Attempting to mark messages as read for userId:', selectedUserData.id)
-      const result = await markMessagesRead(selectedUserData.id, null, true)
-      console.log('✅ Mark as read result:', result)
-    } catch (error) {
-      console.error('❌ Mark as read failed:', error)
-      console.error('❌ Error response:', error.response?.data)
-      console.error('❌ Error status:', error.response?.status)
-    }
-    
+    setChatMessages([])
     loadConversation(selectedUserData.id)
   }
 
   const loadConversation = async (userId) => {
     try {
       setLoadingConversation(true)
-      console.log('🔄 Loading conversation for user ID:', userId)
       
       // Load recent conversation messages - get latest messages first
       const conversation = await chatService.getRecentConversationMessages(userId, 50)
-      console.log('Conversation response:', conversation)
       
       if (conversation.success && conversation.result) {
         const messages = Array.isArray(conversation.result) ? conversation.result : []
-        console.log('📊 Raw messages from API:', messages.length, 'messages')
         // Sort messages by createdAt ascending (oldest first) for proper chat display
         const sortedMessages = messages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
         setChatMessages(sortedMessages)
-        console.log('✅ Conversation loaded and sorted:', sortedMessages.length, 'messages')
-        console.log('📝 Last few message IDs:', sortedMessages.slice(-3).map(m => ({ id: m.id, message: m.message?.substring(0, 20) })))
+
       } else {
         setChatMessages([])
       }
@@ -178,11 +149,6 @@ const AdminMessages = () => {
     if (!newMessage.trim() || !selectedUser) return
 
     const messageText = newMessage.trim()
-    console.log('📤 Admin sending message:', {
-      to: selectedUser.username,
-      message: messageText
-    })
-
     // Clear input immediately
     setNewMessage('')
 
@@ -207,7 +173,6 @@ const AdminMessages = () => {
     try {
       // Send private message to selected user via WebSocket (old logic)
       await sendPrivateMessage(selectedUser.id, messageText)
-      console.log('✅ Message sent via WebSocket')
       
       // Reload conversation after a short delay to get fresh data (old logic)
       setTimeout(async () => {
@@ -217,7 +182,6 @@ const AdminMessages = () => {
             const freshMessages = Array.isArray(conversation.result) ? conversation.result : []
             // Sort messages by createdAt ascending (oldest first) for proper chat display  
             const sortedMessages = freshMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-            console.log('🔄 Conversation reloaded after send:', sortedMessages.length, 'messages')
             setChatMessages(sortedMessages)
           }
         } catch (error) {
@@ -270,45 +234,21 @@ const AdminMessages = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Link 
-                  to="/admin" 
-                  className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  <ArrowLeft className="h-5 w-5 mr-2" />
-                  Quay lại Dashboard
-                </Link>
-                <div className="h-6 border-l border-gray-300"></div>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                    <MessageSquare className="h-8 w-8 mr-3 text-blue-600" />
-                    Tin nhắn hỗ trợ
-                  </h1>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Quản lý tin nhắn và hỗ trợ khách hàng
-                  </p>
-                </div>
-              </div>
-              
-              {/* Notification and User Info */}
-              <div className="flex items-center space-x-4">
-                <NotificationDropdown />
-                <div className="text-right">
-                  <p className="text-sm text-gray-500">Admin</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {user?.fullName || user?.username}
-                  </p>
-                </div>
-              </div>
+      <AdminPageHeader
+        title="Tin nhắn hỗ trợ"
+        description="Quản lý tin nhắn và hỗ trợ khách hàng"
+        actions={
+          <div className="flex items-center space-x-4">
+            <NotificationDropdown />
+            <div className="text-right">
+              <p className="text-sm text-gray-500">Admin</p>
+              <p className="text-lg font-semibold text-gray-900">
+                {user?.fullName || user?.username}
+              </p>
             </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -531,50 +471,6 @@ const AdminMessages = () => {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Statistics Cards */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Tổng người dùng</p>
-                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-              </div>
-              <Users className="h-8 w-8 text-blue-500" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Tin nhắn hiện tại</p>
-                <p className="text-2xl font-bold text-gray-900">{chatMessages.length}</p>
-              </div>
-              <Mail className="h-8 w-8 text-orange-500" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Người dùng đã chọn</p>
-                <p className="text-2xl font-bold text-gray-900">{selectedUser ? '1' : '0'}</p>
-              </div>
-              <MailOpen className="h-8 w-8 text-green-500" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Trạng thái WebSocket</p>
-                <p className="text-2xl font-bold text-gray-900">{isConnected ? '🟢' : '🔴'}</p>
-                <p className="text-xs text-gray-500">{isConnected ? 'Đã kết nối' : 'Mất kết nối'}</p>
-              </div>
-              <Clock className="h-8 w-8 text-purple-500" />
-            </div>
           </div>
         </div>
       </div>

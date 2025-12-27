@@ -13,6 +13,7 @@ import {
 import transactionService from '../../services/transactionService'
 import orderService from '../../services/orderService'
 import { useToast } from '../../contexts/ToastContext'
+import AdminPageHeader from '../../components/AdminPageHeader'
 
 const AdminTransactions = () => {
   const navigate = useNavigate()
@@ -160,16 +161,12 @@ const AdminTransactions = () => {
   }
 
   return (
-    <div className="admin-transactions p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Quản Lý Giao Dịch Banking
-        </h1>
-        <p className="text-gray-600">
-          Fetch email, verify giao dịch và cập nhật thanh toán đơn hàng
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <AdminPageHeader
+        title="Quản Lý Giao Dịch Banking"
+        description="Fetch email, verify giao dịch và cập nhật thanh toán đơn hàng"
+      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
       {/* Controls */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -363,6 +360,7 @@ const AdminTransactions = () => {
           ))}
         </div>
       )}
+      </div>
     </div>
   )
 }

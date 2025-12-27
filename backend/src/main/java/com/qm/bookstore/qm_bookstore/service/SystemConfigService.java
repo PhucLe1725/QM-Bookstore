@@ -1,5 +1,6 @@
 package com.qm.bookstore.qm_bookstore.service;
 
+import com.qm.bookstore.qm_bookstore.dto.shipping.Coordinates;
 import com.qm.bookstore.qm_bookstore.dto.systemconfig.request.CreateSystemConfigRequest;
 import com.qm.bookstore.qm_bookstore.dto.systemconfig.request.UpdateSystemConfigRequest;
 import com.qm.bookstore.qm_bookstore.dto.systemconfig.response.SystemConfigResponse;
@@ -154,6 +155,44 @@ public class SystemConfigService {
         return systemConfigRepository.findByConfigKey(configKey)
                 .map(config -> Boolean.parseBoolean(config.getConfigValue()))
                 .orElse(defaultValue);
+    }
+
+    /**
+     * Helper: Get config value as Double
+     */
+    public Double getConfigValueAsDouble(String configKey, Double defaultValue) {
+        return systemConfigRepository.findByConfigKey(configKey)
+                .map(config -> {
+                    try {
+                        return Double.parseDouble(config.getConfigValue());
+                    } catch (NumberFormatException e) {
+                        log.warn("[getConfigValueAsDouble] Invalid number format for key={}, using default", configKey);
+                        return defaultValue;
+                    }
+                })
+                .orElse(defaultValue);
+    }
+
+    /**
+     * Get store location coordinates from system config
+     */
+    public Coordinates getStoreLocation() {
+        Double latitude = getConfigValueAsDouble("store_latitude", null);
+        Double longitude = getConfigValueAsDouble("store_longitude", null);
+        
+        if (latitude == null || longitude == null) {
+            log.error("[getStoreLocation] Store location not configured");
+            throw new AppException(ErrorCode.STORE_LOCATION_NOT_CONFIGURED);
+        }
+        
+        return new Coordinates(latitude, longitude);
+    }
+
+    /**
+     * Get free shipping threshold from system config
+     */
+    public Double getFreeShippingThreshold() {
+        return getConfigValueAsDouble("free_shipping_threshold", 0.0);
     }
 
     /**

@@ -8,7 +8,6 @@ import api from './api'
 export const notificationService = {
   // Get notifications with pagination and filters
   getNotifications: async (params = {}) => {
-    console.log('🔍 notificationService.getNotifications called with params:', params)
     
     const queryParams = new URLSearchParams({
       skipCount: 0,
@@ -18,12 +17,9 @@ export const notificationService = {
     })
     
     const url = `/notifications?${queryParams}`
-    console.log('📡 API URL:', url)
-    console.log('🔄 Query params object:', Object.fromEntries(queryParams))
     
     try {
       const response = await api.get(url)
-      console.log('✅ notificationService.getNotifications success:', response)
       return response
     } catch (error) {
       console.error('❌ notificationService.getNotifications error:', error)
@@ -43,9 +39,7 @@ export const notificationService = {
   },
 
   // Get notifications for specific user
-  getUserNotifications: async (userId, params = {}) => {
-    console.log('🔍 notificationService.getUserNotifications called with:', { userId, params })
-    
+  getUserNotifications: async (userId, params = {}) => {    
     const queryParams = new URLSearchParams({
       skipCount: 0,
       maxResultCount: 20,
@@ -53,12 +47,9 @@ export const notificationService = {
     })
     
     const url = `/notifications/user/${userId}?${queryParams}`
-    console.log('📡 API URL:', url)
-    console.log('🔄 Query params object:', Object.fromEntries(queryParams))
     
     try {
       const response = await api.get(url)
-      console.log('✅ notificationService.getUserNotifications success:', response)
       return response
     } catch (error) {
       console.error('❌ notificationService.getUserNotifications error:', error)
@@ -74,11 +65,9 @@ export const notificationService = {
 
   // Get global notifications for admin/manager
   getGlobalNotifications: async () => {
-    console.log('🔍 notificationService.getGlobalNotifications called')
     
     try {
       const response = await api.get('/notifications/global')
-      console.log('✅ notificationService.getGlobalNotifications success:', response)
       return response
     } catch (error) {
       console.error('❌ notificationService.getGlobalNotifications error:', error)
@@ -98,11 +87,8 @@ export const notificationService = {
 
   // Get unread notifications count
   getUnreadCount: async (userId) => {
-    console.log('🔍 notificationService.getUnreadCount called for userId:', userId)
-    
     try {
       const response = await api.get(`/notifications/user/${userId}/unread/count`)
-      console.log('✅ notificationService.getUnreadCount success:', response)
       return response
     } catch (error) {
       console.error('❌ notificationService.getUnreadCount error:', error)
@@ -128,11 +114,9 @@ export const notificationService = {
 
   // Mark all global notifications as read (Admin/Manager only)
   markAllGlobalAsRead: async () => {
-    console.log('🔍 notificationService.markAllGlobalAsRead called')
     
     try {
       const response = await api.put('/notifications/global/mark-all-read')
-      console.log('✅ notificationService.markAllGlobalAsRead success:', response)
       return response
     } catch (error) {
       console.error('❌ notificationService.markAllGlobalAsRead error:', error)

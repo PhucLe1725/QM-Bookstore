@@ -30,7 +30,6 @@ const getCartHeaders = () => {
   } else {
     const sessionId = getSessionId()
     headers['X-Session-ID'] = sessionId
-    console.log('🔑 Cart headers (guest):', { sessionId, headers })
   }
   
   return headers
@@ -41,7 +40,6 @@ export const cartService = {
   addToCart: async (productId, quantity = 1) => {
     try {
       const headers = getCartHeaders()
-      console.log('📦 addToCart called:', { productId, quantity, headers })
       
       const response = await api.post(
         '/cart/add',

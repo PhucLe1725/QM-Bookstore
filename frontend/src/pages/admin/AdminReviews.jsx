@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { reviewService } from '../../services'
 import { useToast } from '../../contexts/ToastContext'
+import AdminPageHeader from '../../components/AdminPageHeader'
 
 const AdminReviews = () => {
   const [searchParams] = useSearchParams()
@@ -135,13 +136,12 @@ const AdminReviews = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Quản lý Đánh giá</h1>
-          <p className="mt-2 text-gray-600">Xem và quản lý các đánh giá từ khách hàng</p>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <AdminPageHeader
+        title="Quản lý Đánh giá"
+        description="Xem và quản lý các đánh giá từ khách hàng"
+      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Filters and Reviews */}
           <div>

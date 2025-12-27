@@ -18,6 +18,7 @@ import {
 import userService from '../../services/userService'
 import roleService from '../../services/roleService'
 import { useToast } from '../../contexts/ToastContext'
+import AdminPageHeader from '../../components/AdminPageHeader'
 
 const AdminUsers = () => {
   const navigate = useNavigate()
@@ -77,7 +78,6 @@ const AdminUsers = () => {
   const loadRoles = async () => {
     try {
       const response = await roleService.getAllRoles()
-      console.log('Roles loaded:', response)
       const rolesList = response.result || []
       setRoles(rolesList)
       
@@ -330,14 +330,11 @@ const AdminUsers = () => {
   const totalPages = Math.ceil(totalRecords / pageSize)
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Quản lý Người dùng</h1>
-            <p className="mt-2 text-gray-600">Tạo và quản lý tài khoản người dùng</p>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      <AdminPageHeader
+        title="Quản lý Người dùng"
+        description="Tạo và quản lý tài khoản người dùng"
+        actions={
           <button
             onClick={() => {
               resetForm()
@@ -348,7 +345,9 @@ const AdminUsers = () => {
             <Plus className="h-5 w-5" />
             <span>Tạo Người Dùng</span>
           </button>
-        </div>
+        }
+      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">

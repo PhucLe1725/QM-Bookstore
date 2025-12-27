@@ -10,9 +10,7 @@ class ChatReadStatusService {
    */
   async markAsReadByAdminForUser(userId) {
     try {
-      console.log('🔧 API Call: markAsReadByAdminForUser for userId:', userId)
       const response = await api.put(`/chat/admin/mark-read/user/${userId}`)
-      console.log('🔧 API Response:', response.data)
       return response.data
     } catch (error) {
       console.error('❌ API Error marking messages as read by admin for user:', error)
@@ -41,10 +39,7 @@ class ChatReadStatusService {
         markAllFromUser: markAllFromUser
       }
       
-      console.log('🔧 API Call: markMessagesRead with payload:', payload)
-      // Try PUT method instead of POST, and ensure correct path
       const response = await api.put('/chat/mark-read', payload)
-      console.log('🔧 API Response:', response.data)
       return response.data
     } catch (error) {
       console.error('❌ API Error marking messages as read:', error)
@@ -57,10 +52,8 @@ class ChatReadStatusService {
       
       // If new API fails, fallback to old API
       if (markAllFromUser) {
-        console.log('🔄 Falling back to old API...')
         try {
           const fallbackResponse = await api.put(`/chat/admin/mark-read/user/${userId}`)
-          console.log('✅ Fallback API success:', fallbackResponse.data)
           return fallbackResponse.data
         } catch (fallbackError) {
           console.error('❌ Fallback API also failed:', fallbackError)

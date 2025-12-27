@@ -62,10 +62,13 @@ public class ImapEmailService {
             for (int i = messages.length - 1; i >= messages.length - count && i >= 0; i--) {
                 Message message = messages[i];
                 
-                // Filter email từ Sacombank
+                // Get sender info
                 String from = message.getFrom()[0].toString();
-                if (from.toLowerCase().contains("info@sacombank.com.vn") || 
-                    from.toLowerCase().contains("sacombank")) {
+                String subject = message.getSubject() != null ? message.getSubject() : "";
+                
+                // Filter: Chỉ lấy email thông báo giao dịch từ sacombank
+                boolean isBankNotification = from.toLowerCase().contains("sacombank");
+                if (isBankNotification) {
                     
                     // Check email đã đọc chưa
                     if (message.isSet(Flags.Flag.SEEN)) {
@@ -74,25 +77,31 @@ public class ImapEmailService {
                     }
                     
                     try {
-                        log.info("📧 Processing email from: {}", from);
+                        log.info("📧 Processing email from: {} | Subject: {}", from, subject);
                         String htmlContent = getHtmlFromMessage(message);
                         Transaction transaction = emailParsingService.parseHtmlContent(htmlContent);
                         
-                        // Check logic lọc mail ở đây (ví dụ chỉ lấy giao dịch chuyển vào)
-                        if (transaction.getOrderNumber() != null && !transaction.getOrderNumber().trim().isEmpty()) {
+                        // Check logic lọc: Chỉ lấy giao dịch có QMORD pattern (chuyển vào)
+                        if (transaction.getPaymentDetails() != null && 
+                            transaction.getPaymentDetails().toUpperCase().matches(".*QMORD\\d+.*")) {
                             transactions.add(transaction);
-                            log.info("Added transaction with order number: {}", transaction.getOrderNumber());
+                            log.info("✅ Added transaction with payment content: {}", 
+                                    transaction.getPaymentDetails().substring(0, 
+                                    Math.min(50, transaction.getPaymentDetails().length())));
                         } else {
-                            log.info("Skipping outgoing transaction (no order_number)");
+                            log.info("⏭️ Skipping transaction (no QMORD pattern in payment details)");
                         }
                         
                         // Mark as SEEN
                         message.setFlag(Flags.Flag.SEEN, true);
-                        log.info("✅ Processed and marked email as SEEN");
+                        log.info("✅ Marked email as SEEN");
                         
                     } catch (Exception e) {
-                        log.error("❌ Error parsing email: {}", e.getMessage(), e);
+                        log.error("❌ Error parsing email from {}: {}", from, e.getMessage(), e);
                     }
+                } else {
+                    // Skip non-bank emails
+                    log.debug("⏭️ Skipping non-bank email from: {}", from);
                 }
             }
             

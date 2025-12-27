@@ -1,3 +1,19 @@
+/**
+ * AddressSelector Component
+ * 
+ * ⚠️ NOTE: This component currently uses GoongAPI directly from frontend.
+ * TODO: Refactor to use backend APIs for:
+ * - Place autocomplete
+ * - Place detail
+ * - Geocoding
+ * - Direction/routing
+ * 
+ * See: /backend/SHIPPING-AND-GOONG-API-SPEC.md
+ * 
+ * For now, this component is kept as-is for address selection functionality.
+ * Shipping calculation has been moved to backend via shippingService.
+ */
+
 import React, { useState, useEffect, useRef } from 'react'
 import { MapPin } from 'lucide-react'
 import { getStoreLocation, getConfigValue, CONFIG_KEYS } from '../utils/systemConfig'
@@ -348,29 +364,6 @@ const AddressSelector = ({ onAddressChange, initialAddress = '' }) => {
           💡 Click vào bản đồ để chọn vị trí chính xác hoặc kéo thả marker
         </p>
       </div>
-
-      {/* Distance Info */}
-      {distance && duration && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="text-sm font-medium text-gray-700 mb-2">
-            📍 Từ: {storeName}
-          </div>
-          <div className="text-sm font-medium text-gray-700 mb-3">
-            📍 Đến: {address}
-          </div>
-          <hr className="border-green-300 my-2" />
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-600">🚗 Khoảng cách:</span>
-              <div className="font-semibold text-gray-900">{distance} km</div>
-            </div>
-            <div>
-              <span className="text-gray-600">⏱️ Thời gian:</span>
-              <div className="font-semibold text-gray-900">{duration} phút</div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

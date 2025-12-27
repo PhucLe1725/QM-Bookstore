@@ -1,8 +1,6 @@
 import api from './api'
 
-// User service cho admin
 const userService = {
-  // Lấy danh sách tất cả users (admin only)
   getAllUsers: async () => {
     try {
       const response = await api.get('/users/getAll')
@@ -13,7 +11,6 @@ const userService = {
     }
   },
 
-  // Lấy danh sách users với phân trang và sắp xếp (admin only)
   getAllUsersPaginated: async (params = {}) => {
     try {
       const queryParams = new URLSearchParams()
@@ -30,21 +27,17 @@ const userService = {
     }
   },
 
-  // Lấy thông tin user theo ID
   getUserById: async (userId) => {
-    console.log('🔍 userService.getUserById called with userId:', userId)
     
     try {
       const response = await api.get(`/users/getById/${userId}`)
-      console.log('✅ userService.getUserById success:', response)
       return response
     } catch (error) {
-      console.error('❌ userService.getUserById error for userId:', userId, error)
+      console.error(' userService.getUserById error for userId:', userId, error)
       throw error
     }
   },
 
-  // Lấy thông tin user theo username (admin only)
   getUserByUsername: async (username) => {
     try {
       const response = await api.get(`/users/getByUsername/${username}`)

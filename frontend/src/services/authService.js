@@ -14,8 +14,7 @@ export const authService = {
       }
       
       const response = await api.post('/auth/login', loginData)
-      console.log('Login response:', JSON.stringify(response))
-      
+            
       // Xử lý response với cấu trúc mới
       if (response.success && response.result) {
         const { accessToken, refreshToken, userResponse } = response.result

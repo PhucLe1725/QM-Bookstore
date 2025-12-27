@@ -78,10 +78,6 @@ public class AuthController {
                 .build();
     }
 
-    /**
-     * Step 1: Register và gửi OTP
-     * POST /api/auth/register
-     */
     @PostMapping("/register")
     public ApiResponse<String> register(@Valid @RequestBody RegisterRequest request) {
         log.info("Registration request for email: {}", request.getEmail());
@@ -93,10 +89,7 @@ public class AuthController {
                 .build();
     }
 
-    /**
-     * Step 2: Verify OTP và tạo tài khoản
-     * POST /api/auth/verify-otp
-     */
+
     @PostMapping("/verify-otp")
     public ApiResponse<String> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
         log.info("OTP verification request for email: {}", request.getEmail());
@@ -108,10 +101,7 @@ public class AuthController {
                 .build();
     }
 
-    /**
-     * Step 3: Resend OTP
-     * POST /api/auth/resend-otp
-     */
+
     @PostMapping("/resend-otp")
     public ApiResponse<String> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         log.info("Resend OTP request for email: {}", request.getEmail());

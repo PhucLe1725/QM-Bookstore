@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import orderService from '../../services/orderService'
 import { useToast } from '../../contexts/ToastContext'
+import AdminPageHeader from '../../components/AdminPageHeader'
 
 const AdminOrders = () => {
   const { showToast } = useToast()
@@ -251,17 +252,12 @@ const AdminOrders = () => {
   }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <Package className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-800">Quản lý Đơn hàng</h1>
-        </div>
-        <p className="text-gray-600">
-          Tổng số: <span className="font-semibold">{totalElements}</span> đơn hàng
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <AdminPageHeader
+        title="Quản lý Đơn hàng"
+        description={`Tổng số: ${totalElements} đơn hàng`}
+      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
       {/* Quick Filters */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
@@ -271,9 +267,9 @@ const AdminOrders = () => {
               key={index}
               onClick={() => handleQuickFilter(qf.filter)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                JSON.stringify(filters.paymentStatus === (qf.filter.paymentStatus || '') &&
-                  filters.fulfillmentStatus === (qf.filter.fulfillmentStatus || '') &&
-                  filters.orderStatus === (qf.filter.orderStatus || ''))
+                filters.paymentStatus === (qf.filter.paymentStatus || '') &&
+                filters.fulfillmentStatus === (qf.filter.fulfillmentStatus || '') &&
+                filters.orderStatus === (qf.filter.orderStatus || '')
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
@@ -675,7 +671,6 @@ const AdminOrders = () => {
                   onChange={(e) => setUpdateForm({ ...updateForm, fulfillmentStatus: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="">Không có</option>
                   <option value="shipping">Đang giao</option>
                   <option value="delivered">Đã giao</option>
                   <option value="pending_pickup">Chờ lấy tại quầy</option>
@@ -733,6 +728,7 @@ const AdminOrders = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

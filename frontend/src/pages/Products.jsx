@@ -3,6 +3,7 @@ import { Search, Filter, ShoppingCart, X, ChevronDown, Grid, List } from 'lucide
 import { productService, cartService } from '../services'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
+import CategoryMenu from '../components/CategoryMenu'
 
 const Products = () => {
   const navigate = useNavigate()
@@ -22,20 +23,12 @@ const Products = () => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(null)
+  const [selectedCategoryName, setSelectedCategoryName] = useState('Tất cả')
   const [priceRange, setPriceRange] = useState({ min: '', max: '' })
   const [sortBy, setSortBy] = useState('createdAt')
   const [sortDirection, setSortDirection] = useState('desc')
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
-  
-  // Categories (mock data - replace with API call if available)
-  const categories = [
-    { id: 10, name: 'SGK Chân Trời Sáng Tạo' },
-    { id: 42, name: 'SGK Kết nối tri thức với cuộc sống' },
-    { id: 3, name: 'Dụng cụ học tập' },
-    { id: 4, name: 'Đồ dùng nghệ thuật' },
-    { id: 5, name: 'Thiết bị văn phòng' }
-  ]
 
   // Handle add to cart
   const handleAddToCart = async (productId, e) => {
@@ -92,6 +85,19 @@ const Products = () => {
     fetchProducts()
   }, [currentPage, sortBy, sortDirection, selectedCategory])
 
+  // Handle category selection
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category.id)
+    setSelectedCategoryName(category.name)
+    setCurrentPage(1)
+  }
+
+  const handleClearCategory = () => {
+    setSelectedCategory(null)
+    setSelectedCategoryName('Tất cả')
+    setCurrentPage(1)
+  }
+
   // Handle search
   const handleSearch = (e) => {
     e.preventDefault()
@@ -137,42 +143,43 @@ const Products = () => {
           {/* Sidebar Filters - Desktop */}
           <aside className="hidden lg:block w-64 flex-shrink-0">
             <div className="bg-white rounded-lg shadow-sm p-6 sticky top-8">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-gray-900">Bộ lọc</h2>
-                <button
-                  onClick={resetFilters}
-                  className="text-sm text-blue-600 hover:text-blue-700"
-                >
-                  Xóa tất cả
-                </button>
-              </div>
-
               {/* Categories */}
               <div className="mb-6">
-                <h3 className="text-sm font-medium text-gray-900 mb-3">Danh mục</h3>
-                <div className="space-y-2">
-                  <label className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded">
-                    <input
-                      type="radio"
-                      name="category"
-                      checked={selectedCategory === null}
-                      onChange={() => setSelectedCategory(null)}
-                      className="h-4 w-4 text-blue-600"
-                    />
-                    <span className="ml-3 text-sm text-gray-700">Tất cả</span>
-                  </label>
-                  {categories.map(category => (
-                    <label key={category.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded">
-                      <input
-                        type="radio"
-                        name="category"
-                        checked={selectedCategory === category.id}
-                        onChange={() => setSelectedCategory(category.id)}
-                        className="h-4 w-4 text-blue-600"
-                      />
-                      <span className="ml-3 text-sm text-gray-700">{category.name}</span>
-                    </label>
-                  ))}
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-gray-900">Danh mục</h3>
+                  {selectedCategory && (
+                    <button
+                      onClick={handleClearCategory}
+                      className="text-xs text-blue-600 hover:text-blue-700"
+                    >
+                      Xóa lọc
+                    </button>
+                  )}
+                </div>
+                
+                {/* Selected Category Display */}
+                {selectedCategory && (
+                  <div className="mb-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-blue-700 font-medium">
+                        📁 {selectedCategoryName}
+                      </span>
+                      <button
+                        onClick={handleClearCategory}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Category Tree Menu */}
+                <div className="border border-gray-200 rounded-lg p-2 max-h-96 overflow-y-auto">
+                  <CategoryMenu 
+                    onCategorySelect={handleCategorySelect}
+                    compact 
+                  />
                 </div>
               </div>
 

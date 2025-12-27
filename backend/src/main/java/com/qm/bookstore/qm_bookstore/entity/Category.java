@@ -14,12 +14,29 @@ public class Category {
     @Column(name = "id")
     private Long id;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, unique = true, length = 255)
     private String name;
+
+    @Column(unique = true, length = 255)
+    private String slug;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "parent_id")
+    private Long parentId;
+
+    @Column(nullable = false)
+    private Boolean status = true;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }

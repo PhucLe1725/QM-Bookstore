@@ -27,23 +27,8 @@ public class Transaction {
     @Column(name = "transaction_date", nullable = false)
     LocalDateTime transactionDate;
     
-    @Column(name = "order_number", nullable = false, length = 50)
-    String orderNumber; // Mã giao dịch (MBVCB.xxxxx)
-    
-    @Column(name = "debit_account", nullable = false, length = 50)
-    String debitAccount; // Tài khoản người gửi
-    
-    @Column(name = "remitter_name", length = 255)
-    String remitterName; // Tên người gửi
-    
     @Column(name = "credit_account", nullable = false, length = 50)
-    String creditAccount; // Tài khoản người nhận
-    
-    @Column(name = "beneficiary_name", length = 255)
-    String beneficiaryName; // Tên người nhận
-    
-    @Column(name = "beneficiary_bank", length = 255)
-    String beneficiaryBank; // Ngân hàng người nhận
+    String creditAccount; // Tài khoản người nhận (shop/business account)
     
     @Column(nullable = false, precision = 19, scale = 2)
     BigDecimal amount; // Số tiền giao dịch
@@ -53,7 +38,7 @@ public class Transaction {
     
     @Column(nullable = false)
     @Builder.Default
-    Boolean verified = false; // Đã verify với order chưa
+    Boolean verified = false;
     
     @Column(name = "created_at")
     @Builder.Default

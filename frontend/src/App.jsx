@@ -14,7 +14,6 @@ const AppContent = () => {
     <div className="App">
       <AppRoutes />
       
-      {/* Chat System - Được quản lý bởi useChatVisibility hook */}
       {shouldShowChat && (
         <>
           <ChatButton />

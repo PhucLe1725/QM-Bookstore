@@ -65,7 +65,7 @@ const AdminChat = () => {
     
     // Only reload if it's a NEW_MESSAGE notification
     if (latestNotification?.type === 'NEW_MESSAGE') {
-      console.log('💬 AdminChat: NEW_MESSAGE notification received, reloading conversation...')
+      // console.log('💬 AdminChat: NEW_MESSAGE notification received, reloading conversation...')
       loadConversation()
     }
   }, [notifications])

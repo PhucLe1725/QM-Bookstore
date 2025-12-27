@@ -19,27 +19,10 @@ export const NotificationProvider = ({ children }) => {
   const notificationHook = useNotifications()
 
   // Debug log notifications state
-  useEffect(() => {
-    console.log('🔍 NotificationContext - notificationHook state:', {
-      notifications: notificationHook.notifications,
-      notificationCount: notificationHook.notifications?.length || 0,
-      unreadCount: notificationHook.unreadCount,
-      loading: notificationHook.loading,
-      error: notificationHook.error
-    })
-  }, [notificationHook.notifications, notificationHook.unreadCount, notificationHook.loading, notificationHook.error])
+  useEffect(() => {}, [notificationHook.notifications, notificationHook.unreadCount, notificationHook.loading, notificationHook.error])
 
   // Handle new real-time notifications from WebSocket
   const handleRealtimeNotification = useCallback((notification) => {
-    console.log('🔔 New real-time notification received in NotificationContext:', {
-      id: notification.id,
-      userId: notification.userId,
-      type: notification.type,
-      message: notification.message,
-      status: notification.status,
-      isGlobal: notification.userId === null
-    })
-    
     // Add to notification list
     notificationHook.addNotification(notification)
     
@@ -50,13 +33,11 @@ export const NotificationProvider = ({ children }) => {
   // Register notification handler with WebSocket context
   useEffect(() => {
     if (setNotificationHandler && handleRealtimeNotification) {
-      console.log('🔗 Registering notification handler with WebSocket (isConnected:', isConnected, ')')
       setNotificationHandler(() => handleRealtimeNotification)
     }
     
     return () => {
       if (setNotificationHandler) {
-        console.log('📢 Unregistering notification handler from WebSocket')
         setNotificationHandler(null)
       }
     }

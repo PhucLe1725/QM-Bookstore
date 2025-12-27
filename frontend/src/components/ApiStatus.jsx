@@ -12,7 +12,7 @@ const ApiStatus = () => {
       await api.get('/auth/test') // hoặc bất kỳ endpoint nào có sẵn
       setStatus('online')
     } catch (error) {
-      console.log('API Status check:', error.message)
+      // console.log('API Status check:', error.message)
       setStatus('offline')
     }
     setLastCheck(new Date())

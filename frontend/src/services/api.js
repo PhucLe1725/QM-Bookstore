@@ -20,20 +20,7 @@ api.interceptors.request.use(
     const token = Cookies.get('token') || localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
-      console.log('🔑 Request with token to:', config.url, '| Token preview:', token.substring(0, 20) + '...')
-    } else {
-      console.log('🔓 Request without token to:', config.url)
-    }
-    
-    // Log headers for debugging (especially X-Session-ID)
-    if (config.url?.includes('/cart')) {
-      console.log('🛒 Cart API Request:', {
-        url: config.url,
-        method: config.method,
-        headers: config.headers,
-        hasToken: !!token
-      })
-    }
+    } 
     
     return config
   },
@@ -65,17 +52,9 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
     
-    console.log('🔍 API Response interceptor caught error:', {
-      status: error.response?.status,
-      url: originalRequest?.url,
-      hasRetried: originalRequest?._retry,
-      errorData: error.response?.data
-    })
-    
     // Handle 401 Unauthorized errors (token expired or invalid)
     if (error.response?.status === 401 && !originalRequest._retry) {
       const errorMessage = error.response?.data?.message || ''
-      console.log('🚨 401 Unauthorized detected:', errorMessage)
       
       // Nếu đang refresh token, thêm request vào queue
       if (isRefreshing) {
@@ -96,15 +75,12 @@ api.interceptors.response.use(
       
       // Nếu không có refresh token, logout ngay
       if (!refreshToken) {
-        console.log('❌ No refresh token available, logging out...')
         handleTokenExpiration('no_refresh_token')
         isRefreshing = false
         return Promise.reject(error)
       }
 
       try {
-        console.log('🔄 Attempting to refresh token...')
-        
         // Gọi API refresh token
         const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
           refreshToken
@@ -124,9 +100,7 @@ api.interceptors.response.use(
           
           // Cập nhật header cho request ban đầu
           originalRequest.headers.Authorization = `Bearer ${newToken}`
-          
-          console.log('✅ Token refreshed successfully')
-          
+                    
           // Process queued requests
           processQueue(null, newToken)
           isRefreshing = false
@@ -137,7 +111,6 @@ api.interceptors.response.use(
           throw new Error('Invalid refresh response')
         }
       } catch (refreshError) {
-        console.log('❌ Token refresh failed:', refreshError)
         processQueue(refreshError, null)
         isRefreshing = false
         handleTokenExpiration('refresh_failed')
@@ -149,7 +122,6 @@ api.interceptors.response.use(
     if (error.response?.status === 403) {
       const errorMessage = error.response?.data?.message || ''
       if (errorMessage.includes('token') || errorMessage.includes('expired') || errorMessage.includes('invalid')) {
-        console.log('⚠️ 403 error appears to be token-related, logging out...')
         handleTokenExpiration('forbidden')
         return Promise.reject(error)
       }
@@ -159,21 +131,12 @@ api.interceptors.response.use(
     const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra'
     error.userMessage = errorMessage
     
-    console.log('🔍 Error details:', {
-      status: error.response?.status,
-      data: error.response?.data,
-      url: error.config?.url,
-      userMessage: errorMessage
-    })
-    
     return Promise.reject(error)
   }
 )
 
 // Helper function to handle token expiration
-function handleTokenExpiration(reason = 'expired') {
-  console.log('🚪 Handling token expiration, reason:', reason)
-  
+function handleTokenExpiration(reason = 'expired') {  
   // Clear all auth data
   Cookies.remove('token', { path: '/' })
   Cookies.remove('refreshToken', { path: '/' })

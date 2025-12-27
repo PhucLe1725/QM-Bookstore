@@ -3,12 +3,15 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
 import { isAdmin } from '../utils'
 import NotificationDropdown from '../components/NotificationDropdown'
+import CategoryMenu from '../components/CategoryMenu'
 import { cartService } from '../services'
 
 const Header = () => {
   const { user, isAuthenticated, logout } = useAuth()
   const navigate = useNavigate()
   const [cartItemCount, setCartItemCount] = useState(0)
+  const [showCategoryMenu, setShowCategoryMenu] = useState(false)
+  const [menuTimeout, setMenuTimeout] = useState(null)
 
   useEffect(() => {
     fetchCartCount()
@@ -38,6 +41,22 @@ const Header = () => {
     logout()
     navigate('/')
   }
+
+  const handleMenuMouseEnter = () => {
+    if (menuTimeout) {
+      clearTimeout(menuTimeout)
+      setMenuTimeout(null)
+    }
+    setShowCategoryMenu(true)
+  }
+
+  const handleMenuMouseLeave = () => {
+    const timeout = setTimeout(() => {
+      setShowCategoryMenu(false)
+    }, 200) // Delay 200ms trước khi đóng
+    setMenuTimeout(timeout)
+  }
+
   return (
     <header className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -52,8 +71,53 @@ const Header = () => {
           </div>
           <nav className="flex items-center space-x-8">
             <Link to="/" className="text-gray-900 hover:text-blue-600">Trang chủ</Link>
-            <Link to="/products" className="text-gray-900 hover:text-blue-600">Sản phẩm</Link>
-            <a href="#" className="text-gray-900 hover:text-blue-600">Liên hệ</a>
+            
+            {/* Sản phẩm với Dropdown Danh mục */}
+            <div 
+              className="relative"
+              onMouseEnter={handleMenuMouseEnter}
+              onMouseLeave={handleMenuMouseLeave}
+            >
+              <Link 
+                to="/products" 
+                className="text-gray-900 hover:text-blue-600 flex items-center space-x-1"
+              >
+                <span>Sản phẩm</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </Link>
+              
+              {showCategoryMenu && (
+                <div 
+                  className="absolute left-0 top-full w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50"
+                  onMouseEnter={handleMenuMouseEnter}
+                  onMouseLeave={handleMenuMouseLeave}
+                >
+                  <div className="py-2">
+                    {/* Link "Tất cả sản phẩm" */}
+                    <Link 
+                      to="/products"
+                      className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 font-medium border-b border-gray-200"
+                      onClick={() => {
+                        setShowCategoryMenu(false)
+                        if (menuTimeout) clearTimeout(menuTimeout)
+                      }}
+                    >
+                      📦 Tất cả sản phẩm
+                    </Link>
+                    <CategoryMenu 
+                      onCategorySelect={() => {
+                        setShowCategoryMenu(false)
+                        if (menuTimeout) clearTimeout(menuTimeout)
+                      }} 
+                      compact 
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            
             {isAuthenticated && (
               <Link to="/dashboard" className="text-gray-900 hover:text-blue-600">Dashboard</Link>
             )}

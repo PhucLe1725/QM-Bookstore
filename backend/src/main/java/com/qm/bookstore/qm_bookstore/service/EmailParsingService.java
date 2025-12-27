@@ -44,8 +44,6 @@ public class EmailParsingService {
         Transaction transaction = Transaction.builder()
                 .amount(BigDecimal.ZERO)
                 .transactionDate(LocalDateTime.now())
-                .orderNumber("")
-                .debitAccount("")
                 .creditAccount("")
                 .build();
         
@@ -74,7 +72,7 @@ public class EmailParsingService {
                     String fullContent = cleanContent(value);
                     String paymentContent = extractPaymentContent(fullContent);
                     transaction.setPaymentDetails(paymentContent);
-                    extractDetailsFromContent(fullContent, transaction);
+                    // extractDetailsFromContent() removed - không cần extract chi tiết nữa
                 }
             }
         }
@@ -83,89 +81,87 @@ public class EmailParsingService {
     }
     
     /**
-     * Trích xuất nội dung chuyển khoản thực tế
-     * Format: MBVCB.11988234142.5337BFTVG2TH3UE I.QMORD12.CT tu ...
-     * → Lấy: "5337BFTVG2TH3UE I.QMORD12"
+     * Trích xuất nội dung chuyển khoản - Universal format support
+     * 
+     * Hỗ trợ TẤT CẢ các ngân hàng:
+     * - Vietcombank: MBVCB.12136287102.5348BFTVG2ZI2G3 Q.QMORD34.CT tu...
+     * - QR/Internet Banking: QR - QMORD35 CKN 324624 - NGUYEN LINH SON...
+     * - ACB/Techcombank: QMORD36 thanh toan don hang
+     * - Momo/E-wallet: QMORD37 - Payment
+     * 
+     * Strategy: Giữ TOÀN BỘ content gốc để validation dễ dàng
+     * Quan trọng: Content phải chứa QMORD{id}
      */
     private String extractPaymentContent(String fullContent) {
         if (fullContent == null || fullContent.isEmpty()) {
             return "";
         }
         
-        if (fullContent.startsWith("MBVCB.")) {
-            int firstDot = fullContent.indexOf(".", 6);
-            if (firstDot != -1) {
-                int secondDot = fullContent.indexOf(".", firstDot + 1);
-                if (secondDot != -1) {
-                    int ctTuIndex = fullContent.indexOf(".CT tu");
-                    if (ctTuIndex != -1 && ctTuIndex > secondDot) {
-                        return fullContent.substring(secondDot + 1, ctTuIndex).trim();
-                    }
-                }
-            }
+        // Clean content: remove extra spaces, normalize
+        String cleaned = fullContent.trim().replaceAll("\\s+", " ");
+        
+        // Log để debug
+        log.info("📝 Processing payment content: {}", 
+                cleaned.substring(0, Math.min(100, cleaned.length())));
+        
+        // Detect if content contains QMORD pattern (order code)
+        boolean hasOrderCode = cleaned.toUpperCase().matches(".*QMORD\\d+.*");
+        
+        if (!hasOrderCode) {
+            // Không có QMORD -> Có thể là giao dịch đi ra
+            log.warn("⚠️ Payment content does not contain QMORD pattern: {}", 
+                    cleaned.substring(0, Math.min(50, cleaned.length())));
+        } else {
+            log.info("✅ Found QMORD pattern in content");
         }
         
-        return fullContent;
+        /* ============================================================
+         * VCB EXTRACTION LOGIC - COMMENTED OUT (không dùng nữa)
+         * ============================================================
+         * Lý do comment: Giữ full content đơn giản hơn và universal hơn
+         * Có thể uncomment nếu muốn extract clean content cho VCB
+         * 
+        // Option 1: MBVCB format (Vietcombank) - Extract meaningful part
+        if (cleaned.startsWith("MBVCB.")) {
+            try {
+                // Try to extract: "5348BFTVG2ZI2G3 Q.QMORD34"
+                int firstDot = cleaned.indexOf(".", 6);
+                if (firstDot != -1) {
+                    int secondDot = cleaned.indexOf(".", firstDot + 1);
+                    if (secondDot != -1) {
+                        int ctTuIndex = cleaned.indexOf(".CT tu");
+                        if (ctTuIndex != -1 && ctTuIndex > secondDot) {
+                            String extracted = cleaned.substring(secondDot + 1, ctTuIndex).trim();
+                            log.info("✅ Extracted from MBVCB format: {}", extracted);
+                            return extracted;
+                        }
+                    }
+                }
+                log.info("⚠️ MBVCB format but cannot extract, using full content");
+            } catch (Exception e) {
+                log.warn("Error extracting MBVCB format: {}", e.getMessage());
+            }
+        }
+        * ============================================================ */
+        
+        // Return FULL CONTENT - Works for ALL banks
+        // Validation sẽ tìm QMORD{id} trong toàn bộ content này
+        log.info("✅ Returning full content (length: {})", cleaned.length());
+        
+        return cleaned;
     }
     
-    /**
-     * Extract chi tiết từ nội dung đầy đủ
-     */
-    private void extractDetailsFromContent(String content, Transaction transaction) {
-        if (content == null || content.isEmpty()) return;
-        
-        // Extract tài khoản gửi (sau "CT tu")
-        int fromIndex = content.indexOf("CT tu ");
-        if (fromIndex != -1) {
-            String remaining = content.substring(fromIndex);
-            String[] parts = remaining.split("\\s+");
-            for (int i = 0; i < parts.length; i++) {
-                String part = parts[i].replaceAll("[^0-9]", "");
-                if (part.length() >= 8 && part.length() <= 20) {
-                    transaction.setDebitAccount(part);
-                    
-                    StringBuilder senderName = new StringBuilder();
-                    for (int j = i + 1; j < parts.length && !parts[j].equals("toi"); j++) {
-                        senderName.append(parts[j]).append(" ");
-                    }
-                    transaction.setRemitterName(senderName.toString().trim());
-                    break;
-                }
-            }
-        }
-        
-        // Extract mã giao dịch MBVCB
-        if (content.startsWith("MBVCB.")) {
-            int dotIndex = content.indexOf(".", 6);
-            if (dotIndex != -1) {
-                transaction.setOrderNumber(content.substring(0, dotIndex));
-            }
-        }
-        
-        transaction.setBeneficiaryBank("Sacombank");
-        
-        // Extract beneficiary name
-        int toIndex = content.indexOf("toi ");
-        if (toIndex != -1) {
-            String afterTo = content.substring(toIndex + 4);
-            String[] parts = afterTo.split("\\s+");
-            boolean foundAccount = false;
-            StringBuilder beneficiaryName = new StringBuilder();
-            for (String part : parts) {
-                String digits = part.replaceAll("[^0-9]", "");
-                if (!foundAccount && digits.length() >= 8) {
-                    foundAccount = true;
-                    continue;
-                }
-                if (foundAccount && !part.equals("tai")) {
-                    beneficiaryName.append(part).append(" ");
-                } else if (part.equals("tai")) {
-                    break;
-                }
-            }
-            transaction.setBeneficiaryName(beneficiaryName.toString().trim());
-        }
-    }
+    /* ============================================================
+     * extractDetailsFromContent() - REMOVED
+     * ============================================================
+     * Các trường order_number, debit_account, remitter_name, 
+     * beneficiary_name đã bị xóa khỏi Transaction entity.
+     * 
+     * Lý do: Các trường này không ổn định giữa các ngân hàng khác nhau
+     * và không cần thiết cho logic validate payment.
+     * 
+     * Chỉ cần: creditAccount, amount, paymentDetails, transactionDate
+     * ============================================================ */
     
     /**
      * Parse datetime
@@ -226,10 +222,13 @@ public class EmailParsingService {
      */
     public String generateFingerprint(Transaction transaction) {
         try {
+            // Fingerprint = SHA256(transactionDate + amount + creditAccount + paymentDetails)
+            // Đảm bảo unique cho mỗi giao dịch
             String data = transaction.getTransactionDate().toString() + 
                          transaction.getAmount().toString() + 
-                         transaction.getDebitAccount() + 
-                         transaction.getCreditAccount();
+                         transaction.getCreditAccount() + 
+                         (transaction.getPaymentDetails() != null ? 
+                          transaction.getPaymentDetails().substring(0, Math.min(50, transaction.getPaymentDetails().length())) : "");
             
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(data.getBytes(StandardCharsets.UTF_8));

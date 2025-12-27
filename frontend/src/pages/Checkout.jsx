@@ -3,16 +3,19 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { cartService } from '../services/cartService'
 import { orderService } from '../services/orderService'
+import shippingService from '../services/shippingService'
 import userService from '../services/userService'
 import voucherService from '../services/voucherService'
 import { Package, MapPin, Phone, User, Tag, Truck, CreditCard, Store } from 'lucide-react'
 import AddressSelector from '../components/AddressSelector'
 import { getConfigValue, getStoreLocation, CONFIG_KEYS } from '../utils/systemConfig'
+import { useToast } from '../contexts/ToastContext'
 
 const Checkout = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { showToast } = useToast()
   
   const [cartItems, setCartItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -176,6 +179,46 @@ const Checkout = () => {
   }, [summary.subtotal, summary.shippingFee])
 
   // Tối ưu hóa: Chỉ tính toán khoảng cách khi cần thiết
+  // ✅ NEW: Calculate shipping fee via backend API
+  const calculateShippingFeeFromBackend = async (address, lat = null, lng = null) => {
+    try {
+      const payload = {
+        receiverAddress: address,
+        subtotal: summary.subtotal
+      }
+      
+      // If coordinates available, send them to backend to avoid geocoding errors
+      if (lat && lng) {
+        payload.receiverLat = lat
+        payload.receiverLng = lng
+      }
+      
+      const response = await shippingService.calculateShippingFee(payload)
+      
+      if (response.success && response.result && response.result.feeDetails) {
+        const { totalFee, distanceInKm, estimatedDurationInMinutes } = response.result.feeDetails
+        
+        // Update location data
+        setLocationData({
+          lat: response.result.receiverCoordinates?.lat || null,
+          lng: response.result.receiverCoordinates?.lng || null,
+          distance: distanceInKm,
+          duration: estimatedDurationInMinutes
+        })
+        
+        // Update summary with shipping fee
+        setSummary(prev => ({
+          ...prev,
+          shippingFee: totalFee,
+          total: prev.subtotal + totalFee - prev.discount
+        }))
+      }
+    } catch (error) {
+      console.error('Error calculating shipping fee:', error)
+      showToast('Không thể tính phí ship. Vui lòng thử lại.', 'error')
+    }
+  }
+
   useEffect(() => {
     // Điều kiện: chọn 'giao hàng', có địa chỉ, và chưa có thông tin khoảng cách
     const shouldCalculateRoute =
@@ -184,7 +227,7 @@ const Checkout = () => {
       !locationData.distance
 
     if (shouldCalculateRoute) {
-      geocodeAndCalculateRoute(formData.receiverAddress)
+      calculateShippingFeeFromBackend(formData.receiverAddress)
     }
   }, [formData.fulfillmentMethod, formData.receiverAddress, locationData.distance])
 
@@ -223,50 +266,52 @@ const Checkout = () => {
     }
   }
 
-  const geocodeAndCalculateRoute = async (address) => {
-    try {
-      const API_KEY = import.meta.env.GOONG_API_KEY || import.meta.env.VITE_GOONG_API_KEY
-      
-      // Geocode address to get lat/lng
-      const geocodeResponse = await fetch(
-        `https://rsapi.goong.io/geocode?address=${encodeURIComponent(address)}&api_key=${API_KEY}`
-      )
-      const geocodeData = await geocodeResponse.json()
-      
-      if (geocodeData.results && geocodeData.results[0]) {
-        const location = geocodeData.results[0].geometry.location
-        const lat = location.lat
-        const lng = location.lng
-        
-        // Fetch store location from system config (cached)
-        const storeLocation = await getStoreLocation()
-        
-        // Calculate route from store to destination
-        const origin = `${storeLocation.lat},${storeLocation.lng}`
-        const destination = `${lat},${lng}`
-        
-        const routeResponse = await fetch(
-          `https://rsapi.goong.io/Direction?origin=${origin}&destination=${destination}&vehicle=car&api_key=${API_KEY}`
-        )
-        const routeData = await routeResponse.json()
-        
-        if (routeData.routes && routeData.routes[0]) {
-          const leg = routeData.routes[0].legs[0]
-          const distanceKm = (leg.distance.value / 1000).toFixed(2)
-          const durationMin = Math.round(leg.duration.value / 60)
-          
-          setLocationData({
-            lat,
-            lng,
-            distance: distanceKm,
-            duration: durationMin
-          })
-        }
-      }
-    } catch (error) {
-      console.error('Error geocoding and calculating route:', error)
-    }
-  }
+  // ❌ DEPRECATED: Moved to backend - See SHIPPING-AND-GOONG-API-SPEC.md
+  // Use shippingService.calculateShippingFee() instead
+  // const geocodeAndCalculateRoute = async (address) => {
+  //   try {
+  //     const API_KEY = import.meta.env.GOONG_API_KEY || import.meta.env.VITE_GOONG_API_KEY
+  //     
+  //     // Geocode address to get lat/lng
+  //     const geocodeResponse = await fetch(
+  //       `https://rsapi.goong.io/geocode?address=${encodeURIComponent(address)}&api_key=${API_KEY}`
+  //     )
+  //     const geocodeData = await geocodeResponse.json()
+  //     
+  //     if (geocodeData.results && geocodeData.results[0]) {
+  //       const location = geocodeData.results[0].geometry.location
+  //       const lat = location.lat
+  //       const lng = location.lng
+  //       
+  //       // Fetch store location from system config (cached)
+  //       const storeLocation = await getStoreLocation()
+  //       
+  //       // Calculate route from store to destination
+  //       const origin = `${storeLocation.lat},${storeLocation.lng}`
+  //       const destination = `${lat},${lng}`
+  //       
+  //       const routeResponse = await fetch(
+  //         `https://rsapi.goong.io/Direction?origin=${origin}&destination=${destination}&vehicle=car&api_key=${API_KEY}`
+  //       )
+  //       const routeData = await routeResponse.json()
+  //       
+  //       if (routeData.routes && routeData.routes[0]) {
+  //         const leg = routeData.routes[0].legs[0]
+  //         const distanceKm = (leg.distance.value / 1000).toFixed(2)
+  //         const durationMin = Math.round(leg.duration.value / 60)
+  //         
+  //         setLocationData({
+  //           lat,
+  //           lng,
+  //           distance: distanceKm,
+  //           duration: durationMin
+  //         })
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error('Error geocoding and calculating route:', error)
+  //   }
+  // }
 
   const loadCartItems = async () => {
     try {
@@ -299,9 +344,9 @@ const Checkout = () => {
     )
     let shippingFee = null
     if (formData.fulfillmentMethod === 'delivery') {
-      if (locationData.distance) {
-        shippingFee = calculateShippingFee(parseFloat(locationData.distance))
-      }
+      // ✅ Shipping fee now calculated by backend
+      // Keep existing shippingFee from summary if already calculated
+      shippingFee = summary.shippingFee
       // Nếu delivery nhưng chưa có distance, để null
     } else {
       // Pickup = miễn phí
@@ -323,31 +368,53 @@ const Checkout = () => {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleAddressChange = (data) => {
+  const handleAddressChange = async (data) => {
     setFormData(prev => ({ ...prev, receiverAddress: data.address }))
-    setLocationData({
-      lat: data.lat,
-      lng: data.lng,
-      distance: data.distance,
-      duration: data.duration
-    })
     
-    // Có thể tính phí ship dựa trên khoảng cách
-    if (data.distance) {
-      const calculatedShippingFee = calculateShippingFee(parseFloat(data.distance))
-      setSummary(prev => ({
-        ...prev,
-        shippingFee: calculatedShippingFee,
-        total: prev.subtotal + calculatedShippingFee - prev.discount
-      }))
+    // ✅ Calculate shipping fee via backend API
+    try {
+      const payload = {
+        receiverAddress: data.address,
+        subtotal: summary.subtotal
+      }
+      
+      // Send coordinates if available to avoid geocoding errors
+      if (data.lat && data.lng) {
+        payload.receiverLat = data.lat
+        payload.receiverLng = data.lng
+      }
+      
+      const response = await shippingService.calculateShippingFee(payload)
+      
+      if (response.success && response.result && response.result.feeDetails) {
+        const { totalFee, distanceInKm, estimatedDurationInMinutes } = response.result.feeDetails
+        
+        setLocationData({
+          lat: data.lat || response.result.receiverCoordinates?.lat || null,
+          lng: data.lng || response.result.receiverCoordinates?.lng || null,
+          distance: distanceInKm,
+          duration: estimatedDurationInMinutes
+        })
+        
+        setSummary(prev => ({
+          ...prev,
+          shippingFee: totalFee,
+          total: prev.subtotal + totalFee - prev.discount
+        }))
+      }
+    } catch (error) {
+      console.error('Error calculating shipping fee:', error)
+      showToast('Không thể tính phí ship. Vui lòng thử lại.', 'error')
     }
   }
 
-  const calculateShippingFee = (distanceKm) => {
-    // Tính phí ship theo km: 15000đ cho 5km đầu, sau đó 3000đ/km
-    if (distanceKm <= 5) return 15000
-    return 15000 + Math.ceil((distanceKm - 5) * 3000)
-  }
+  // ❌ DEPRECATED: Moved to backend - See SHIPPING-AND-GOONG-API-SPEC.md
+  // Use backend API: POST /api/shipping/calculate
+  // const calculateShippingFee = (distanceKm) => {
+  //   // Tính phí ship theo km: 15000đ cho 5km đầu, sau đó 3000đ/km
+  //   if (distanceKm <= 5) return 15000
+  //   return 15000 + Math.ceil((distanceKm - 5) * 3000)
+  // }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -533,7 +600,6 @@ const Checkout = () => {
                 </div>
               </div>
 
-              {/* Địa chỉ giao hàng - Only show for delivery */}
               {formData.fulfillmentMethod === 'delivery' && (
                 <div className="bg-white rounded-lg shadow-sm p-6">
                   <h2 className="text-xl font-semibold mb-4 flex items-center">
@@ -546,7 +612,6 @@ const Checkout = () => {
                     initialAddress={formData.receiverAddress}
                   />
                   
-                  {/* Hiển thị thông tin khoảng cách nếu có */}
                   {locationData.distance && locationData.duration && (
                     <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="flex items-center justify-between text-sm">
@@ -685,7 +750,6 @@ const Checkout = () => {
                   )}
                 </div>
                 
-                {/* Voucher validation message */}
                 {voucherState.valid === true && (
                   <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-green-800 text-sm font-medium">
@@ -707,7 +771,6 @@ const Checkout = () => {
                 )}
               </div>
 
-              {/* Ghi chú đơn hàng */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-xl font-semibold mb-4">
                   Ghi chú đơn hàng
@@ -723,7 +786,6 @@ const Checkout = () => {
                 />
               </div>
 
-              {/* Danh sách sản phẩm */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-xl font-semibold mb-4 flex items-center">
                   <Package className="w-5 h-5 mr-2 text-blue-600" />
@@ -752,7 +814,6 @@ const Checkout = () => {
               </div>
             </div>
 
-            {/* Right Column - Tổng kết đơn hàng */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
                 <h2 className="text-xl font-semibold mb-4">Tổng kết đơn hàng</h2>
