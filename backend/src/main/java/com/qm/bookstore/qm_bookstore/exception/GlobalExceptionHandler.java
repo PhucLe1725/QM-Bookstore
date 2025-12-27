@@ -1,10 +1,15 @@
 package com.qm.bookstore.qm_bookstore.exception;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import com.qm.bookstore.qm_bookstore.dto.base.response.ApiResponse;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -56,6 +61,25 @@ public class GlobalExceptionHandler {
                 .code(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode())
                 .message("Invalid parameter type")
                 .error(message)
+                .build();
+
+        return ResponseEntity.badRequest().body(apiResponse);
+    }
+
+    @ExceptionHandler(value = MethodArgumentNotValidException.class)
+    ResponseEntity<ApiResponse<Object>> handlingMethodArgumentNotValidException(MethodArgumentNotValidException exception) {
+        Map<String, String> errors = new HashMap<>();
+        exception.getBindingResult().getAllErrors().forEach((error) -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+        
+        ApiResponse<Object> apiResponse = ApiResponse.<Object>builder()
+                .success(false)
+                .code(400)
+                .message("Validation failed")
+                .error(errors.toString())
                 .build();
 
         return ResponseEntity.badRequest().body(apiResponse);

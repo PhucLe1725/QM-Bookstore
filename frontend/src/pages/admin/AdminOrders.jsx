@@ -15,9 +15,11 @@ import {
   Clock,
   AlertCircle,
   RotateCcw,
-  MapPin
+  MapPin,
+  PackageCheck
 } from 'lucide-react'
 import orderService from '../../services/orderService'
+import inventoryService from '../../services/inventoryService'
 import { useToast } from '../../contexts/ToastContext'
 import AdminPageHeader from '../../components/AdminPageHeader'
 
@@ -30,6 +32,7 @@ const AdminOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showUpdateModal, setShowUpdateModal] = useState(false)
+  const [inventoryStatus, setInventoryStatus] = useState({})
 
   // Filters
   const [filters, setFilters] = useState({
@@ -73,15 +76,79 @@ const AdminOrders = () => {
       const response = await orderService.getAllOrders(filters)
       if (response.success) {
         const result = response.result
-        setOrders(result.content || [])
+        const loadedOrders = result.content || []
+        setOrders(loadedOrders)
         setTotalPages(result.totalPages || 0)
         setTotalElements(result.totalElements || 0)
+        
+        // Check inventory status for each order
+        checkInventoryStatus(loadedOrders)
       }
     } catch (error) {
       console.error('Error loading orders:', error)
       showToast('Không thể tải danh sách đơn hàng', 'error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const checkInventoryStatus = async (ordersList) => {
+    const statusMap = {}
+    for (const order of ordersList) {
+      try {
+        const isExported = await inventoryService.checkOrderExported(order.orderId)
+        statusMap[order.orderId] = isExported
+      } catch (error) {
+        console.error(`Error checking inventory for order ${order.orderId}:`, error)
+        statusMap[order.orderId] = false
+      }
+    }
+    setInventoryStatus(statusMap)
+  }
+
+  const handleExportStock = async (order) => {
+    if (order.paymentStatus !== 'paid') {
+      showToast('Chỉ xuất kho cho đơn hàng đã thanh toán', 'warning')
+      return
+    }
+
+    if (inventoryStatus[order.orderId]) {
+      showToast('Đơn hàng này đã được xuất kho', 'warning')
+      return
+    }
+
+    if (!window.confirm(`Xác nhận xuất kho cho đơn hàng #${order.orderId}?`)) {
+      return
+    }
+
+    try {
+      const response = await inventoryService.exportFromOrder({
+        orderId: order.orderId,
+        note: `Xuất kho cho đơn hàng #${order.orderId}`
+      })
+
+      // exportFromOrder already returns response.data, so response.success is correct
+      if (response?.success) {
+        showToast('Xuất kho thành công!', 'success')
+        // Update inventory status immediately
+        setInventoryStatus(prev => ({ ...prev, [order.orderId]: true }))
+        // No need to reload, status already updated
+      }
+    } catch (error) {
+      console.error('Error exporting stock:', error)
+      const errorData = error.response?.data
+      
+      // Handle specific error codes
+      if (errorData?.code === 9002) {
+        showToast('Đơn hàng này đã được xuất kho trước đó', 'error')
+        setInventoryStatus(prev => ({ ...prev, [order.orderId]: true }))
+      } else if (errorData?.code === 9003) {
+        showToast('Không đủ tồn kho. Vui lòng kiểm tra lại', 'error')
+      } else if (errorData?.code === 7001) {
+        showToast('Không tìm thấy đơn hàng', 'error')
+      } else {
+        showToast(errorData?.message || 'Có lỗi xảy ra khi xuất kho', 'error')
+      }
     }
   }
 
@@ -375,6 +442,9 @@ const AdminOrders = () => {
                   Trạng thái
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Xuất kho
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Phương thức
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -388,12 +458,16 @@ const AdminOrders = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
                     Không tìm thấy đơn hàng nào
                   </td>
                 </tr>
               ) : (
-                orders.map((order) => (
+                orders.map((order) => {
+                  const isExported = inventoryStatus[order.orderId]
+                  const canExport = order.paymentStatus === 'paid' && !isExported
+                  
+                  return (
                   <tr key={order.orderId} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">#{order.orderId}</div>
@@ -412,6 +486,27 @@ const AdminOrders = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getOrderStatusBadge(order.orderStatus)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {isExported ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <CheckCircle className="w-3 h-3" />
+                          Đã xuất kho
+                        </span>
+                      ) : order.paymentStatus === 'paid' ? (
+                        <button
+                          onClick={() => handleExportStock(order)}
+                          className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                        >
+                          <PackageCheck className="w-3 h-3" />
+                          Xuất kho
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          <Clock className="w-3 h-3" />
+                          Chờ thanh toán
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
@@ -443,7 +538,8 @@ const AdminOrders = () => {
                       </div>
                     </td>
                   </tr>
-                ))
+                  )
+                })
               )}
             </tbody>
           </table>

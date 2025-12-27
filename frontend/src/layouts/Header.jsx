@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
-import { isAdmin } from '../utils'
+import { isAdmin, isAdminOrManager } from '../utils'
 import NotificationDropdown from '../components/NotificationDropdown'
 import CategoryMenu from '../components/CategoryMenu'
 import { cartService } from '../services'
@@ -15,12 +15,12 @@ const Header = () => {
 
   useEffect(() => {
     fetchCartCount()
-    
+
     // Listen for cart updates
     const handleCartUpdate = () => {
       fetchCartCount()
     }
-    
+
     window.addEventListener('cartUpdated', handleCartUpdate)
     return () => {
       window.removeEventListener('cartUpdated', handleCartUpdate)
@@ -62,24 +62,24 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-6">
           <div className="flex items-center">
-            <img 
-              src="/src/assets/website/logo.png" 
-              alt="QM Logo" 
+            <img
+              src="/src/assets/website/logo.png"
+              alt="QM Logo"
               className="h-8 w-auto"
             />
             <h1 className="ml-3 text-2xl font-bold text-gray-900">Văn phòng phẩm Quang Minh</h1>
           </div>
           <nav className="flex items-center space-x-8">
             <Link to="/" className="text-gray-900 hover:text-blue-600">Trang chủ</Link>
-            
+
             {/* Sản phẩm với Dropdown Danh mục */}
-            <div 
+            <div
               className="relative"
               onMouseEnter={handleMenuMouseEnter}
               onMouseLeave={handleMenuMouseLeave}
             >
-              <Link 
-                to="/products" 
+              <Link
+                to="/products"
                 className="text-gray-900 hover:text-blue-600 flex items-center space-x-1"
               >
                 <span>Sản phẩm</span>
@@ -87,16 +87,16 @@ const Header = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </Link>
-              
+
               {showCategoryMenu && (
-                <div 
+                <div
                   className="absolute left-0 top-full w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50"
                   onMouseEnter={handleMenuMouseEnter}
                   onMouseLeave={handleMenuMouseLeave}
                 >
                   <div className="py-2">
                     {/* Link "Tất cả sản phẩm" */}
-                    <Link 
+                    <Link
                       to="/products"
                       className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 font-medium border-b border-gray-200"
                       onClick={() => {
@@ -106,22 +106,22 @@ const Header = () => {
                     >
                       📦 Tất cả sản phẩm
                     </Link>
-                    <CategoryMenu 
+                    <CategoryMenu
                       onCategorySelect={() => {
                         setShowCategoryMenu(false)
                         if (menuTimeout) clearTimeout(menuTimeout)
-                      }} 
-                      compact 
+                      }}
+                      compact
                     />
                   </div>
                 </div>
               )}
             </div>
-            
-            {isAuthenticated && (
+
+            {/* {isAuthenticated && (
               <Link to="/dashboard" className="text-gray-900 hover:text-blue-600">Dashboard</Link>
-            )}
-            
+            )} */}
+
             {/* Cart Icon */}
             <Link to="/cart" className="relative text-gray-900 hover:text-blue-600">
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,20 +133,20 @@ const Header = () => {
                 </span>
               )}
             </Link>
-            
+
             {/* Authentication Section */}
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 {/* Notification Dropdown */}
                 <NotificationDropdown />
-                
+
                 {/* User Info with Dropdown */}
                 <div className="relative group">
                   <div className="flex items-center space-x-3 cursor-pointer">
                     <div className="relative">
-                      <img 
-                        src="/src/assets/user.png" 
-                        alt="User Avatar" 
+                      <img
+                        src="/src/assets/user.png"
+                        alt="User Avatar"
                         className="h-10 w-10 rounded-full border-2 border-gray-200 hover:border-blue-300 transition-colors"
                       />
                       <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 border-2 border-white rounded-full"></div>
@@ -161,21 +161,21 @@ const Header = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
-                  
+
                   {/* Dropdown Menu */}
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     <div className="py-1">
-                      <Link to="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                      {/* <Link to="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                         <div className="flex items-center space-x-2">
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                           </svg>
                           <span>Dashboard</span>
                         </div>
-                      </Link>
-                      
-                      {/* Admin Management Option - Chỉ hiện cho admin */}
-                      {isAdmin(user) && (
+                      </Link> */}
+
+                      {/* Admin Management Option - Hiện cho admin và manager */}
+                      {isAdminOrManager(user) && (
                         <Link to="/admin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                           <div className="flex items-center space-x-2">
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,7 +185,7 @@ const Header = () => {
                           </div>
                         </Link>
                       )}
-                      
+
                       <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                         <div className="flex items-center space-x-2">
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,7 +194,8 @@ const Header = () => {
                           <span>Hồ sơ</span>
                         </div>
                       </Link>
-                      
+
+
                       <Link to="/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                         <div className="flex items-center space-x-2">
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,7 +204,8 @@ const Header = () => {
                           <span>Đơn hàng</span>
                         </div>
                       </Link>
-                      
+
+
                       {/* Cài đặt - Chỉ hiện cho admin */}
                       {isAdmin(user) && (
                         <Link to="/admin/system-config" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
@@ -216,8 +218,8 @@ const Header = () => {
                           </div>
                         </Link>
                       )}
-                      
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+
+                      {/* <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                         <div className="flex items-center space-x-2">
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -225,7 +227,7 @@ const Header = () => {
                           </svg>
                           <span>Cài đặt tài khoản</span>
                         </div>
-                      </a>
+                      </a> */}
                       <hr className="my-1" />
                       <button
                         onClick={handleLogout}

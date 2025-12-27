@@ -1,7 +1,7 @@
 import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { isAdmin } from '../utils'
+import { isAdminOrManager } from '../utils'
 
 const AdminRoute = ({ children }) => {
   const { isAuthenticated, user, loading } = useAuth()
@@ -19,8 +19,8 @@ const AdminRoute = ({ children }) => {
     return <Navigate to="/login" replace />
   }
 
-  // Kiểm tra role admin
-  if (!isAdmin(user)) {
+  // Kiểm tra role admin hoặc manager
+  if (!isAdminOrManager(user)) {
     // Không phải admin -> hiển thị trang access denied
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -32,7 +32,7 @@ const AdminRoute = ({ children }) => {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Truy cập bị từ chối</h2>
           <p className="text-gray-600 mb-6">
-            Bạn không có quyền truy cập vào trang quản trị. Chỉ có quản trị viên mới có thể truy cập khu vực này.
+            Bạn không có quyền truy cập vào trang quản trị. Chỉ có quản trị viên và quản lý mới có thể truy cập khu vực này.
           </p>
           <div className="space-y-3">
             <button

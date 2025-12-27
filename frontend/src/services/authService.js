@@ -56,7 +56,6 @@ export const authService = {
               roleName: userResponse.roleName,
               status: userResponse.status,
               points: userResponse.points,
-              balance: userResponse.balance,
               totalPurchase: userResponse.totalPurchase,
               membershipLevel: userResponse.membershipLevel,
               createdAt: userResponse.createdAt,

@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +43,7 @@ public class OrderService {
     TransactionRepository transactionRepository;
     TransactionService transactionService;
     UserRepository userRepository;
+    UserService userService;
 
     /**
      * Checkout - Tạo đơn hàng từ giỏ hàng (Updated with new schema)
@@ -186,12 +188,9 @@ public class OrderService {
         }
         orderItemRepository.saveAll(orderItems);
 
-        // 9. Update product inventory
-        for (CartItem item : selectedItems) {
-            Product product = productRepository.findById(item.getProductId()).orElseThrow();
-            product.setStockQuantity(product.getStockQuantity() - item.getQuantity());
-            productRepository.save(product);
-        }
+        // 9. [REMOVED] Update product inventory - Giờ sử dụng InventoryTransactionService
+        // Inventory sẽ được trừ thông qua API /api/inventory/transactions/out-from-order
+        // khi admin/hệ thống xác nhận đơn hàng
 
         // 10. Remove selected items from cart
         cartItemRepository.deleteSelectedItemsByUserId(userId);
@@ -283,13 +282,9 @@ public class OrderService {
         order.setCancelReason(request.getReason());  // Save cancel reason
         orderRepository.save(order);
 
-        // Restore inventory
-        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
-        for (OrderItem item : items) {
-            Product product = productRepository.findById(item.getProductId()).orElseThrow();
-            product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
-            productRepository.save(product);
-        }
+        // [REMOVED] Restore inventory - Giờ sử dụng InventoryTransactionService
+        // Nếu order đã được xuất kho (có OUT transaction), cần tạo IN transaction để hoàn lại
+        // Logic này nên được xử lý riêng thông qua InventoryTransactionService
 
         log.info("[cancelOrder] Order {} cancelled successfully", orderId);
     }
@@ -401,6 +396,12 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
         
+        String oldPaymentStatus = order.getPaymentStatus();
+        String oldOrderStatus = order.getOrderStatus();
+        
+        log.info("[updateOrderStatus] Old statuses - payment: '{}', order: '{}'", oldPaymentStatus, oldOrderStatus);
+        log.info("[updateOrderStatus] New statuses - payment: '{}', order: '{}'", request.getPaymentStatus(), request.getOrderStatus());
+        
         // Update each status axis if provided
         if (request.getPaymentStatus() != null) {
             order.setPaymentStatus(request.getPaymentStatus());
@@ -410,6 +411,48 @@ public class OrderService {
         }
         if (request.getOrderStatus() != null) {
             order.setOrderStatus(request.getOrderStatus());
+        }
+
+        // Cập nhật tổng chi tiêu khi thanh toán thành công
+        log.info("[updateOrderStatus] Checking totalPurchase update: paymentStatus={}, oldPaymentStatus={}", 
+                request.getPaymentStatus(), oldPaymentStatus);
+        if (request.getPaymentStatus() != null && 
+            "paid".equalsIgnoreCase(request.getPaymentStatus()) && 
+            !"paid".equalsIgnoreCase(oldPaymentStatus)) {
+            
+            User user = userRepository.findById(order.getUserId())
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+            
+            BigDecimal currentTotal = user.getTotalPurchase() != null ? user.getTotalPurchase() : BigDecimal.ZERO;
+            BigDecimal newTotal = currentTotal.add(order.getTotalAmount());
+            user.setTotalPurchase(newTotal);
+            
+            // Tự động nâng cấp membership level
+            userService.updateMembershipLevel(user);
+            
+            userRepository.save(user);
+            
+            log.info("[updateOrderStatus] Updated total purchase for user {}: {} -> {} and membership level: {}", 
+                    user.getId(), currentTotal, newTotal, user.getMembershipLevel());
+        }
+        
+        // Cập nhật điểm tích lũy khi đơn hàng chuyển sang "closed"
+        if (request.getOrderStatus() != null && 
+            "closed".equalsIgnoreCase(request.getOrderStatus()) && 
+            !"closed".equalsIgnoreCase(oldOrderStatus)) {
+            
+            User user = userRepository.findById(order.getUserId())
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+            
+            // Quy đổi: 1000 VNĐ = 1 điểm (làm tròn)
+            int earnedPoints = order.getTotalAmount().divide(new BigDecimal("1000"), 0, RoundingMode.DOWN).intValue();
+            Integer currentPoints = user.getPoints() != null ? user.getPoints() : 0;
+            Integer newPoints = currentPoints + earnedPoints;
+            user.setPoints(newPoints);
+            userRepository.save(user);
+            
+            log.info("[updateOrderStatus] Updated loyalty points for user {}: {} -> {} (+{} points from order amount {})", 
+                    user.getId(), currentPoints, newPoints, earnedPoints, order.getTotalAmount());
         }
 
         // Note: Voucher usage is recorded immediately during checkout

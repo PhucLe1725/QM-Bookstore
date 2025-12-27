@@ -3,11 +3,15 @@ package com.qm.bookstore.qm_bookstore.service;
 import com.qm.bookstore.qm_bookstore.dto.transaction.response.ConfirmPaymentResponse;
 import com.qm.bookstore.qm_bookstore.dto.transaction.response.TransactionResponse;
 import com.qm.bookstore.qm_bookstore.dto.transaction.response.VerifyTransactionResponse;
+import com.qm.bookstore.qm_bookstore.entity.Order;
 import com.qm.bookstore.qm_bookstore.entity.Transaction;
+import com.qm.bookstore.qm_bookstore.entity.User;
 import com.qm.bookstore.qm_bookstore.exception.AppException;
 import com.qm.bookstore.qm_bookstore.exception.ErrorCode;
 import com.qm.bookstore.qm_bookstore.mapper.TransactionMapper;
+import com.qm.bookstore.qm_bookstore.repository.OrderRepository;
 import com.qm.bookstore.qm_bookstore.repository.TransactionRepository;
+import com.qm.bookstore.qm_bookstore.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +33,9 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final TransactionMapper transactionMapper;
     private final ImapEmailService imapEmailService;
+    private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+    private final UserService userService;
     
     @Value("${app.business.account:17251725}")
     private String businessAccount;
@@ -223,6 +230,25 @@ public class TransactionService {
         // Update transaction
         transaction.setVerified(true);
         transactionRepository.save(transaction);
+        
+        // Cập nhật totalPurchase và membership level khi thanh toán QR thành công
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+        
+        User user = userRepository.findById(order.getUserId())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        
+        BigDecimal currentTotal = user.getTotalPurchase() != null ? user.getTotalPurchase() : BigDecimal.ZERO;
+        BigDecimal newTotal = currentTotal.add(order.getTotalAmount());
+        user.setTotalPurchase(newTotal);
+        
+        // Tự động nâng cấp membership level
+        userService.updateMembershipLevel(user);
+        
+        userRepository.save(user);
+        
+        log.info("[confirmPayment] Updated totalPurchase for user {}: {} -> {} and membership level: {}", 
+                user.getId(), currentTotal, newTotal, user.getMembershipLevel());
         
         log.info("[confirmPayment] Payment confirmed successfully for order {}", orderId);
         

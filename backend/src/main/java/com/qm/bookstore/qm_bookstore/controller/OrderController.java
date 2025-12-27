@@ -169,7 +169,7 @@ public class OrderController {
      * PATCH /api/orders/{orderId}/status
      */
     @PatchMapping("/{orderId}/status")
-    @PreAuthorize("hasAnyRole('admin', 'manager')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ApiResponse<Void> updateOrderStatus(
             @PathVariable Long orderId,
             @Valid @RequestBody UpdateOrderStatusRequest request) {
@@ -190,7 +190,7 @@ public class OrderController {
      * GET /api/orders/manage
      */
     @GetMapping("/manage")
-    @PreAuthorize("hasAnyRole('admin', 'manager')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ApiResponse<Page<OrderResponse>> getAllOrders(
             @RequestParam(required = false) String paymentStatus,
             @RequestParam(required = false) String fulfillmentStatus,

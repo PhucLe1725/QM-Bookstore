@@ -22,7 +22,6 @@ public class UserResponse {
     String roleName;
     Boolean status;
     Integer points;
-    BigDecimal balance;
     BigDecimal totalPurchase;
     User.MembershipLevel membershipLevel;
     LocalDateTime createdAt;

@@ -64,6 +64,10 @@ public class SecurityConfig {
                         // ========== CART ENDPOINTS ==========
                         .requestMatchers("/api/cart/**").permitAll() // Guests can use cart with session
                         
+                        // ========== INVENTORY ENDPOINTS ==========
+                        .requestMatchers(HttpMethod.GET, "/api/inventory/transactions/**").hasAnyRole("admin", "manager")
+                        .requestMatchers("/api/inventory/transactions/**").hasAnyRole("admin", "manager")
+                        
                         // ========== ORDER ENDPOINTS ==========
                         // Customer order endpoints (requires authentication)
                         .requestMatchers("/api/orders/checkout").authenticated()

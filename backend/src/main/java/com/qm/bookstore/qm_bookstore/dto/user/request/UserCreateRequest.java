@@ -21,7 +21,6 @@ public class UserCreateRequest {
     Integer roleId;
     Boolean status;
     Integer points;
-    BigDecimal balance;
     BigDecimal totalPurchase;
     User.MembershipLevel membershipLevel;
 }

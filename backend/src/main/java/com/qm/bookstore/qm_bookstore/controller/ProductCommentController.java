@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -163,8 +164,10 @@ public class ProductCommentController {
 
     /**
      * Xóa comment (sẽ xóa cả replies do CASCADE)
+     * Admin/Manager có quyền xóa bất kỳ comment nào
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ApiResponse<Void> deleteComment(@PathVariable Long id) {
         log.info("Deleting comment: {}", id);
         commentService.deleteComment(id);

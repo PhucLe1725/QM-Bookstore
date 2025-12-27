@@ -104,9 +104,6 @@ public class UserService {
         if (user.getPoints() == null) {
             user.setPoints(0);
         }
-        if (user.getBalance() == null) {
-            user.setBalance(BigDecimal.ZERO);
-        }
         if (user.getTotalPurchase() == null) {
             user.setTotalPurchase(BigDecimal.ZERO);
         }
@@ -164,10 +161,6 @@ public class UserService {
             user.setPoints(request.getPoints());
         }
         
-        if (request.getBalance() != null) {
-            user.setBalance(request.getBalance());
-        }
-        
         if (request.getTotalPurchase() != null) {
             user.setTotalPurchase(request.getTotalPurchase());
         }
@@ -221,6 +214,35 @@ public class UserService {
 
     public List<Role> getAllRoles() {
         return roleRepository.findAll();
+    }
+
+    /**
+     * Tự động cập nhật membership level dựa trên tổng chi tiêu
+     * - > 10 triệu → PLATINUM
+     * - > 3 triệu → GOLD
+     * - > 1 triệu → SILVER
+     * - <= 1 triệu → BASIC
+     */
+    public void updateMembershipLevel(User user) {
+        BigDecimal totalPurchase = user.getTotalPurchase() != null ? user.getTotalPurchase() : BigDecimal.ZERO;
+        User.MembershipLevel oldLevel = user.getMembershipLevel();
+        User.MembershipLevel newLevel;
+        
+        if (totalPurchase.compareTo(new BigDecimal("10000000")) >= 0) {
+            newLevel = User.MembershipLevel.PLATINUM;
+        } else if (totalPurchase.compareTo(new BigDecimal("3000000")) >= 0) {
+            newLevel = User.MembershipLevel.GOLD;
+        } else if (totalPurchase.compareTo(new BigDecimal("1000000")) >= 0) {
+            newLevel = User.MembershipLevel.SILVER;
+        } else {
+            newLevel = User.MembershipLevel.BASIC;
+        }
+        
+        if (oldLevel != newLevel) {
+            user.setMembershipLevel(newLevel);
+            log.info("[updateMembershipLevel] User {} upgraded: {} -> {} (totalPurchase: {})", 
+                    user.getId(), oldLevel, newLevel, totalPurchase);
+        }
     }
 
 }

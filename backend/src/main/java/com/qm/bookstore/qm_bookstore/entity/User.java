@@ -55,10 +55,6 @@ public class User {
     Integer points = 0;
 
     @Builder.Default
-    @Column(precision = 12, scale = 2, columnDefinition = "DECIMAL(12,2) DEFAULT 0")
-    BigDecimal balance = BigDecimal.ZERO;
-
-    @Builder.Default
     @Column(name = "total_purchase", precision = 14, scale = 2, columnDefinition = "DECIMAL(14,2) DEFAULT 0")
     BigDecimal totalPurchase = BigDecimal.ZERO;
 

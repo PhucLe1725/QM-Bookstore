@@ -497,14 +497,6 @@ const Profile = () => {
                   </p>
                 </div>
 
-                {/* Balance */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">Số dư tài khoản</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {showSensitiveInfo ? formatCurrency((profileData || user).balance) : '••••••'}
-                  </p>
-                </div>
-
                 {/* Total Purchase */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-600">Tổng chi tiêu</p>

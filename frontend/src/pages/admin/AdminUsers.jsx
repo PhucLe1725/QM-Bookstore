@@ -59,7 +59,6 @@ const AdminUsers = () => {
     roleId: null,
     status: true,
     points: 0,
-    balance: 0,
     totalPurchase: 0,
     membershipLevel: 'basic'
   })
@@ -235,7 +234,6 @@ const AdminUsers = () => {
       roleId: defaultRoleId,
       status: true,
       points: 0,
-      balance: 0,
       totalPurchase: 0,
       membershipLevel: 'basic'
     })
@@ -255,7 +253,6 @@ const AdminUsers = () => {
       roleId: user.roleId,
       status: user.status,
       points: user.points,
-      balance: user.balance,
       totalPurchase: user.totalPurchase,
       membershipLevel: user.membershipLevel
     })
@@ -512,7 +509,6 @@ const AdminUsers = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{user.points} điểm</div>
-                        <div className="text-sm text-gray-500">{formatCurrency(user.balance)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatCurrency(user.totalPurchase)}
@@ -759,20 +755,6 @@ const AdminUsers = () => {
                     />
                   </div>
 
-                  {/* Balance */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Số dư (VNĐ)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.balance}
-                      onChange={(e) => setFormData({...formData, balance: parseFloat(e.target.value) || 0})}
-                      min="0"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
                   {/* Total Purchase */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -975,20 +957,6 @@ const AdminUsers = () => {
                       type="number"
                       value={formData.points}
                       onChange={(e) => setFormData({...formData, points: parseInt(e.target.value) || 0})}
-                      min="0"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  {/* Balance */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Số dư (VNĐ)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.balance}
-                      onChange={(e) => setFormData({...formData, balance: parseFloat(e.target.value) || 0})}
                       min="0"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />

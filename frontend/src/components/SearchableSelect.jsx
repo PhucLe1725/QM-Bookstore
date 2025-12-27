@@ -29,10 +29,10 @@ const SearchableSelect = ({
   const selectedOption = options.find(opt => opt.id === value)
   const displayText = selectedOption ? selectedOption.displayName || selectedOption.name : placeholder
 
-  // Filter options based on search
+  // Filter options based on search - only search by name (string)
+  // displayName can be JSX, so we can't call .toLowerCase() on it
   const filteredOptions = options.filter(opt => 
-    opt.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (opt.displayName && opt.displayName.toLowerCase().includes(searchTerm.toLowerCase()))
+    opt.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   // Close dropdown when clicking outside

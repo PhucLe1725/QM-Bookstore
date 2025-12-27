@@ -2,7 +2,7 @@ import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { MainLayout } from '../layouts'
 import { Home, Login, Register, Dashboard, Profile, NotificationsPage, Products, ProductPage, ProductDetail, Cart, Checkout, Orders, OrderDetail, Vouchers } from '../pages'
-import { AdminDashboard, AdminProducts, AdminCategories, AdminReviews, AdminComments, AdminVouchers, AdminUsers, AdminRoles } from '../pages/admin'
+import { AdminDashboard, AdminProducts, AdminCategories, AdminReviews, AdminComments, AdminVouchers, AdminUsers, AdminRoles, AdminInventory } from '../pages/admin'
 import AdminMessages from '../pages/admin/AdminMessages'
 import AdminOrders from '../pages/admin/AdminOrders'
 import AdminTransactions from '../pages/admin/AdminTransactions'
@@ -132,6 +132,12 @@ const AppRoutes = () => {
       <Route path="/admin/orders" element={
         <AdminRoute>
           <AdminOrders />
+        </AdminRoute>
+      } />
+      
+      <Route path="/admin/inventory" element={
+        <AdminRoute>
+          <AdminInventory />
         </AdminRoute>
       } />
       

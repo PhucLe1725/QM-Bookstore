@@ -92,6 +92,17 @@ public enum ErrorCode {
     SHIPPING_CALCULATION_FAILED(6005, "Failed to calculate shipping fee"),
     STORE_LOCATION_NOT_CONFIGURED(6006, "Store location not configured in system settings"),
 
+    // Inventory errors (9000-9099)
+    INVENTORY_TRANSACTION_NOT_FOUND(9001, "Inventory transaction not found"),
+    DUPLICATE_OUT_TRANSACTION(9002, "Inventory has already been deducted for this order"),
+    INSUFFICIENT_INVENTORY(9003, "Insufficient inventory for product: {0}. Available: {1}, Required: {2}"),
+    INVALID_TRANSACTION_TYPE(9004, "Invalid transaction type: {0}"),
+    INVALID_CHANGE_TYPE_FOR_TRANSACTION(9005, "Change type {0} is not allowed for transaction type {1}"),
+    INVALID_CHANGE_TYPE(9006, "Invalid change type: {0}. Must be PLUS or MINUS"),
+    ORDER_NOT_FOUND_FOR_INVENTORY(9007, "Order not found with ID: {0}"),
+    ORDER_ITEMS_EMPTY(9008, "Order has no items to process"),
+    INVENTORY_UPDATE_FAILED(9009, "Failed to update inventory for product: {0}"),
+
     // Generic errors
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error"),
     INVALID_KEY(1005, "Invalid message key"),

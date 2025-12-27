@@ -352,6 +352,11 @@ const AddressSelector = ({ onAddressChange, initialAddress = '' }) => {
             ))}
           </div>
         )}
+        
+        {/* Helper text */}
+        <p className="text-xs text-amber-600 mt-1">
+          ⚠️ Vui lòng chọn địa chỉ từ gợi ý hoặc click trên bản đồ để tính phí ship chính xác
+        </p>
       </div>
 
       {/* Map Container */}

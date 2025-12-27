@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { isAdmin } from '../../utils/adminUtils'
 import { 
   Users, 
   ShoppingBag, 
@@ -19,7 +20,8 @@ import {
   ArrowUp,
   ArrowDown,
   Loader2,
-  FolderTree
+  FolderTree,
+  Warehouse
 } from 'lucide-react'
 import { reportService } from '../../services/reportService'
 import orderService from '../../services/orderService'
@@ -145,14 +147,15 @@ const AdminDashboard = () => {
     }
   ] : []
 
-  // Quick actions
-  const quickActions = [
+  // Quick actions - Filter sensitive actions for MANAGER
+  const allQuickActions = [
     {
       title: 'Quản lý người dùng',
       description: 'Xem và quản lý tài khoản người dùng',
       icon: UserCheck,
       href: '/admin/users',
-      color: 'border-blue-200 hover:border-blue-300'
+      color: 'border-blue-200 hover:border-blue-300',
+      adminOnly: true // MANAGER không có quyền
     },
     {
       title: 'Quản lý sản phẩm',
@@ -174,6 +177,13 @@ const AdminDashboard = () => {
       icon: FileText,
       href: '/admin/orders',
       color: 'border-purple-200 hover:border-purple-300'
+    },
+    {
+      title: 'Quản lý Kho',
+      description: 'Nhập/xuất kho, kiểm kê, lịch sử biến động',
+      icon: Warehouse,
+      href: '/admin/inventory',
+      color: 'border-emerald-200 hover:border-emerald-300'
     },
     {
       title: 'Tin nhắn hỗ trợ',
@@ -201,14 +211,16 @@ const AdminDashboard = () => {
       description: 'Tạo và quản lý mã giảm giá',
       icon: Ticket,
       href: '/admin/vouchers',
-      color: 'border-pink-200 hover:border-pink-300'
+      color: 'border-pink-200 hover:border-pink-300',
+      adminOnly: true // MANAGER không có quyền
     },
     {
       title: 'Quản lý Role',
       description: 'Quản lý vai trò người dùng',
       icon: Shield,
       href: '/admin/roles',
-      color: 'border-cyan-200 hover:border-cyan-300'
+      color: 'border-cyan-200 hover:border-cyan-300',
+      adminOnly: true // MANAGER không có quyền
     },
     {
       title: 'Báo cáo & Thống kê',
@@ -222,9 +234,19 @@ const AdminDashboard = () => {
       description: 'Cấu hình chung của website',
       icon: Settings,
       href: '/admin/system-config',
-      color: 'border-gray-200 hover:border-gray-300'
+      color: 'border-gray-200 hover:border-gray-300',
+      adminOnly: true // MANAGER không có quyền
     }
   ]
+
+  // Filter actions based on user role
+  const quickActions = allQuickActions.filter(action => {
+    // If action is admin-only, only show for ADMIN
+    if (action.adminOnly) {
+      return isAdmin(user)
+    }
+    return true
+  })
 
   return (
     <div className="min-h-screen bg-gray-50">
