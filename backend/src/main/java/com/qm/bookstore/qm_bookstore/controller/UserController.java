@@ -2,6 +2,7 @@ package com.qm.bookstore.qm_bookstore.controller;
 
 import com.qm.bookstore.qm_bookstore.dto.base.response.ApiResponse;
 import com.qm.bookstore.qm_bookstore.dto.base.response.BaseGetAllResponse;
+import com.qm.bookstore.qm_bookstore.dto.user.request.ChangePasswordRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.request.UserCreateRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.request.UserGetAllRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.request.UserProfileUpdateRequest;
@@ -9,6 +10,7 @@ import com.qm.bookstore.qm_bookstore.dto.user.request.UserUpdateRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.response.UserResponse;
 import com.qm.bookstore.qm_bookstore.service.UserService;
 import com.qm.bookstore.qm_bookstore.entity.Role;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -55,6 +57,27 @@ public class UserController {
         
         return ApiResponse.<UserResponse>builder()
                 .result(userResponse)
+                .build();
+    }
+
+    /**
+     * Đổi mật khẩu (Customer/User tự đổi)
+     * POST /api/users/change-password
+     * Requires: JWT token (authenticated user)
+     */
+    @PostMapping("/change-password")
+    public ApiResponse<String> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UUID userId = UUID.fromString(authentication.getName());
+        
+        log.info("[changePassword] User {} requesting password change", userId);
+        userService.changePassword(userId, request);
+        
+        return ApiResponse.<String>builder()
+                .success(true)
+                .code(200)
+                .message("Password changed successfully")
+                .result("Your password has been updated. Please login again with your new password.")
                 .build();
     }
 

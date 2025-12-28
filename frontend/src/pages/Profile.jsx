@@ -14,7 +14,9 @@ import {
   Save,
   X,
   Eye,
-  EyeOff
+  EyeOff,
+  Lock,
+  KeyRound
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { userService } from '../services'
@@ -34,6 +36,20 @@ const Profile = () => {
   })
   const [showSensitiveInfo, setShowSensitiveInfo] = useState(false)
   const [profileLoading, setProfileLoading] = useState(false)
+  
+  // Change password states
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  })
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
 
   // Fetch profile data từ API khi component mount
   useEffect(() => {
@@ -169,6 +185,112 @@ const Profile = () => {
       ...prev,
       [field]: value
     }))
+  }
+
+  const handlePasswordChange = (field, value) => {
+    setPasswordForm(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }))
+  }
+
+  const handleChangePassword = async () => {
+    // Validation
+    if (!passwordForm.currentPassword.trim()) {
+      toast.error('Vui lòng nhập mật khẩu hiện tại')
+      return
+    }
+
+    if (!passwordForm.newPassword.trim()) {
+      toast.error('Vui lòng nhập mật khẩu mới')
+      return
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      toast.error('Mật khẩu mới phải có ít nhất 6 ký tự')
+      return
+    }
+
+    if (passwordForm.newPassword === passwordForm.currentPassword) {
+      toast.error('Mật khẩu mới phải khác mật khẩu hiện tại')
+      return
+    }
+
+    if (!passwordForm.confirmPassword.trim()) {
+      toast.error('Vui lòng nhập lại mật khẩu mới')
+      return
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error('Mật khẩu mới và xác nhận mật khẩu không khớp')
+      return
+    }
+
+    setIsChangingPassword(true)
+    
+    try {
+      const response = await userService.changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+        confirmPassword: passwordForm.confirmPassword
+      })
+
+      if (response.success) {
+        toast.success('Đổi mật khẩu thành công! Vui lòng đăng nhập lại.')
+        
+        // Reset form
+        setPasswordForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        })
+        setShowPasswordModal(false)
+        
+        // Logout after 2 seconds
+        setTimeout(() => {
+          localStorage.removeItem('accessToken')
+          localStorage.removeItem('refreshToken')
+          localStorage.removeItem('user')
+          window.location.href = '/login'
+        }, 2000)
+      }
+    } catch (error) {
+      console.error('Change password error:', error)
+      
+      // Handle specific error codes
+      const errorCode = error.response?.data?.code
+      
+      if (errorCode === 1007) {
+        toast.error('Mật khẩu hiện tại không đúng')
+      } else if (errorCode === 1008) {
+        toast.error('Mật khẩu mới và xác nhận mật khẩu không khớp')
+      } else {
+        toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi đổi mật khẩu')
+      }
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
+  const closePasswordModal = () => {
+    setShowPasswordModal(false)
+    setPasswordForm({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    })
+    setShowPasswords({
+      current: false,
+      new: false,
+      confirm: false
+    })
   }
 
   const formatDate = (dateString) => {
@@ -515,23 +637,161 @@ const Profile = () => {
               </h2>
               
               <div className="space-y-3">
-                <Link
-                  to="/dashboard"
-                  className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                <button 
+                  onClick={() => setShowPasswordModal(true)}
+                  className="block w-full text-left px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center"
                 >
-                  Về Dashboard
-                </Link>
-                <button className="block w-full text-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                  <Lock className="h-4 w-4 mr-2" />
                   Đổi mật khẩu
                 </button>
-                <button className="block w-full text-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                <Link
+                  to="/orders"
+                  className="block w-full text-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
                   Lịch sử đơn hàng
-                </button>
+                </Link>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold flex items-center">
+                  <KeyRound className="h-5 w-5 mr-2" />
+                  Đổi mật khẩu
+                </h3>
+                <button
+                  onClick={closePasswordModal}
+                  className="text-white hover:text-gray-200 transition-colors"
+                  disabled={isChangingPassword}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              {/* Current Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mật khẩu hiện tại <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.current ? 'text' : 'password'}
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập mật khẩu hiện tại"
+                    disabled={isChangingPassword}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility('current')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* New Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mật khẩu mới <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.new ? 'text' : 'password'}
+                    value={passwordForm.newPassword}
+                    onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                    disabled={isChangingPassword}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility('new')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Mật khẩu phải có ít nhất 6 ký tự
+                </p>
+              </div>
+
+              {/* Confirm New Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nhập lại mật khẩu mới <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.confirm ? 'text' : 'password'}
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập lại mật khẩu mới"
+                    disabled={isChangingPassword}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility('confirm')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Warning */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-sm text-yellow-800">
+                  ⚠️ Sau khi đổi mật khẩu thành công, bạn sẽ cần đăng nhập lại.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 px-6 py-4 rounded-b-lg flex justify-end space-x-3">
+              <button
+                onClick={closePasswordModal}
+                disabled={isChangingPassword}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {isChangingPassword ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="h-4 w-4 mr-2" />
+                    Đổi mật khẩu
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

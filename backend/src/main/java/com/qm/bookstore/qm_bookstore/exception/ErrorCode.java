@@ -8,6 +8,8 @@ public enum ErrorCode {
     REFRESH_TOKEN_EXPIRED(1004, "Refresh token has expired"),
     USER_ALREADY_EXISTS(1005, "Username already exists"),
     EMAIL_ALREADY_EXISTS(1006, "Email already exists"),
+    WRONG_PASSWORD(1007, "Current password is incorrect"),
+    PASSWORD_NOT_MATCH(1008, "New password and confirm password do not match"),
     
     // OTP & Registration errors
     INVALID_OTP(1010, "Invalid OTP code"),

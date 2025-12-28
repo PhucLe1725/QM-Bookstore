@@ -2,6 +2,7 @@ package com.qm.bookstore.qm_bookstore.service;
 
 
 import com.qm.bookstore.qm_bookstore.dto.base.response.BaseGetAllResponse;
+import com.qm.bookstore.qm_bookstore.dto.user.request.ChangePasswordRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.request.UserCreateRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.request.UserProfileUpdateRequest;
 import com.qm.bookstore.qm_bookstore.dto.user.request.UserUpdateRequest;
@@ -243,6 +244,39 @@ public class UserService {
             log.info("[updateMembershipLevel] User {} upgraded: {} -> {} (totalPurchase: {})", 
                     user.getId(), oldLevel, newLevel, totalPurchase);
         }
+    }
+
+    /**
+     * Đổi mật khẩu cho user (Customer tự đổi)
+     * Yêu cầu nhập mật khẩu cũ để xác thực
+     */
+    public void changePassword(UUID userId, ChangePasswordRequest request) {
+        log.info("[changePassword] User {} attempting to change password", userId);
+        
+        // Tìm user
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+        
+        // 1. Verify current password
+        if (!encoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            log.warn("[changePassword] User {} provided incorrect current password", userId);
+            throw new AppException(ErrorCode.WRONG_PASSWORD);
+        }
+        
+        // 2. Verify confirm password
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            log.warn("[changePassword] User {} password confirmation does not match", userId);
+            throw new AppException(ErrorCode.PASSWORD_NOT_MATCH);
+        }
+        
+        // 3. Update password
+        user.setPasswordHash(encoder.encode(request.getNewPassword()));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+        
+        log.info("[changePassword] User {} successfully changed password", userId);
     }
 
 }

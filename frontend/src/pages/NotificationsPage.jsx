@@ -1,25 +1,23 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { 
+import { Link, useNavigate } from 'react-router-dom'
+import {
   ArrowLeft,
   Bell,
   Filter,
   Search,
   MessageSquare,
-  Package,
-  CreditCard,
-  Settings,
-  Gift,
-  Check,
+  UserCog,
+  MessageCircle,
   CheckCheck,
-  Trash2,
   Calendar,
   X
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useNotificationContext } from '../store/NotificationContext'
+import { isAdminOrManager } from '../utils/adminUtils'
 
 const NotificationsPage = () => {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const {
     notifications,
@@ -33,39 +31,69 @@ const NotificationsPage = () => {
   } = useNotificationContext()
 
   const [filter, setFilter] = useState('all') // all, unread, read
-  const [typeFilter, setTypeFilter] = useState('all') // all, NEW_MESSAGE, ORDER_UPDATE, etc.
+  const [typeFilter, setTypeFilter] = useState('all') // all, NEW_MESSAGE, NEW_CUSTOMER_COMMENT, etc.
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Determine if user is admin or manager
+  const isAdminUser = isAdminOrManager(user)
 
   useEffect(() => {
     // Load notifications with current filters
     const params = {}
-    
+
     if (filter === 'unread') params.status = 'UNREAD'
     else if (filter === 'read') params.status = 'READ'
-    
-    if (typeFilter !== 'all') params.type = typeFilter
-    
+
+    // For management filter, fetch all notifications and filter client-side
+    // For other filters, send type to backend
+    if (typeFilter !== 'all' && typeFilter !== 'management') {
+      params.type = typeFilter
+    }
+
     fetchNotifications(params)
   }, [filter, typeFilter, fetchNotifications])
 
-  // Filter notifications based on search term
-  const filteredNotifications = notifications.filter(notification => 
-    notification.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    notification.username?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Filter notifications based on search term and type category
+  const filteredNotifications = notifications.filter(notification => {
+    // First check search match
+    const matchesSearch = notification.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      notification.username?.toLowerCase().includes(searchTerm.toLowerCase())
+
+    if (!matchesSearch) return false
+
+    // Then check type filter
+    if (typeFilter === 'all') {
+      return true
+    }
+
+    if (typeFilter === 'management') {
+      // Management: only NEW_CUSTOMER_COMMENT and NEW_REVIEW
+      return notification.type === 'NEW_CUSTOMER_COMMENT' || notification.type === 'NEW_REVIEW'
+    }
+
+    if (typeFilter === 'NEW_MESSAGE') {
+      // Messages: only NEW_MESSAGE
+      return notification.type === 'NEW_MESSAGE'
+    }
+
+    if (typeFilter === 'COMMENT_REPLY') {
+      // Comments: only COMMENT_REPLY
+      return notification.type === 'COMMENT_REPLY'
+    }
+
+    // For any other type filter, match exactly
+    return notification.type === typeFilter
+  })
 
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'NEW_MESSAGE':
         return <MessageSquare className="h-5 w-5 text-blue-500" />
-      case 'ORDER_UPDATE':
-        return <Package className="h-5 w-5 text-green-500" />
-      case 'PAYMENT_UPDATE':
-        return <CreditCard className="h-5 w-5 text-purple-500" />
-      case 'SYSTEM_NOTIFICATION':
-        return <Settings className="h-5 w-5 text-gray-500" />
-      case 'PROMOTION':
-        return <Gift className="h-5 w-5 text-orange-500" />
+      case 'NEW_CUSTOMER_COMMENT':
+      case 'NEW_REVIEW':
+        return <UserCog className="h-5 w-5 text-green-500" />
+      case 'COMMENT_REPLY':
+        return <MessageCircle className="h-5 w-5 text-purple-500" />
       default:
         return <Bell className="h-5 w-5 text-gray-500" />
     }
@@ -85,16 +113,15 @@ const NotificationsPage = () => {
     if (notification.status === 'UNREAD') {
       markAsRead(notification.id)
     }
-    
+
     if (notification.anchor) {
       let targetUrl = notification.anchor
-      
-      // For NEW_MESSAGE notifications, redirect to admin messages page
+
       if (notification.type === 'NEW_MESSAGE') {
         targetUrl = '/admin/messages'
       }
-      
-      window.location.href = targetUrl
+
+      navigate(targetUrl)
     }
   }
 
@@ -117,13 +144,13 @@ const NotificationsPage = () => {
           <div className="py-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <Link 
-                  to="/dashboard" 
+                <button
+                  onClick={() => navigate(isAdminUser ? '/admin' : '/home')}
                   className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
                 >
                   <ArrowLeft className="h-5 w-5 mr-2" />
                   Quay lại
-                </Link>
+                </button>
                 <div className="h-6 border-l border-gray-300"></div>
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 flex items-center">
@@ -170,11 +197,10 @@ const NotificationsPage = () => {
                   <button
                     key={key}
                     onClick={() => setFilter(key)}
-                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                      filter === key
+                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filter === key
                         ? 'bg-blue-100 text-blue-700'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     {label} ({getFilterCount(key)})
                   </button>
@@ -199,26 +225,47 @@ const NotificationsPage = () => {
           <div className="mt-4 pt-4 border-t border-gray-200">
             <div className="flex flex-wrap gap-2">
               <span className="text-sm font-medium text-gray-700">Loại thông báo:</span>
-              {[
-                { key: 'all', label: 'Tất cả' },
-                { key: 'NEW_MESSAGE', label: 'Tin nhắn' },
-                { key: 'ORDER_UPDATE', label: 'Đơn hàng' },
-                { key: 'PAYMENT_UPDATE', label: 'Thanh toán' },
-                { key: 'PROMOTION', label: 'Khuyến mãi' },
-                { key: 'SYSTEM_NOTIFICATION', label: 'Hệ thống' }
-              ].map(({ key, label }) => (
+              <button
+                onClick={() => setTypeFilter('all')}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${typeFilter === 'all'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+              >
+                Tất cả
+              </button>
+              <button
+                onClick={() => setTypeFilter('NEW_MESSAGE')}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${typeFilter === 'NEW_MESSAGE'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+              >
+                Tin nhắn
+              </button>
+              {isAdminUser && (
                 <button
-                  key={key}
-                  onClick={() => setTypeFilter(key)}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    typeFilter === key
+                  onClick={() => setTypeFilter('management')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${typeFilter === 'management'
                       ? 'bg-blue-100 text-blue-700'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
-                  {label}
+                  Quản lý
                 </button>
-              ))}
+              )}
+              {!isAdminUser && (
+                <button
+                  onClick={() => setTypeFilter('COMMENT_REPLY')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${typeFilter === 'COMMENT_REPLY'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                >
+                  Bình luận
+                </button>
+              )}
+
             </div>
           </div>
         </div>
@@ -261,9 +308,8 @@ const NotificationsPage = () => {
                 <div
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  className={`p-6 hover:bg-gray-50 cursor-pointer transition-colors ${
-                    notification.status === 'UNREAD' ? 'bg-blue-50' : ''
-                  }`}
+                  className={`p-6 hover:bg-gray-50 cursor-pointer transition-colors ${notification.status === 'UNREAD' ? 'bg-blue-50' : ''
+                    }`}
                 >
                   <div className="flex items-start space-x-4">
                     <div className="flex-shrink-0 mt-1">
@@ -277,18 +323,17 @@ const NotificationsPage = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <p className={`text-sm ${
-                            notification.status === 'UNREAD'
+                          <p className={`text-sm ${notification.status === 'UNREAD'
                               ? 'text-gray-900 font-medium'
                               : 'text-gray-700'
-                          }`}>
+                            }`}>
                             {notification.message}
                           </p>
-                          
+
                           <div className="flex items-center mt-2 text-xs text-gray-500 space-x-4">
                             <div className="flex items-center">
                               <Calendar className="h-3 w-3 mr-1" />
@@ -309,7 +354,7 @@ const NotificationsPage = () => {
                             </div>
                           </div>
                         </div>
-                        
+
                         {notification.status === 'UNREAD' && (
                           <div className="flex-shrink-0 ml-4">
                             <div className="w-3 h-3 bg-blue-500 rounded-full"></div>

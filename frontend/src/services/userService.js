@@ -161,6 +161,17 @@ const userService = {
       console.error('Error toggling user status:', error)
       throw error
     }
+  },
+
+  // Đổi mật khẩu (Customer/User tự đổi)
+  changePassword: async (passwordData) => {
+    try {
+      const response = await api.post('/users/change-password', passwordData)
+      return response
+    } catch (error) {
+      console.error('Error changing password:', error)
+      throw error
+    }
   }
 }
 

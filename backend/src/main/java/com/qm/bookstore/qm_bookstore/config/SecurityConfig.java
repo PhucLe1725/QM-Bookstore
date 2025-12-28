@@ -58,7 +58,8 @@ public class SecurityConfig {
 
                         // ========== USER ENDPOINTS ==========
                         .requestMatchers("/api/users/profile/**").authenticated()
-                        .requestMatchers("/api/users/**").hasRole("admin")
+                        .requestMatchers("/api/users/change-password").authenticated()
+                        .requestMatchers("/api/users/**").hasAnyRole("admin", "manager")
                         .requestMatchers("/api/roles/**").hasRole("admin")
 
                         // ========== CART ENDPOINTS ==========
@@ -89,7 +90,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/product-comments/**").permitAll()
                         
                         // ========== ADMIN ENDPOINTS ==========
-                        .requestMatchers("/api/admin/**").hasRole("admin")
+                        .requestMatchers("/api/admin/**").hasAnyRole("admin", "manager")
                         
                         // ========== DEFAULT ==========
                         .anyRequest().authenticated()
