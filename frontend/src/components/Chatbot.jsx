@@ -1,10 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useChat } from '../store/ChatContext'
-import { useWebSocket } from '../store/WebSocketContext'
-import { useAuth } from '../hooks/useAuth'
 
 const Chatbot = () => {
-  const { user } = useAuth()
   const { 
     chatbotMessages, 
     sendChatbotMessage, 
@@ -12,21 +9,14 @@ const Chatbot = () => {
     isTyping 
   } = useChat()
   
-  const {
-    isConnected,
-    messages,
-    sendUserMessage
-  } = useWebSocket()
-  
   const [message, setMessage] = useState('')
-  const [activeTab, setActiveTab] = useState('chatbot') // 'chatbot' | 'support'
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
     scrollToBottom()
-  }, [chatbotMessages, messages, isTyping])
+  }, [chatbotMessages, isTyping])
 
   // Focus input when component mounts
   useEffect(() => {
@@ -43,17 +33,7 @@ const Chatbot = () => {
     e.preventDefault()
     if (!message.trim()) return
 
-    if (activeTab === 'chatbot') {
-      sendChatbotMessage(message.trim())
-    } else if (activeTab === 'support') {
-      // Send message to admin via WebSocket
-      if (isConnected) {
-        sendUserMessage(message.trim())
-      } else {
-        console.error('WebSocket not connected')
-      }
-    }
-    
+    sendChatbotMessage(message.trim())
     setMessage('')
   }
 
@@ -65,13 +45,7 @@ const Chatbot = () => {
   }
 
   const handleQuickReply = (text) => {
-    if (activeTab === 'chatbot') {
-      sendChatbotMessage(text)
-    } else if (activeTab === 'support') {
-      if (isConnected) {
-        sendUserMessage(text)
-      }
-    }
+    sendChatbotMessage(text)
   }
 
   const formatTime = (timestamp) => {
@@ -82,11 +56,11 @@ const Chatbot = () => {
   }
 
   const quickReplies = [
-    "Tôi muốn tìm sách về kinh doanh",
+    "Có bút máy nào tốt không?",
+    "Tôi cần mua vở học sinh",
     "Làm sao để đặt hàng?",
     "Chính sách đổi trả như thế nào?",
-    "Có khuyến mãi gì không?",
-    "Thời gian giao hàng bao lâu?"
+    "Có giao hàng tận nơi không?"
   ]
 
   const renderMessage = (msg, index) => {
@@ -115,132 +89,50 @@ const Chatbot = () => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Tab Headers */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="flex">
-          <button
-            onClick={() => setActiveTab('chatbot')}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'chatbot'
-                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            🤖 Chatbot
-          </button>
-          <button
-            onClick={() => setActiveTab('support')}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'support'
-                ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            👨‍💼 Hỗ trợ trực tiếp
-          </button>
-        </div>
-      </div>
-
-      {/* Status Info */}
-      <div className={`px-4 py-2 border-b ${
-        activeTab === 'chatbot' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'
-      }`}>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 border-b">
         <div className="flex items-center space-x-2">
-          <div className={`w-2 h-2 rounded-full animate-pulse ${
-            activeTab === 'chatbot' ? 'bg-green-500' : (isConnected ? 'bg-blue-500' : 'bg-red-500')
-          }`}></div>
-          <span className={`text-sm ${
-            activeTab === 'chatbot' ? 'text-green-700' : 'text-blue-700'
-          }`}>
-            {activeTab === 'chatbot' 
-              ? 'Chatbot đang hoạt động - Phản hồi tự động'
-              : isConnected 
-                ? 'Đã kết nối - Hỗ trợ trực tiếp'
-                : 'Mất kết nối - Đang thử kết nối lại...'
-            }
+          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+          <span className="text-sm font-medium">
+            🤖 Chatbot - Trợ lý ảo của bạn
           </span>
         </div>
       </div>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {activeTab === 'chatbot' ? (
-          // Chatbot Messages
-          <>
-            {chatbotMessages.map((msg, index) => renderMessage(msg, index))}
-            
-            {/* Typing Indicator */}
-            {isTyping && (
-              <div className="flex justify-start mb-4">
-                <div className="bg-gray-200 text-gray-900 rounded-lg rounded-bl-none px-4 py-2 max-w-xs">
-                  <div className="flex items-center space-x-2">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                    </div>
-                    <span className="text-xs text-gray-600">Bot đang trả lời...</span>
-                  </div>
+        {chatbotMessages.map((msg, index) => renderMessage(msg, index))}
+        
+        {/* Typing Indicator */}
+        {isTyping && (
+          <div className="flex justify-start mb-4">
+            <div className="bg-gray-200 text-gray-900 rounded-lg rounded-bl-none px-4 py-2 max-w-xs">
+              <div className="flex items-center space-x-2">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                 </div>
+                <span className="text-xs text-gray-600">Bot đang trả lời...</span>
               </div>
-            )}
-          </>
-        ) : (
-          // Support Messages (from WebSocket)
-          <>
-            {messages.map((msg, index) => {
-              const isFromAdmin = msg.senderType === 'admin'
-              const isFromUser = msg.senderId === user?.id
-              
-              return (
-                <div
-                  key={msg.id || index}
-                  className={`flex ${isFromAdmin ? 'justify-start' : 'justify-end'} mb-4`}
-                >
-                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                    isFromAdmin 
-                      ? 'bg-gray-200 text-gray-900 rounded-bl-none' 
-                      : 'bg-blue-600 text-white rounded-br-none'
-                  }`}>
-                    <div className="text-sm whitespace-pre-wrap">{msg.message}</div>
-                    <div className={`text-xs mt-1 ${
-                      isFromAdmin ? 'text-gray-500' : 'text-blue-100'
-                    }`}>
-                      {formatTime(msg.createdAt || new Date().toISOString())}
-                      {isFromAdmin && <span className="ml-2">👨‍💼 Admin</span>}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-            
-            {!isConnected && (
-              <div className="text-center text-gray-500 text-sm">
-                <p>⚠️ Mất kết nối với server</p>
-                <p>Đang thử kết nối lại...</p>
-              </div>
-            )}
-          </>
+            </div>
+          </div>
         )}
         
         <div ref={messagesEndRef} />
       </div>
 
       {/* Quick Replies */}
-      {((activeTab === 'chatbot' && chatbotMessages.length <= 1 && !isTyping) ||
-        (activeTab === 'support' && messages.length === 0)) && (
+      {chatbotMessages.length <= 1 && !isTyping && (
         <div className="border-t border-gray-200 p-4">
           <div className="mb-3">
-            <p className="text-sm text-gray-600 mb-2">
-              {activeTab === 'chatbot' ? 'Câu hỏi thường gặp:' : 'Các câu hỏi mẫu:'}
-            </p>
+            <p className="text-sm text-gray-600 mb-2">Câu hỏi thường gặp:</p>
             <div className="flex flex-wrap gap-2">
               {quickReplies.map((reply, index) => (
                 <button
                   key={index}
                   onClick={() => handleQuickReply(reply)}
                   className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-full transition-colors"
-                  disabled={activeTab === 'support' && !isConnected}
                 >
                   {reply}
                 </button>
@@ -273,26 +165,16 @@ const Chatbot = () => {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={
-                activeTab === 'chatbot' 
-                  ? "Hỏi gì đó về Văn phòng phẩm Quang Minh..." 
-                  : isConnected 
-                    ? "Nhập tin nhắn cho admin..."
-                    : "Chưa kết nối..."
-              }
-              disabled={isTyping || (activeTab === 'support' && !isConnected)}
-              className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              placeholder="Hỏi gì đó về Văn phòng phẩm Quang Minh..."
+              disabled={isTyping}
+              className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
               rows="2"
             />
           </div>
           <button
             type="submit"
-            disabled={!message.trim() || isTyping || (activeTab === 'support' && !isConnected)}
-            className={`px-4 py-2 text-white rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed ${
-              activeTab === 'chatbot' 
-                ? 'bg-green-600 hover:bg-green-700' 
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
+            disabled={!message.trim() || isTyping}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
