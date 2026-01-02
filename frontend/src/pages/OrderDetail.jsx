@@ -384,20 +384,24 @@ const OrderDetail = () => {
                   <span>Tạm tính</span>
                   <span>{formatPrice(order.subtotalAmount)}</span>
                 </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Phí vận chuyển</span>
-                  <span>{formatPrice(order.shippingFee || 0)}</span>
-                </div>
                 {order.discountAmount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Giảm giá</span>
                     <span>-{formatPrice(order.discountAmount)}</span>
                   </div>
                 )}
+                <div className="flex justify-between text-gray-600">
+                  <span>Thuế VAT (10%)</span>
+                  <span>{formatPrice(order.vatAmount || (order.totalAmount * 0.1))}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Phí vận chuyển</span>
+                  <span>{formatPrice(order.shippingFee || 0)}</span>
+                </div>
                 <hr />
                 <div className="flex justify-between text-lg font-bold">
-                  <span>Tổng cộng</span>
-                  <span className="text-blue-600">{formatPrice(order.totalAmount)}</span>
+                  <span>Tổng thanh toán</span>
+                  <span className="text-blue-600">{formatPrice(order.totalPay || (order.totalAmount + (order.vatAmount || 0) + (order.shippingFee || 0)))}</span>
                 </div>
               </div>
 
@@ -444,7 +448,7 @@ const OrderDetail = () => {
                 </h2>
                 
                 <QRPayment
-                  amount={order.totalAmount}
+                  amount={order.totalPay || (order.totalAmount + (order.vatAmount || 0) + (order.shippingFee || 0))}
                   orderCode={`QMORD${order.orderId}`}
                   showInstructions={false}
                 />

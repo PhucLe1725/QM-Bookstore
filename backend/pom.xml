@@ -108,6 +108,18 @@
 			<artifactId>jsoup</artifactId>
 			<version>1.17.2</version>
 		</dependency>
+		<!-- OpenHTMLtoPDF for PDF generation from HTML -->
+		<dependency>
+			<groupId>com.openhtmltopdf</groupId>
+			<artifactId>openhtmltopdf-pdfbox</artifactId>
+			<version>1.0.10</version>
+		</dependency>
+		<!-- OpenHTMLtoPDF RTL support for better Unicode handling -->
+		<dependency>
+			<groupId>com.openhtmltopdf</groupId>
+			<artifactId>openhtmltopdf-rtl-support</artifactId>
+			<version>1.0.10</version>
+		</dependency>
 	</dependencies>
 
 	<build>

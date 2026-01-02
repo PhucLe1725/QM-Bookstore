@@ -114,6 +114,25 @@ export const commentService = {
       console.error('Error deleting comment:', error)
       throw error
     }
+  },
+
+  // Get all comments with pagination (Admin only)
+  getAllComments: async ({ page = 0, size = 10, rootOnly = true, sortDirection = 'DESC' } = {}) => {
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        size: size.toString(),
+        rootOnly: rootOnly.toString(),
+        sortDirection
+      })
+
+      const response = await api.get(`/product-comments?${params.toString()}`)
+      // Response structure: { success: true, result: Page<CommentDTO> }
+      return response.result
+    } catch (error) {
+      console.error('Error fetching all comments:', error)
+      throw error
+    }
   }
 }
 

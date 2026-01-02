@@ -19,6 +19,8 @@ import com.qm.bookstore.qm_bookstore.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -186,5 +188,22 @@ public class ProductReviewService {
         } catch (Exception e) {
             log.error("Failed to send review notification to admin and manager", e);
         }
+    }
+    
+    /**
+     * Admin: Get all reviews with pagination and optional rating filter
+     */
+    public Page<ProductReviewResponse> getAllReviews(Pageable pageable, Integer rating) {
+        log.info("Getting all reviews with pagination. Page: {}, Size: {}, Rating filter: {}", 
+                pageable.getPageNumber(), pageable.getPageSize(), rating);
+        
+        Page<ProductReview> reviewPage;
+        if (rating != null) {
+            reviewPage = productReviewRepository.findAllReviewsByRating(rating, pageable);
+        } else {
+            reviewPage = productReviewRepository.findAllReviews(pageable);
+        }
+        
+        return reviewPage.map(productReviewMapper::toProductReviewResponse);
     }
 }

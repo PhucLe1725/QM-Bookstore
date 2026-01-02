@@ -1,6 +1,8 @@
 package com.qm.bookstore.qm_bookstore.repository;
 
 import com.qm.bookstore.qm_bookstore.entity.ProductReview;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -29,4 +31,12 @@ public interface ProductReviewRepository extends JpaRepository<ProductReview, Lo
     Long countByProductId(@Param("productId") Long productId);
     
     boolean existsByProductIdAndUserId(Long productId, UUID userId);
+    
+    // Admin: Get all reviews with pagination
+    @Query("SELECT pr FROM ProductReview pr ORDER BY pr.createdAt DESC")
+    Page<ProductReview> findAllReviews(Pageable pageable);
+    
+    // Admin: Get all reviews filtered by rating with pagination
+    @Query("SELECT pr FROM ProductReview pr WHERE pr.rating = :rating ORDER BY pr.createdAt DESC")
+    Page<ProductReview> findAllReviewsByRating(@Param("rating") Integer rating, Pageable pageable);
 }

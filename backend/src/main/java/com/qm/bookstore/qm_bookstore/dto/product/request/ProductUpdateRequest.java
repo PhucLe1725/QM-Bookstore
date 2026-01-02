@@ -14,6 +14,7 @@ public class ProductUpdateRequest {
     String name;
     String sku;
     BigDecimal price;
+    String priceChangeReason;  // Lý do thay đổi giá (optional)
     String imageUrl;
     String shortDescription;
     String fullDescription;

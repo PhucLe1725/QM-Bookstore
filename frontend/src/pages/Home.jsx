@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { productService } from '../services'
+import { productService, comboService } from '../services'
 import { useChat } from '../store'
 import { 
   Truck, 
@@ -9,25 +9,28 @@ import {
   Clock,
   CheckCircle,
   ArrowRight,
-  Star
+  Star,
+  Package
 } from 'lucide-react'
 
 const Home = () => {
   const navigate = useNavigate()
   const { openChat } = useChat()
   const [featuredProducts, setFeaturedProducts] = useState([])
+  const [featuredCombos, setFeaturedCombos] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchFeaturedProducts()
+    fetchFeaturedCombos()
   }, [])
 
   const fetchFeaturedProducts = async () => {
     try {
       setLoading(true)
       const response = await productService.getAllProducts({
-        page: 0,
-        size: 8,
+        skipCount: 0,
+        maxResultCount: 8,
         sortBy: 'name',
         sortDirection: 'asc'
       })
@@ -39,6 +42,24 @@ const Home = () => {
       console.error('Error fetching products:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchFeaturedCombos = async () => {
+    try {
+      const response = await comboService.getAllCombos({
+        page: 0,
+        size: 4,
+        sort: 'createdAt',
+        direction: 'DESC',
+        available: true
+      })
+      
+      if (response?.result?.content) {
+        setFeaturedCombos(response.result.content)
+      }
+    } catch (error) {
+      console.error('Error fetching combos:', error)
     }
   }
 
@@ -89,7 +110,7 @@ const Home = () => {
     {
       icon: Truck,
       title: 'Giao hàng nhanh',
-      description: 'Miễn phí vận chuyển cho đơn từ 200k',
+      description: 'Giao hàng trong từ 3-5 ngày làm việc',
       color: 'text-orange-600'
     },
     {
@@ -242,6 +263,95 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Featured Combos */}
+      {featuredCombos.length > 0 && (
+        <section className="py-20 bg-gradient-to-br from-orange-50 to-pink-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                🎁 Combo Ưu Đãi
+              </h2>
+              <p className="text-lg text-gray-600">
+                Mua combo giá tốt hơn, tiết kiệm hơn khi mua lẻ
+              </p>
+            </div>
+
+            <div className={`grid gap-6 ${
+              featuredCombos.length === 1 ? 'grid-cols-1 max-w-md mx-auto' :
+              featuredCombos.length === 2 ? 'grid-cols-1 sm:grid-cols-2 max-w-4xl mx-auto' :
+              featuredCombos.length === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
+              'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+            }`}>
+              {featuredCombos.map((combo) => (
+                <div
+                  key={combo.id}
+                  className="bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden group cursor-pointer"
+                  onClick={() => navigate('/combos')}
+                >
+                  {/* Image */}
+                  <div className="relative aspect-square overflow-hidden bg-gray-100">
+                    {combo.imageUrl ? (
+                      <img
+                        src={combo.imageUrl}
+                        alt={combo.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="w-20 h-20 text-gray-300" />
+                      </div>
+                    )}
+                    
+                    {/* Discount Badge */}
+                    <div className="absolute top-3 right-3 bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+                      -{combo.discountPercentage}%
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-5">
+                    <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 min-h-[3rem] group-hover:text-blue-600 transition-colors">
+                      {combo.name}
+                    </h3>
+
+                    {/* Products count */}
+                    <div className="mb-3 text-sm text-gray-600">
+                      <span className="font-medium">{combo.totalProducts} sản phẩm</span>
+                    </div>
+
+                    {/* Pricing */}
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm text-gray-500 line-through">
+                          {formatCurrency(combo.totalOriginalPrice)}
+                        </span>
+                      </div>
+                      <div className="text-2xl font-bold text-red-600">
+                        {formatCurrency(combo.price)}
+                      </div>
+                      <div className="text-sm text-green-600 font-medium mt-1">
+                        Tiết kiệm {formatCurrency(combo.discountAmount)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* View All Button */}
+            <div className="text-center mt-10">
+              <button
+                onClick={() => navigate('/combos')}
+                className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-lg hover:from-orange-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl font-medium"
+              >
+                Xem tất cả combo
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Featured Products */}
       <section className="py-20">
@@ -421,12 +531,6 @@ const Home = () => {
               className="px-8 py-4 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-300 shadow-lg hover:shadow-xl"
             >
               Khám phá ngay
-            </button>
-            <button
-              onClick={() => navigate('/products')}
-              className="px-8 py-4 bg-transparent border-2 border-white text-white rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-all duration-300"
-            >
-              Liên hệ tư vấn
             </button>
           </div>
         </div>

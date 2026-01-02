@@ -81,6 +81,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/orders/*/status").hasAnyRole("admin", "manager")
                         .requestMatchers("/api/orders/manage/**").hasAnyRole("admin", "manager")
                         
+                        // ========== INVOICE ENDPOINTS ==========
+                        // Authenticated users can generate/view their own invoices
+                        // Admin/Manager can generate/view any invoice (validated in service layer)
+                        .requestMatchers("/api/invoices/**").authenticated()
+                        
                         // ========== PRODUCT & CATEGORY ENDPOINTS ==========
                         .requestMatchers("/api/products/manage/**").hasAnyRole("admin", "manager")
                         .requestMatchers("/api/categories/manage/**").hasAnyRole("admin", "manager")

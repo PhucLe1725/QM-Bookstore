@@ -89,9 +89,39 @@ class ReportService {
   async getDashboardSummary() {
     try {
       const response = await api.get('/reports/dashboard');
-      return response.data;
+      // response is already unwrapped by axios interceptor
+      return response.result;
     } catch (error) {
       console.error('Error fetching dashboard summary:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get revenue chart data
+   * @param {string} period - 'week' | 'month' | 'year'
+   * @param {number} year - Năm cụ thể (optional)
+   * @param {number} month - Tháng cụ thể (optional, chỉ dùng cho period='month')
+   * @returns {Promise<Object>} Revenue chart data
+   */
+  async getRevenueChart(period = 'week', year = null, month = null) {
+    try {
+      const params = { period };
+      
+      // Thêm year cho month và year periods
+      if ((period === 'month' || period === 'year') && year) {
+        params.year = year;
+      }
+      
+      // Thêm month cho month period
+      if (period === 'month' && month) {
+        params.month = month;
+      }
+      
+      const response = await api.get('/reports/revenue-chart', { params });
+      return response.result;
+    } catch (error) {
+      console.error('Error fetching revenue chart:', error);
       throw error;
     }
   }

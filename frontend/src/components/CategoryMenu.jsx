@@ -11,7 +11,7 @@ import { categoryService } from '../services'
  * - Render cây phân cấp đệ quy
  * - Hover để show submenu
  * - Responsive design
- * - Cache tree data trong session storage
+ * - Always fetch fresh data (no cache)
  */
 const CategoryMenu = ({ onCategorySelect, compact = false }) => {
   const [categoryTree, setCategoryTree] = useState([])
@@ -38,38 +38,9 @@ const CategoryMenu = ({ onCategorySelect, compact = false }) => {
 
   const loadCategoryTree = async () => {
     try {
-      // Try to get from session storage first
-      const cached = sessionStorage.getItem('category-tree')
-      const cacheTime = sessionStorage.getItem('category-tree-time')
-      const fiveMinutes = 5 * 60 * 1000
-
-      // Validate cached data
-      if (cached && cached !== 'undefined' && cacheTime && Date.now() - parseInt(cacheTime) < fiveMinutes) {
-        try {
-          const parsedData = JSON.parse(cached)
-          if (Array.isArray(parsedData)) {
-            setCategoryTree(parsedData)
-            setLoading(false)
-            return
-          }
-        } catch (e) {
-          // Invalid cache, clear it
-          sessionStorage.removeItem('category-tree')
-          sessionStorage.removeItem('category-tree-time')
-        }
-      }
-
-      // Fetch from API
+      // Always fetch fresh data from API (no cache)
       const data = await categoryService.getCategoryTree()
-      console.log('Category tree data:', data, 'Type:', Array.isArray(data))
       setCategoryTree(data)
-      
-      // Cache the result only if valid
-      if (Array.isArray(data)) {
-        sessionStorage.setItem('category-tree', JSON.stringify(data))
-        sessionStorage.setItem('category-tree-time', Date.now().toString())
-      }
-      
       setLoading(false)
     } catch (err) {
       console.error('Failed to load category tree:', err)

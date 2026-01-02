@@ -8,6 +8,10 @@ import com.qm.bookstore.qm_bookstore.service.ProductCommentService;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -175,6 +179,33 @@ public class ProductCommentController {
                 .success(true)
                 .code(HttpStatus.OK.value())
                 .message("Comment deleted successfully")
+                .build();
+    }
+    
+    /**
+     * Admin: Get all comments with pagination and optional rootOnly filter
+     */
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ApiResponse<Page<ProductCommentResponse>> getAllComments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "true") Boolean rootOnly,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection
+    ) {
+        log.info("Admin getting all comments. Page: {}, Size: {}, Root only: {}", page, size, rootOnly);
+        
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        
+        Page<ProductCommentResponse> comments = commentService.getAllComments(pageable, rootOnly);
+        
+        return ApiResponse.<Page<ProductCommentResponse>>builder()
+                .success(true)
+                .code(200)
+                .message("Lấy danh sách comments thành công")
+                .result(comments)
                 .build();
     }
 }

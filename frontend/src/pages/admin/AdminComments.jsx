@@ -43,6 +43,8 @@ const AdminComments = () => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
 
   // Fetch comments for a product
   const fetchComments = async () => {
@@ -51,12 +53,14 @@ const AdminComments = () => {
     
     try {
       if (filterProductId) {
-        // Fetch root comments
+        // Fetch root comments for specific product
         const response = await commentService.getRootCommentsByProduct(filterProductId)
         
         if (response.success) {
           const commentsData = response.result || []
           setComments(commentsData)
+          setTotalPages(1)
+          setTotalElements(commentsData.length)
           
           // If commentId is specified, find and highlight it
           if (commentIdParam) {
@@ -98,7 +102,45 @@ const AdminComments = () => {
           }
         }
       } else {
-        setComments([])
+        // Fetch all comments with pagination (Admin API)
+        const pageData = await commentService.getAllComments({
+          page: currentPage - 1, // Convert to 0-based
+          size: itemsPerPage,
+          rootOnly: true,
+          sortDirection: 'DESC'
+        })
+        
+        const commentsData = pageData.content || []
+        setComments(commentsData)
+        setTotalPages(pageData.totalPages || 0)
+        setTotalElements(pageData.totalElements || 0)
+        
+        // If commentId is specified, find and highlight it
+        if (commentIdParam) {
+          const comment = commentsData.find(c => c.id === parseInt(commentIdParam))
+          if (comment) {
+            setSelectedComment(comment)
+            setExpandedComments({ [comment.id]: true })
+          }
+        }
+        
+        // Fetch reply counts for all root comments
+        for (const comment of commentsData) {
+          try {
+            const replyCountResponse = await commentService.getReplyCount(comment.id)
+            if (replyCountResponse.success) {
+              setRepliesData(prev => ({
+                ...prev,
+                [comment.id]: {
+                  count: replyCountResponse.result,
+                  replies: []
+                }
+              }))
+            }
+          } catch (err) {
+            console.error('Error fetching reply count:', err)
+          }
+        }
       }
     } catch (err) {
       setError('Không thể tải danh sách bình luận')
@@ -152,7 +194,7 @@ const AdminComments = () => {
 
   useEffect(() => {
     fetchComments()
-  }, [filterProductId, commentIdParam])
+  }, [filterProductId, commentIdParam, currentPage])
 
   // Handle delete comment
   const handleDeleteComment = async (commentId) => {
@@ -168,18 +210,16 @@ const AdminComments = () => {
     }
   }
 
-  // Filter comments by search term
+  // Filter comments by search term (client-side for current page only)
   const filteredComments = comments.filter(comment => {
     if (!searchTerm) return true
     return comment.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           comment.userName?.toLowerCase().includes(searchTerm.toLowerCase())
+           comment.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           comment.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
   })
 
-  // Paginate comments
-  const indexOfLastItem = currentPage * itemsPerPage
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage
-  const currentComments = filteredComments.slice(indexOfFirstItem, indexOfLastItem)
-  const totalPages = Math.ceil(filteredComments.length / itemsPerPage)
+  // Use filtered comments for display
+  const currentComments = filteredComments
 
   // Format date
   const formatDate = (dateString) => {
@@ -293,7 +333,7 @@ const AdminComments = () => {
     <div className="min-h-screen bg-gray-50">
       <AdminPageHeader
         title="Quản lý Bình luận"
-        description="Xem và quản lý các bình luận từ khách hàng về sản phẩm"
+        description={`Xem và quản lý các bình luận từ khách hàng về sản phẩm${totalElements > 0 ? ` (${totalElements} bình luận)` : ''}`}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
@@ -343,14 +383,14 @@ const AdminComments = () => {
             <AlertCircle className="h-5 w-5 text-red-600" />
             <p className="text-red-800">{error}</p>
           </div>
-        ) : !filterProductId ? (
+        ) : !filterProductId && currentComments.length === 0 && totalElements === 0 ? (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
             <Package className="h-12 w-12 text-blue-600 mx-auto mb-3" />
             <p className="text-lg font-medium text-gray-900 mb-2">
-              Vui lòng nhập mã sản phẩm
+              Chưa có bình luận nào
             </p>
             <p className="text-gray-600">
-              Nhập ID sản phẩm ở trên để xem các bình luận của sản phẩm đó
+              Khi có bình luận mới, chúng sẽ hiển thị ở đây. Bạn cũng có thể lọc theo mã sản phẩm.
             </p>
           </div>
         ) : currentComments.length === 0 ? (

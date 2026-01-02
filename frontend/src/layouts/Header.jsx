@@ -106,6 +106,19 @@ const Header = () => {
                     >
                       📦 Tất cả sản phẩm
                     </Link>
+                    
+                    {/* Link "Combo sản phẩm" */}
+                    <Link
+                      to="/combos"
+                      className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 font-medium border-b border-gray-200"
+                      onClick={() => {
+                        setShowCategoryMenu(false)
+                        if (menuTimeout) clearTimeout(menuTimeout)
+                      }}
+                    >
+                      🎁 Combo sản phẩm
+                    </Link>
+                    
                     <CategoryMenu
                       onCategorySelect={() => {
                         setShowCategoryMenu(false)

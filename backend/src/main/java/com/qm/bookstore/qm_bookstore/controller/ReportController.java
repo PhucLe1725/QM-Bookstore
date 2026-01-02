@@ -169,9 +169,8 @@ public class ReportController {
                 .totalOrders(orders.getTotalOrders())
                 .paidOrders(orders.getPaidOrders())
                 .cancelledOrders(orders.getCancelledOrders())
-                .totalUsers(users.getTotalUsers())
-                .newUsers(users.getNewUsersInPeriod())
-                .activeUsers(users.getActiveUsers())
+                .totalCustomers(users.getTotalUsers())
+                .newCustomers(users.getNewUsersInPeriod())
                 .topSellingProducts(topProducts)
                 .build();
 
@@ -179,6 +178,61 @@ public class ReportController {
                 .code(1000)
                 .message("Dashboard summary generated successfully")
                 .result(summary)
+                .build();
+    }
+
+    /**
+     * Get revenue chart data for admin dashboard
+     * GET /api/reports/revenue-chart
+     * 
+     * @param period "week" | "month" | "year"
+     * @param year Optional: Năm cụ thể (VD: 2025, 2024), mặc định = năm hiện tại
+     * @param month Optional: Tháng cụ thể 1-12 (chỉ dùng khi period=month), mặc định = tháng hiện tại
+     * @return Chart data optimized for column chart visualization
+     */
+    @GetMapping("/revenue-chart")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ApiResponse<RevenueChartResponse> getRevenueChart(
+            @RequestParam(defaultValue = "week") String period,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+        
+        log.info("[getRevenueChart] Generating revenue chart for period: {}, year: {}, month: {}", period, year, month);
+        
+        // Validate period
+        if (!period.matches("week|month|year")) {
+            return ApiResponse.<RevenueChartResponse>builder()
+                    .success(false)
+                    .code(400)
+                    .message("Invalid period. Valid values: week, month, year")
+                    .build();
+        }
+        
+        // Validate month if provided
+        if (month != null && (month < 1 || month > 12)) {
+            return ApiResponse.<RevenueChartResponse>builder()
+                    .success(false)
+                    .code(400)
+                    .message("Invalid month. Valid values: 1-12")
+                    .build();
+        }
+        
+        // Validate year if provided (reasonable range)
+        if (year != null && (year < 2000 || year > 2100)) {
+            return ApiResponse.<RevenueChartResponse>builder()
+                    .success(false)
+                    .code(400)
+                    .message("Invalid year. Valid range: 2000-2100")
+                    .build();
+        }
+        
+        RevenueChartResponse chartData = reportService.getRevenueChart(period, year, month);
+        
+        return ApiResponse.<RevenueChartResponse>builder()
+                .success(true)
+                .code(1000)
+                .message("Revenue chart data generated successfully")
+                .result(chartData)
                 .build();
     }
 }

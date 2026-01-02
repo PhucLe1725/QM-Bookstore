@@ -115,6 +115,28 @@ export const reviewService = {
       console.error('Error checking user purchase:', error)
       return false
     }
+  },
+
+  // Get all reviews with pagination (Admin only)
+  getAllReviews: async ({ page = 0, size = 10, rating = null, sortDirection = 'DESC' } = {}) => {
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        size: size.toString(),
+        sortDirection
+      })
+      
+      if (rating) {
+        params.append('rating', rating.toString())
+      }
+
+      const response = await api.get(`/product-reviews?${params.toString()}`)
+      // Response structure: { success: true, result: Page<ReviewDTO> }
+      return response.result
+    } catch (error) {
+      console.error('Error fetching all reviews:', error)
+      throw error
+    }
   }
 }
 

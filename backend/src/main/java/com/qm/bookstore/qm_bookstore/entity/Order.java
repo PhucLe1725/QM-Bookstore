@@ -40,14 +40,21 @@ public class Order {
 
     // ========== AMOUNTS ==========
     @Column(name = "subtotal_amount", nullable = false, precision = 12, scale = 2)
-    BigDecimal subtotalAmount; // Tổng tiền sản phẩm (trước giảm giá)
+    BigDecimal subtotalAmount; // Tổng giá trị hàng hóa trước giảm giá, trước thuế, trước phí
 
     @Column(name = "discount_amount", nullable = false, precision = 12, scale = 2)
     @Builder.Default
-    BigDecimal discountAmount = BigDecimal.ZERO; // Giảm từ voucher
+    BigDecimal discountAmount = BigDecimal.ZERO; // Tổng chiết khấu/voucher áp dụng cho đơn
 
     @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
-    BigDecimal totalAmount; // Tiền khách phải trả = subtotal - discount + shipping
+    BigDecimal totalAmount; // TẠM TÍNH sau giảm giá, CHƯA VAT, CHƯA ship (dùng cho thống kê doanh thu)
+    
+    @Column(name = "vat_amount", nullable = false, precision = 12, scale = 2)
+    @Builder.Default
+    BigDecimal vatAmount = BigDecimal.ZERO; // Thuế VAT = 10% của total_amount
+    
+    @Column(name = "total_pay", nullable = false, precision = 12, scale = 2)
+    BigDecimal totalPay; // SỐ TIỀN KHÁCH THỰC TRẢ CUỐI CÙNG = total_amount + vat_amount + shipping_fee
 
     // ========== THREE STATUS AXES ==========
     @Column(name = "payment_status", length = 50)

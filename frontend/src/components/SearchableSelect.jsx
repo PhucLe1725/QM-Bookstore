@@ -8,6 +8,7 @@ import { ChevronDown, Search, X } from 'lucide-react'
  * @param {Array} options - Array of {id, name, displayName, level} objects
  * @param {string|number} value - Selected value (id)
  * @param {function} onChange - Callback when value changes
+ * @param {function} onSearchChange - Callback when search term changes (for external filtering)
  * @param {string} placeholder - Placeholder text
  * @param {boolean} disabled - Disabled state
  * @param {string} className - Additional CSS classes
@@ -15,7 +16,8 @@ import { ChevronDown, Search, X } from 'lucide-react'
 const SearchableSelect = ({ 
   options = [], 
   value, 
-  onChange, 
+  onChange,
+  onSearchChange,
   placeholder = 'Chọn...', 
   disabled = false,
   className = ''
@@ -104,7 +106,12 @@ const SearchableSelect = ({
                 ref={searchInputRef}
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  if (onSearchChange) {
+                    onSearchChange(e.target.value)
+                  }
+                }}
                 placeholder="Tìm kiếm..."
                 className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 onClick={(e) => e.stopPropagation()}

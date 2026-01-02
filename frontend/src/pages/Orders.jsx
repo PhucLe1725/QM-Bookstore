@@ -289,8 +289,8 @@ const Orders = () => {
                         <p className="text-sm text-gray-600">Tổng số sản phẩm: {order.itemCount}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-gray-600">Tổng tiền</p>
-                        <p className="text-2xl font-bold text-blue-600">{formatPrice(order.totalAmount)}</p>
+                        <p className="text-sm text-gray-600">Tổng thanh toán</p>
+                        <p className="text-2xl font-bold text-blue-600">{formatPrice(order.totalPay || order.totalAmount)}</p>
                       </div>
                     </div>
                   </div>

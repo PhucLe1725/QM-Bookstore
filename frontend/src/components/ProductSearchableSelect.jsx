@@ -7,7 +7,8 @@ import { productService } from '../services'
  * Includes product image, name, price, and stock quantity
  * 
  * @param {string|number} value - Selected product ID
- * @param {function} onChange - Callback when selection changes
+ * @param {function} onChange - Callback when selection changes (receives product ID)
+ * @param {function} onSelect - Callback when selection changes (receives full product object)
  * @param {string} placeholder - Placeholder text
  * @param {boolean} disabled - Disabled state
  * @param {string} className - Additional CSS classes
@@ -16,7 +17,8 @@ import { productService } from '../services'
  */
 const ProductSearchableSelect = ({ 
   value, 
-  onChange, 
+  onChange,
+  onSelect,
   placeholder = 'Tìm và chọn sản phẩm...', 
   disabled = false,
   className = '',
@@ -25,20 +27,27 @@ const ProductSearchableSelect = ({
 }) => {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
 
+  // Debounce search API calls
   useEffect(() => {
-    loadProducts()
-  }, [])
+    const timer = setTimeout(() => {
+      loadProducts(searchTerm)
+    }, 300) // 300ms debounce
 
-  const loadProducts = async () => {
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  const loadProducts = async (search = '') => {
     try {
       setLoading(true)
-      // Load only top 10 products for cleaner UI
+      // Load products with search term - using correct backend params
       const response = await productService.getAllProducts({ 
-        page: 0, 
-        size: 10,
+        skipCount: 0, 
+        maxResultCount: 50,
         sortBy: 'name',
-        sortDirection: 'asc'
+        sortDirection: 'asc',
+        name: search || undefined
       })
       
       // api.js interceptor returns response.data directly
@@ -102,12 +111,27 @@ const ProductSearchableSelect = ({
   // Find selected product for preview
   const selectedProduct = products.find(p => p.id === parseInt(value))
 
+  // Handle selection
+  const handleChange = (productId) => {
+    if (onChange) {
+      onChange(productId)
+    }
+    
+    if (onSelect) {
+      const product = products.find(p => p.id === parseInt(productId))
+      if (product) {
+        onSelect(product)
+      }
+    }
+  }
+
   return (
     <div className={className}>
       <SearchableSelect
         options={options}
         value={value}
-        onChange={onChange}
+        onChange={handleChange}
+        onSearchChange={setSearchTerm}
         placeholder={loading ? 'Đang tải sản phẩm...' : placeholder}
         disabled={disabled || loading}
       />

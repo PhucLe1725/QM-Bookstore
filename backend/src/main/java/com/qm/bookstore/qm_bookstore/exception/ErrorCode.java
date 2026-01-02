@@ -105,6 +105,22 @@ public enum ErrorCode {
     ORDER_ITEMS_EMPTY(9008, "Order has no items to process"),
     INVENTORY_UPDATE_FAILED(9009, "Failed to update inventory for product: {0}"),
 
+    // Invoice errors (9100-9199)
+    INVOICE_NOT_FOUND(9101, "Invoice not found"),
+    INVOICE_ORDER_NOT_PAID(9102, "Order must be paid before generating invoice"),
+    INVOICE_ORDER_CANCELLED(9103, "Cannot generate invoice for cancelled order"),
+    INVOICE_ALREADY_EXISTS(9104, "Invoice already exists for this order"),
+    INVOICE_AMOUNT_VALIDATION_FAILED(9105, "Invoice amount validation failed"),
+    INVOICE_ACCESS_DENIED(9106, "You don't have permission to access this invoice"),
+    INVOICE_PDF_GENERATION_FAILED(9107, "Failed to generate invoice PDF"),
+
+    // Product Combo errors (9200-9299)
+    PRODUCT_COMBO_NOT_FOUND(9201, "Product combo not found"),
+    PRODUCT_COMBO_NAME_EXISTED(9202, "Combo name already exists"),
+    PRODUCT_COMBO_EMPTY_ITEMS(9203, "Combo must have at least one product"),
+    PRODUCT_COMBO_INVALID_PRICE(9204, "Combo price must be less than total product prices"),
+    PRODUCT_COMBO_UNAVAILABLE(9205, "Product combo is not available"),
+
     // Generic errors
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error"),
     INVALID_KEY(1005, "Invalid message key"),

@@ -22,6 +22,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -34,6 +35,7 @@ public class ProductService {
     ProductRepository productRepository;
     CategoryRepository categoryRepository;
     ProductMapper productMapper;
+    PriceHistoryService priceHistoryService;
 
     public ProductResponse getProductById(Long productId) {
         Product product = productRepository.findById(productId)
@@ -125,6 +127,9 @@ public class ProductService {
         Product product = productRepository.findById(request.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
         
+        // Store old price for price history tracking
+        BigDecimal oldPrice = product.getPrice();
+        
         // Check if SKU already exists (and it's not the current product's SKU)
         if (request.getSku() != null && !request.getSku().equals(product.getSku()) 
             && productRepository.existsBySku(request.getSku())) {
@@ -175,6 +180,30 @@ public class ProductService {
         
         product.setUpdatedAt(LocalDateTime.now());
         product = productRepository.save(product);
+        
+        // ⭐ AUTO-RECORD PRICE HISTORY if price changed
+        if (request.getPrice() != null && oldPrice != null && 
+            request.getPrice().compareTo(oldPrice) != 0) {
+            try {
+                String reason = request.getPriceChangeReason() != null ? 
+                        request.getPriceChangeReason() : "Cập nhật giá sản phẩm";
+                
+                priceHistoryService.recordPriceChange(
+                    product.getId(),
+                    oldPrice,
+                    request.getPrice(),
+                    "SYSTEM", // Will be replaced with actual userId when available
+                    reason
+                );
+                
+                log.info("[updateProduct] Recorded price change for product {}: {} -> {}", 
+                        product.getId(), oldPrice, request.getPrice());
+            } catch (Exception e) {
+                // Don't fail the update if price history recording fails
+                log.error("[updateProduct] Failed to record price history for product {}", 
+                        product.getId(), e);
+            }
+        }
         
         return productMapper.toProductResponse(product);
     }

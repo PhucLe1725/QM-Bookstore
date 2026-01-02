@@ -16,10 +16,13 @@ import {
   AlertCircle,
   RotateCcw,
   MapPin,
-  PackageCheck
+  PackageCheck,
+  FileText,
+  Download
 } from 'lucide-react'
 import orderService from '../../services/orderService'
 import inventoryService from '../../services/inventoryService'
+import invoiceService from '../../services/invoiceService'
 import { useToast } from '../../contexts/ToastContext'
 import AdminPageHeader from '../../components/AdminPageHeader'
 
@@ -33,6 +36,10 @@ const AdminOrders = () => {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showUpdateModal, setShowUpdateModal] = useState(false)
   const [inventoryStatus, setInventoryStatus] = useState({})
+  const [invoiceStatus, setInvoiceStatus] = useState({})
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [invoiceData, setInvoiceData] = useState(null)
+  const [generatingInvoice, setGeneratingInvoice] = useState(false)
 
   // Filters
   const [filters, setFilters] = useState({
@@ -95,18 +102,32 @@ const AdminOrders = () => {
   const checkInventoryStatus = async (ordersList) => {
     const statusMap = {}
     for (const order of ordersList) {
-      try {
-        const isExported = await inventoryService.checkOrderExported(order.orderId)
-        statusMap[order.orderId] = isExported
-      } catch (error) {
-        console.error(`Error checking inventory for order ${order.orderId}:`, error)
-        statusMap[order.orderId] = false
-      }
+      // Set to 'loading' initially
+      statusMap[order.orderId] = 'loading'
     }
     setInventoryStatus(statusMap)
+    
+    // Then check each order
+    for (const order of ordersList) {
+      try {
+        const isExported = await inventoryService.checkOrderExported(order.orderId)
+        setInventoryStatus(prev => ({ ...prev, [order.orderId]: isExported }))
+      } catch (error) {
+        console.error(`Error checking inventory for order ${order.orderId}:`, error)
+        setInventoryStatus(prev => ({ ...prev, [order.orderId]: false }))
+      }
+    }
   }
 
+  // Invoice status is no longer pre-checked, will be generated fresh each time
+
   const handleExportStock = async (order) => {
+    // Check if status is still loading
+    if (inventoryStatus[order.orderId] === 'loading') {
+      showToast('Đang kiểm tra trạng thái xuất kho, vui lòng đợi...', 'warning')
+      return
+    }
+    
     if (order.paymentStatus !== 'paid') {
       showToast('Chỉ xuất kho cho đơn hàng đã thanh toán', 'warning')
       return
@@ -149,6 +170,62 @@ const AdminOrders = () => {
       } else {
         showToast(errorData?.message || 'Có lỗi xảy ra khi xuất kho', 'error')
       }
+    }
+  }
+
+  const handleGenerateInvoice = async (order) => {
+    // Check if order is eligible for invoice
+    if (order.paymentStatus !== 'paid') {
+      showToast('Chỉ xuất hóa đơn cho đơn hàng đã thanh toán', 'warning')
+      return
+    }
+
+    if (order.orderStatus === 'cancelled') {
+      showToast('Không thể xuất hóa đơn cho đơn hàng đã hủy', 'warning')
+      return
+    }
+
+    setGeneratingInvoice(true)
+
+    try {
+      const requestBody = {
+        orderId: order.orderId
+      }
+
+      const response = await invoiceService.generateInvoice(requestBody)
+
+      if (response.success) {
+        showToast('Xuất hóa đơn thành công!', 'success')
+        setInvoiceData(response.result)
+        setShowInvoiceModal(true)
+        setInvoiceStatus(prev => ({ ...prev, [order.orderId]: true }))
+      }
+    } catch (error) {
+      const errorData = error.response?.data
+      
+      if (errorData?.code === 'INVOICE_ORDER_NOT_PAID') {
+        showToast('Đơn hàng chưa thanh toán', 'error')
+      } else if (errorData?.code === 'INVOICE_ORDER_CANCELLED') {
+        showToast('Không thể xuất hóa đơn cho đơn đã hủy', 'error')
+      } else if (errorData?.code === 'INVOICE_ALREADY_EXISTS') {
+        showToast('Hóa đơn đã tồn tại', 'warning')
+        setInvoiceStatus(prev => ({ ...prev, [order.orderId]: true }))
+      } else {
+        showToast(errorData?.message || 'Có lỗi xảy ra khi xuất hóa đơn', 'error')
+      }
+    } finally {
+      setGeneratingInvoice(false)
+    }
+  }
+
+  const handleDownloadInvoicePdf = async () => {
+    if (!invoiceData) return
+
+    try {
+      await invoiceService.downloadInvoicePdf(invoiceData.invoiceId)
+      showToast('Tải file PDF thành công', 'success')
+    } catch (error) {
+      showToast('Tính năng PDF đang được phát triển', 'info')
     }
   }
 
@@ -261,10 +338,9 @@ const AdminOrders = () => {
     
     const badges = {
       shipping: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Đang giao', icon: Truck },
-      delivered: { bg: 'bg-green-100', text: 'text-green-800', label: 'Đã giao', icon: CheckCircle },
+      delivered: { bg: 'bg-cyan-100', text: 'text-cyan-800', label: 'Đã giao', icon: CheckCircle },
       pending_pickup: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Chờ lấy tại quầy', icon: Clock },
       picked_up: { bg: 'bg-cyan-100', text: 'text-cyan-800', label: 'Đã nhận hàng', icon: MapPin },
-      pickup: { bg: 'bg-cyan-100', text: 'text-cyan-800', label: 'Đã nhận hàng', icon: MapPin },
       returned: { bg: 'bg-red-100', text: 'text-red-800', label: 'Đã trả', icon: RotateCcw }
     }
     const badge = badges[status] || { bg: 'bg-gray-100', text: 'text-gray-800', label: status, icon: AlertCircle }
@@ -475,7 +551,7 @@ const AdminOrders = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-semibold text-gray-900">
-                        {formatCurrency(order.totalAmount)}
+                        {formatCurrency(order.totalPay || order.totalAmount)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -488,7 +564,12 @@ const AdminOrders = () => {
                       {getOrderStatusBadge(order.orderStatus)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {isExported ? (
+                      {isExported === 'loading' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                          Đang kiểm tra...
+                        </span>
+                      ) : isExported === true ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           <CheckCircle className="w-3 h-3" />
                           Đã xuất kho
@@ -677,12 +758,16 @@ const AdminOrders = () => {
                     </div>
                   )}
                   <div className="flex justify-between">
+                    <span className="text-gray-600">Thuế VAT (10%):</span>
+                    <span className="font-medium">{formatCurrency(selectedOrder.vatAmount || (selectedOrder.totalAmount * 0.1))}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-gray-600">Phí vận chuyển:</span>
                     <span className="font-medium">{formatCurrency(selectedOrder.shippingFee)}</span>
                   </div>
                   <div className="flex justify-between pt-2 border-t border-gray-300">
-                    <span className="font-semibold text-gray-900">Tổng cộng:</span>
-                    <span className="font-bold text-lg text-blue-600">{formatCurrency(selectedOrder.totalAmount)}</span>
+                    <span className="font-semibold text-gray-900">Tổng thanh toán:</span>
+                    <span className="font-bold text-lg text-blue-600">{formatCurrency(selectedOrder.totalPay || (selectedOrder.totalAmount + (selectedOrder.vatAmount || 0) + (selectedOrder.shippingFee || 0)))}</span>
                   </div>
                 </div>
               </div>
@@ -707,7 +792,28 @@ const AdminOrders = () => {
               </div>
             </div>
 
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4">
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 space-y-3">
+              {/* Invoice Button */}
+              {selectedOrder.paymentStatus === 'paid' && selectedOrder.orderStatus !== 'cancelled' && (
+                <button
+                  onClick={() => handleGenerateInvoice(selectedOrder)}
+                  disabled={invoiceStatus[selectedOrder.orderId] === 'loading'}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <FileText className="w-5 h-5" />
+                  {invoiceStatus[selectedOrder.orderId] === 'loading' ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Đang kiểm tra...
+                    </>
+                  ) : invoiceStatus[selectedOrder.orderId] === true ? (
+                    'Xem hóa đơn'
+                  ) : (
+                    'Xuất hóa đơn điện tử'
+                  )}
+                </button>
+              )}
+              
               <button
                 onClick={() => setShowDetailModal(false)}
                 className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
@@ -821,6 +927,151 @@ const AdminOrders = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice Modal */}
+      {showInvoiceModal && invoiceData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-800">Hóa đơn điện tử</h2>
+              <button
+                onClick={() => setShowInvoiceModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Invoice Header */}
+              <div className="text-center border-b pb-4">
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">HÓA ĐƠN ĐIỆN TỬ</h3>
+                <p className="text-lg font-semibold text-blue-600">{invoiceData.invoiceNumber}</p>
+                <p className="text-sm text-gray-600">Ngày xuất: {formatDate(invoiceData.issuedAt)}</p>
+              </div>
+
+              {/* Seller & Buyer Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-gray-800 mb-3">Người bán</h4>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Tên:</span> {invoiceData.seller.name}</p>
+                    <p><span className="font-medium">MST:</span> {invoiceData.seller.taxCode}</p>
+                    <p><span className="font-medium">Địa chỉ:</span> {invoiceData.seller.address}</p>
+                    <p><span className="font-medium">SĐT:</span> {invoiceData.seller.phone}</p>
+                    <p><span className="font-medium">Email:</span> {invoiceData.seller.email}</p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-gray-800 mb-3">Người mua</h4>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Tên:</span> {invoiceData.buyer.name}</p>
+                    {invoiceData.buyer.taxCode && (
+                      <p><span className="font-medium">MST:</span> {invoiceData.buyer.taxCode}</p>
+                    )}
+                    <p><span className="font-medium">Địa chỉ:</span> {invoiceData.buyer.address}</p>
+                    <p><span className="font-medium">SĐT:</span> {invoiceData.buyer.phone}</p>
+                    <p><span className="font-medium">Email:</span> {invoiceData.buyer.email}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-3">Chi tiết sản phẩm</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full border border-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 border text-left text-sm font-medium text-gray-700">STT</th>
+                        <th className="px-4 py-2 border text-left text-sm font-medium text-gray-700">Tên sản phẩm</th>
+                        <th className="px-4 py-2 border text-center text-sm font-medium text-gray-700">Số lượng</th>
+                        <th className="px-4 py-2 border text-right text-sm font-medium text-gray-700">Đơn giá</th>
+                        <th className="px-4 py-2 border text-right text-sm font-medium text-gray-700">Thành tiền</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoiceData.items.map((item, index) => (
+                        <tr key={index}>
+                          <td className="px-4 py-2 border text-sm">{index + 1}</td>
+                          <td className="px-4 py-2 border text-sm">{item.productName}</td>
+                          <td className="px-4 py-2 border text-sm text-center">{item.quantity}</td>
+                          <td className="px-4 py-2 border text-sm text-right">{formatCurrency(item.unitPrice)}</td>
+                          <td className="px-4 py-2 border text-sm text-right">{formatCurrency(item.lineTotal)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Amount Summary */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Tổng tiền hàng:</span>
+                    <span className="font-medium">{formatCurrency(invoiceData.subtotalAmount)}</span>
+                  </div>
+                  {invoiceData.discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Giảm giá:</span>
+                      <span className="font-medium">-{formatCurrency(invoiceData.discountAmount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Tạm tính (chưa VAT):</span>
+                    <span className="font-medium">{formatCurrency(invoiceData.totalAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Thuế VAT ({invoiceData.vatRate}%):</span>
+                    <span className="font-medium">{formatCurrency(invoiceData.vatAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Phí vận chuyển:</span>
+                    <span className="font-medium">{formatCurrency(invoiceData.shippingFee)}</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold text-blue-600 pt-2 border-t">
+                    <span>TỔNG THANH TOÁN:</span>
+                    <span>{formatCurrency(invoiceData.totalPay)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Info */}
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-700">Phương thức thanh toán:</span>
+                  <span className="font-medium text-gray-800">{invoiceData.paymentMethod === 'prepaid' ? 'Thanh toán online' : 'Thanh toán khi nhận hàng'}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-2">
+                  <span className="text-gray-700">Trạng thái thanh toán:</span>
+                  <span className="font-medium text-green-600">✓ Đã thanh toán</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDownloadInvoicePdf}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Download className="w-5 h-5" />
+                  Tải PDF
+                </button>
+                <button
+                  onClick={() => setShowInvoiceModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -17,8 +17,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -47,6 +50,7 @@ public class ReportService {
                 .collect(Collectors.toList());
 
         // Calculate totals
+        // totalRevenue uses getTotalAmount() = revenue WITHOUT VAT (correct for revenue statistics)
         BigDecimal totalRevenue = paidOrders.stream()
                 .map(Order::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -268,23 +272,27 @@ public class ReportService {
     public UserStatisticsResponse getUserStatistics(LocalDateTime startDate, LocalDateTime endDate) {
         log.info("[getUserStatistics] Generating user statistics from {} to {}", startDate, endDate);
 
-        List<User> allUsers = userRepository.findAll();
-        int totalUsers = allUsers.size();
+        // Filter only customers (role = "customer")
+        List<User> allCustomers = userRepository.findAll().stream()
+                .filter(u -> u.getRole() != null && "customer".equalsIgnoreCase(u.getRole().getName()))
+                .collect(Collectors.toList());
+        
+        int totalUsers = allCustomers.size();
 
-        // Users created in period
-        List<User> newUsers = allUsers.stream()
+        // Customers created in period
+        List<User> newUsers = allCustomers.stream()
                 .filter(u -> u.getCreatedAt() != null 
                         && u.getCreatedAt().isAfter(startDate) 
                         && u.getCreatedAt().isBefore(endDate))
                 .collect(Collectors.toList());
 
-        // Users with at least one order (active users)
+        // Customers with at least one order (active users)
         List<Order> orders = orderRepository.findByCreatedAtBetween(startDate, endDate);
         Set<UUID> activeUserIds = orders.stream()
                 .map(Order::getUserId)
                 .collect(Collectors.toSet());
 
-        // Users by date
+        // Customers by date
         Map<LocalDate, Long> usersByDate = newUsers.stream()
                 .collect(Collectors.groupingBy(
                         u -> u.getCreatedAt().toLocalDate(),
@@ -306,7 +314,8 @@ public class ReportService {
             item.setCumulativeUsers(cumulative);
         }
 
-        // Users by role
+        // Users by role (keep original logic for role breakdown)
+        List<User> allUsers = userRepository.findAll();
         Map<String, Long> usersByRole = allUsers.stream()
                 .filter(u -> u.getRole() != null)
                 .collect(Collectors.groupingBy(
@@ -316,7 +325,7 @@ public class ReportService {
 
         List<UserStatisticsResponse.UsersByRole> usersByRoleList = usersByRole.entrySet().stream()
                 .map(entry -> {
-                    double percentage = (entry.getValue() * 100.0) / totalUsers;
+                    double percentage = (entry.getValue() * 100.0) / allUsers.size();
                     return UserStatisticsResponse.UsersByRole.builder()
                             .roleName(entry.getKey())
                             .userCount(entry.getValue().intValue())
@@ -389,5 +398,153 @@ public class ReportService {
                 .count(count)
                 .percentage(Math.round(percentage * 100.0) / 100.0)
                 .build();
+    }
+
+    /**
+     * Lấy dữ liệu biểu đồ cột doanh thu theo tuần/tháng/năm
+     * @param period "week" | "month" | "year"
+     * @param year Năm cụ thể (null = năm hiện tại)
+     * @param month Tháng cụ thể 1-12 (null = tháng hiện tại, chỉ dùng khi period=month)
+     * @return Dữ liệu chart đã được format sẵn cho frontend
+     */
+    public RevenueChartResponse getRevenueChart(String period, Integer year, Integer month) {
+        log.info("[getRevenueChart] Generating revenue chart for period: {}, year: {}, month: {}", period, year, month);
+        
+        LocalDateTime now = LocalDateTime.now();
+        
+        // Xác định năm: dùng parameter hoặc năm hiện tại
+        int targetYear = (year != null) ? year : now.getYear();
+        
+        // Xác định tháng: dùng parameter hoặc tháng hiện tại
+        int targetMonth = (month != null) ? month : now.getMonthValue();
+        
+        LocalDateTime startDate;
+        LocalDateTime endDate;
+        String periodLabel;
+        List<RevenueChartResponse.ChartDataPoint> chartData;
+        
+        switch (period.toLowerCase()) {
+            case "week":
+                // 7 ngày gần nhất (bỏ qua year/month parameters)
+                startDate = now.minusDays(6).toLocalDate().atStartOfDay();
+                endDate = now;
+                periodLabel = "7 ngày gần nhất";
+                chartData = getWeeklyRevenueData(startDate, endDate);
+                break;
+                
+            case "month":
+                // Tháng được chọn
+                YearMonth selectedMonth = YearMonth.of(targetYear, targetMonth);
+                startDate = selectedMonth.atDay(1).atStartOfDay();
+                endDate = selectedMonth.atEndOfMonth().atTime(23, 59, 59);
+                periodLabel = "Tháng " + targetMonth + "/" + targetYear;
+                chartData = getMonthlyRevenueData(startDate, endDate, selectedMonth);
+                break;
+                
+            case "year":
+                // Năm được chọn
+                startDate = LocalDate.of(targetYear, 1, 1).atStartOfDay();
+                endDate = LocalDate.of(targetYear, 12, 31).atTime(23, 59, 59);
+                periodLabel = "Năm " + targetYear;
+                chartData = getYearlyRevenueData(startDate, endDate);
+                break;
+                
+            default:
+                throw new IllegalArgumentException("Invalid period: " + period + ". Valid values: week, month, year");
+        }
+        
+        return RevenueChartResponse.builder()
+                .periodType(period.toLowerCase())
+                .periodLabel(periodLabel)
+                .data(chartData)
+                .build();
+    }
+    
+    /**
+     * Dữ liệu doanh thu theo tuần (7 ngày gần nhất)
+     */
+    private List<RevenueChartResponse.ChartDataPoint> getWeeklyRevenueData(LocalDateTime startDate, LocalDateTime endDate) {
+        // Lấy đơn hàng đã thanh toán trong khoảng thời gian
+        List<Order> paidOrders = orderRepository.findByCreatedAtBetween(startDate, endDate).stream()
+                .filter(o -> "paid".equals(o.getPaymentStatus()))
+                .collect(Collectors.toList());
+        
+        // Group by ngày
+        Map<LocalDate, BigDecimal> revenueByDate = paidOrders.stream()
+                .collect(Collectors.groupingBy(
+                        o -> o.getCreatedAt().toLocalDate(),
+                        Collectors.reducing(BigDecimal.ZERO, Order::getTotalAmount, BigDecimal::add)
+                ));
+        
+        // Tạo danh sách 7 ngày với revenue = 0 nếu không có đơn
+        List<RevenueChartResponse.ChartDataPoint> result = new ArrayList<>();
+        LocalDate currentDate = startDate.toLocalDate();
+        
+        for (int i = 0; i < 7; i++) {
+            BigDecimal revenue = revenueByDate.getOrDefault(currentDate, BigDecimal.ZERO);
+            result.add(RevenueChartResponse.ChartDataPoint.builder()
+                    .period(currentDate.getDayOfMonth())
+                    .label(String.format("%02d", currentDate.getDayOfMonth()))
+                    .revenue(revenue)
+                    .build());
+            currentDate = currentDate.plusDays(1);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Dữ liệu doanh thu theo tháng (nhóm theo ngày)
+     */
+    private List<RevenueChartResponse.ChartDataPoint> getMonthlyRevenueData(LocalDateTime startDate, LocalDateTime endDate, YearMonth yearMonth) {
+        List<Order> paidOrders = orderRepository.findByCreatedAtBetween(startDate, endDate).stream()
+                .filter(o -> "paid".equals(o.getPaymentStatus()))
+                .collect(Collectors.toList());
+        
+        Map<Integer, BigDecimal> revenueByDay = paidOrders.stream()
+                .collect(Collectors.groupingBy(
+                        o -> o.getCreatedAt().getDayOfMonth(),
+                        Collectors.reducing(BigDecimal.ZERO, Order::getTotalAmount, BigDecimal::add)
+                ));
+        
+        // Tạo danh sách tất cả các ngày trong tháng được chọn
+        int daysInMonth = yearMonth.lengthOfMonth();
+        return IntStream.rangeClosed(1, daysInMonth)
+                .mapToObj(day -> {
+                    BigDecimal revenue = revenueByDay.getOrDefault(day, BigDecimal.ZERO);
+                    return RevenueChartResponse.ChartDataPoint.builder()
+                            .period(day)
+                            .label(String.format("%02d", day))
+                            .revenue(revenue)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Dữ liệu doanh thu theo năm (nhóm theo tháng)
+     */
+    private List<RevenueChartResponse.ChartDataPoint> getYearlyRevenueData(LocalDateTime startDate, LocalDateTime endDate) {
+        List<Order> paidOrders = orderRepository.findByCreatedAtBetween(startDate, endDate).stream()
+                .filter(o -> "paid".equals(o.getPaymentStatus()))
+                .collect(Collectors.toList());
+        
+        Map<Integer, BigDecimal> revenueByMonth = paidOrders.stream()
+                .collect(Collectors.groupingBy(
+                        o -> o.getCreatedAt().getMonthValue(),
+                        Collectors.reducing(BigDecimal.ZERO, Order::getTotalAmount, BigDecimal::add)
+                ));
+        
+        // Tạo danh sách 12 tháng
+        return IntStream.rangeClosed(1, 12)
+                .mapToObj(month -> {
+                    BigDecimal revenue = revenueByMonth.getOrDefault(month, BigDecimal.ZERO);
+                    return RevenueChartResponse.ChartDataPoint.builder()
+                            .period(month)
+                            .label("Th" + month)
+                            .revenue(revenue)
+                            .build();
+                })
+                .collect(Collectors.toList());
     }
 }

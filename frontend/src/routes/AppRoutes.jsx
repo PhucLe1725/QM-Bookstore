@@ -1,8 +1,8 @@
 import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { MainLayout } from '../layouts'
-import { Home, Login, Register, Profile, NotificationsPage, Products, ProductPage, ProductDetail, Cart, Checkout, Orders, OrderDetail, Vouchers } from '../pages'
-import { AdminDashboard, AdminProducts, AdminCategories, AdminReviews, AdminComments, AdminVouchers, AdminUsers, AdminRoles, AdminInventory } from '../pages/admin'
+import { Home, Login, Register, Profile, NotificationsPage, Products, ProductPage, ProductDetail, Combos, Cart, Checkout, Orders, OrderDetail, Vouchers } from '../pages'
+import { AdminDashboard, AdminProducts, AdminCategories, AdminReviews, AdminComments, AdminVouchers, AdminUsers, AdminRoles, AdminInventory, AdminCombos } from '../pages/admin'
 import AdminMessages from '../pages/admin/AdminMessages'
 import AdminOrders from '../pages/admin/AdminOrders'
 import AdminTransactions from '../pages/admin/AdminTransactions'
@@ -58,6 +58,12 @@ const AppRoutes = () => {
       <Route path="/products/:id" element={
         <MainLayout>
           <ProductDetail />
+        </MainLayout>
+      } />
+      
+      <Route path="/combos" element={
+        <MainLayout>
+          <Combos />
         </MainLayout>
       } />
       
@@ -131,6 +137,12 @@ const AppRoutes = () => {
       <Route path="/admin/inventory" element={
         <AdminRoute>
           <AdminInventory />
+        </AdminRoute>
+      } />
+      
+      <Route path="/admin/combos" element={
+        <AdminRoute>
+          <AdminCombos />
         </AdminRoute>
       } />
       

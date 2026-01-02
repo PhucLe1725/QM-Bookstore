@@ -131,8 +131,18 @@ public class OrderService {
                     request.getVoucherCode(), discountAmount, validationResult.getApplyTo());
         }
 
-        // 6. Calculate total_amount = subtotal - discount + shipping
-        BigDecimal totalAmount = subtotalAmount.subtract(discountAmount).add(shippingFee);
+        // 6. Calculate amounts according to new logic:
+        // Step 1: total_amount = subtotal - discount (tạm tính, chưa VAT, chưa ship)
+        BigDecimal totalAmount = subtotalAmount.subtract(discountAmount);
+        
+        // Step 2: vat_amount = total_amount * 10%
+        BigDecimal vatAmount = totalAmount.multiply(new BigDecimal("0.10")).setScale(2, RoundingMode.HALF_UP);
+        
+        // Step 3: total_pay = total_amount + vat_amount + shipping_fee (số tiền khách thực trả)
+        BigDecimal totalPay = totalAmount.add(vatAmount).add(shippingFee);
+        
+        log.info("[checkout] Calculation: subtotal={}, discount={}, total_amount={}, vat={}, shipping={}, total_pay={}", 
+                subtotalAmount, discountAmount, totalAmount, vatAmount, shippingFee, totalPay);
 
         // 7. Create Order với 3 trục trạng thái
         Order order = Order.builder()
@@ -140,8 +150,10 @@ public class OrderService {
                 .voucherId(voucherId)
                 .subtotalAmount(subtotalAmount)
                 .discountAmount(discountAmount)
-                .totalAmount(totalAmount)
+                .totalAmount(totalAmount)      // Tạm tính (dùng cho doanh thu)
+                .vatAmount(vatAmount)          // Thuế VAT 10%
                 .shippingFee(shippingFee)
+                .totalPay(totalPay)            // Số tiền khách thực trả
                 .paymentStatus("pending")
                 .orderStatus("confirmed")
                 .paymentMethod(request.getPaymentMethod())
@@ -331,10 +343,11 @@ public class OrderService {
         // hoặc user chuyển khoản trước rồi mới tạo order
         LocalDateTime searchFromDate = order.getCreatedAt().minusMinutes(2);
         
+        // Use totalPay (số tiền khách thực trả) instead of totalAmount for payment validation
         var transactionOpt = transactionRepository
                 .findByTransferContentAndAmountAndDateAfter(
                         expectedTransferContent,
-                        order.getTotalAmount(),
+                        order.getTotalPay(),  // Changed from getTotalAmount() to getTotalPay()
                         searchFromDate
                 );
 

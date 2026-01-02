@@ -16,10 +16,12 @@ public class OrderResponse {
     
     Long orderId;
     
-    BigDecimal subtotalAmount;  // Tổng tiền sản phẩm
-    BigDecimal discountAmount;  // Giảm từ voucher
+    BigDecimal subtotalAmount;  // Tổng giá trị hàng hóa trước giảm giá, trước thuế, trước phí
+    BigDecimal discountAmount;  // Tổng chiết khấu/voucher áp dụng cho đơn
+    BigDecimal totalAmount;     // TẠM TÍNH sau giảm giá, CHƯA VAT, CHƯA ship (dùng cho thống kê doanh thu)
+    BigDecimal vatAmount;       // Thuế VAT = 10% của total_amount
     BigDecimal shippingFee;     // Phí vận chuyển
-    BigDecimal totalAmount;     // Tiền khách phải trả
+    BigDecimal totalPay;        // SỐ TIỀN KHÁCH THỰC TRẢ CUỐI CÙNG
     
     String paymentStatus;       // pending, paid, failed, refunded
     String fulfillmentStatus;   // shipping, delivered, pickup, returned

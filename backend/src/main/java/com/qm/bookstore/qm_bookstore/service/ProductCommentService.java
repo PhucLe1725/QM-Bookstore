@@ -17,6 +17,8 @@ import com.qm.bookstore.qm_bookstore.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -205,5 +207,32 @@ public class ProductCommentService {
         ProductComment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
         commentRepository.delete(comment);
+    }
+    
+    /**
+     * Admin: Get all comments with pagination and optional rootOnly filter
+     */
+    public Page<ProductCommentResponse> getAllComments(Pageable pageable, Boolean rootOnly) {
+        log.info("Getting all comments with pagination. Page: {}, Size: {}, Root only: {}", 
+                pageable.getPageNumber(), pageable.getPageSize(), rootOnly);
+        
+        Page<ProductComment> commentPage;
+        if (rootOnly != null && rootOnly) {
+            commentPage = commentRepository.findAllRootComments(pageable);
+        } else {
+            commentPage = commentRepository.findAllComments(pageable);
+        }
+        
+        // Map to response and add reply count for root comments
+        return commentPage.map(comment -> {
+            ProductCommentResponse response = commentMapper.toProductCommentResponse(comment);
+            // Add reply count if it's a root comment
+            if (comment.getParentComment() == null) {
+                Long replyCount = commentRepository.countByParentCommentId(comment.getId());
+                // Note: ProductCommentResponse doesn't have replyCount field yet
+                // We'll document this difference for frontend
+            }
+            return response;
+        });
     }
 }

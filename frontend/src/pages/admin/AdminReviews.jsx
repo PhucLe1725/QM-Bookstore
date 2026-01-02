@@ -40,6 +40,8 @@ const AdminReviews = () => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
 
   // Fetch all reviews
   const fetchAllReviews = async () => {
@@ -51,6 +53,8 @@ const AdminReviews = () => {
       if (filterProductId) {
         const reviewsData = await reviewService.getProductReviews(filterProductId)
         setReviews(reviewsData || [])
+        setTotalPages(1)
+        setTotalElements(reviewsData?.length || 0)
         
         // If reviewId is also specified, highlight it
         if (reviewIdParam) {
@@ -60,9 +64,25 @@ const AdminReviews = () => {
           }
         }
       } else {
-        // Fetch all reviews (we need an API endpoint for this)
-        // For now, we'll show message to filter by product
-        setReviews([])
+        // Fetch all reviews with pagination (Admin API)
+        const pageData = await reviewService.getAllReviews({
+          page: currentPage - 1, // Convert to 0-based
+          size: itemsPerPage,
+          rating: filterRating === 'all' ? null : parseInt(filterRating),
+          sortDirection: 'DESC'
+        })
+        
+        setReviews(pageData.content || [])
+        setTotalPages(pageData.totalPages || 0)
+        setTotalElements(pageData.totalElements || 0)
+        
+        // If reviewId is also specified, highlight it
+        if (reviewIdParam) {
+          const review = pageData.content.find(r => r.id === parseInt(reviewIdParam))
+          if (review) {
+            setSelectedReview(review)
+          }
+        }
       }
     } catch (err) {
       setError('Không thể tải danh sách đánh giá')
@@ -74,7 +94,7 @@ const AdminReviews = () => {
 
   useEffect(() => {
     fetchAllReviews()
-  }, [filterProductId, reviewIdParam])
+  }, [filterProductId, reviewIdParam, currentPage, filterRating])
 
   // Handle delete review
   const handleDeleteReview = async (reviewId) => {
@@ -92,21 +112,16 @@ const AdminReviews = () => {
 
 
 
-  // Filter reviews by rating
+  // Filter reviews by search term (client-side for current page only)
   const filteredReviews = reviews.filter(review => {
-    if (filterRating === 'all') return true
-    return review.rating === parseInt(filterRating)
-  }).filter(review => {
     if (!searchTerm) return true
     return review.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           review.username?.toLowerCase().includes(searchTerm.toLowerCase())
+           review.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           review.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
   })
 
-  // Paginate reviews
-  const indexOfLastItem = currentPage * itemsPerPage
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage
-  const currentReviews = filteredReviews.slice(indexOfFirstItem, indexOfLastItem)
-  const totalPages = Math.ceil(filteredReviews.length / itemsPerPage)
+  // Use filtered reviews for display
+  const currentReviews = filteredReviews
 
   // Render star rating
   const renderStars = (rating) => {
@@ -139,7 +154,7 @@ const AdminReviews = () => {
     <div className="min-h-screen bg-gray-50">
       <AdminPageHeader
         title="Quản lý Đánh giá"
-        description="Xem và quản lý các đánh giá từ khách hàng"
+        description={`Xem và quản lý các đánh giá từ khách hàng${totalElements > 0 ? ` (${totalElements} đánh giá)` : ''}`}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
@@ -172,7 +187,10 @@ const AdminReviews = () => {
                   </label>
                   <select
                     value={filterRating}
-                    onChange={(e) => setFilterRating(e.target.value)}
+                    onChange={(e) => {
+                      setFilterRating(e.target.value)
+                      setCurrentPage(1) // Reset to first page
+                    }}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="all">Tất cả</option>
@@ -210,14 +228,14 @@ const AdminReviews = () => {
                 <AlertCircle className="h-5 w-5 text-red-600" />
                 <p className="text-red-800">{error}</p>
               </div>
-            ) : !filterProductId ? (
+            ) : !filterProductId && currentReviews.length === 0 && totalElements === 0 ? (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
                 <Package className="h-12 w-12 text-blue-600 mx-auto mb-3" />
                 <p className="text-lg font-medium text-gray-900 mb-2">
-                  Vui lòng nhập mã sản phẩm
+                  Chưa có đánh giá nào
                 </p>
                 <p className="text-gray-600">
-                  Nhập ID sản phẩm ở trên để xem các đánh giá của sản phẩm đó
+                  Khi có đánh giá mới, chúng sẽ hiển thị ở đây. Bạn cũng có thể lọc theo mã sản phẩm.
                 </p>
               </div>
             ) : currentReviews.length === 0 ? (

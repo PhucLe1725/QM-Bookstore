@@ -17,8 +17,7 @@ public class DashboardSummaryResponse {
     Integer totalOrders;
     Integer paidOrders;
     Integer cancelledOrders;
-    Integer totalUsers;
-    Integer newUsers;
-    Integer activeUsers;
+    Integer totalCustomers;
+    Integer newCustomers;
     List<ProductReportResponse> topSellingProducts;
 }

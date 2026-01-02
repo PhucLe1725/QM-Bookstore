@@ -758,6 +758,16 @@ const Checkout = () => {
                     <span>Tạm tính</span>
                     <span>{formatPrice(summary.subtotal)}</span>
                   </div>
+                  {summary.discount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Giảm giá</span>
+                      <span>-{formatPrice(summary.discount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-gray-600">
+                    <span>Thuế VAT (10%)</span>
+                    <span>{formatPrice((summary.subtotal - summary.discount) * 0.1)}</span>
+                  </div>
                   <div className="flex justify-between text-gray-600">
                     <span>Phí vận chuyển</span>
                     <span>
@@ -766,16 +776,10 @@ const Checkout = () => {
                         : formatPrice(summary.shippingFee || 0)}
                     </span>
                   </div>
-                  {summary.discount > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Giảm giá</span>
-                      <span>-{formatPrice(summary.discount)}</span>
-                    </div>
-                  )}
                   <hr />
                   <div className="flex justify-between text-lg font-bold text-gray-900">
-                    <span>Tổng cộng</span>
-                    <span className="text-blue-600">{formatPrice(summary.total)}</span>
+                    <span>Tổng thanh toán</span>
+                    <span className="text-blue-600">{formatPrice((summary.subtotal - summary.discount) + (summary.subtotal - summary.discount) * 0.1 + (summary.shippingFee || 0))}</span>
                   </div>
                 </div>
 

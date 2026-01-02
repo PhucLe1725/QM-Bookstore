@@ -1,6 +1,8 @@
 package com.qm.bookstore.qm_bookstore.repository;
 
 import com.qm.bookstore.qm_bookstore.entity.ProductComment;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -31,4 +33,12 @@ public interface ProductCommentRepository extends JpaRepository<ProductComment, 
     
     // Đếm số lượng replies của một comment
     Long countByParentCommentId(Long parentId);
+    
+    // Admin: Get all comments with pagination
+    @Query("SELECT c FROM ProductComment c ORDER BY c.createdAt DESC")
+    Page<ProductComment> findAllComments(Pageable pageable);
+    
+    // Admin: Get all root comments (no parent) with pagination
+    @Query("SELECT c FROM ProductComment c WHERE c.parentComment IS NULL ORDER BY c.createdAt DESC")
+    Page<ProductComment> findAllRootComments(Pageable pageable);
 }

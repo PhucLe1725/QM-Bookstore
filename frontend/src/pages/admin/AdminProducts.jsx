@@ -9,12 +9,14 @@ import {
   Save,
   AlertCircle,
   Package,
-  Image as ImageIcon
+  Image as ImageIcon,
+  DollarSign
 } from 'lucide-react'
 import { productService, categoryService } from '../../services'
 import { useToast } from '../../contexts/ToastContext'
 import AdminPageHeader from '../../components/AdminPageHeader'
 import SearchableSelect from '../../components/SearchableSelect'
+import PriceHistoryModal from '../../components/PriceHistoryModal'
 
 const AdminProducts = () => {
   const { showToast } = useToast()
@@ -37,6 +39,10 @@ const AdminProducts = () => {
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [productToDelete, setProductToDelete] = useState(null)
+  
+  // Price History Modal
+  const [showPriceHistoryModal, setShowPriceHistoryModal] = useState(false)
+  const [priceHistoryProduct, setPriceHistoryProduct] = useState(null)
   
   // Form data
   const [formData, setFormData] = useState({
@@ -239,6 +245,17 @@ const AdminProducts = () => {
       console.error('Error saving product:', err)
       showToast('Có lỗi xảy ra: ' + (err.response?.data?.message || err.message), 'error')
     }
+  }
+
+  // Handle price history
+  const handlePriceHistory = (product) => {
+    setPriceHistoryProduct(product)
+    setShowPriceHistoryModal(true)
+  }
+
+  const handlePriceHistoryClose = () => {
+    setShowPriceHistoryModal(false)
+    setPriceHistoryProduct(null)
   }
 
   // Handle delete
@@ -456,14 +473,23 @@ const AdminProducts = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
+                            onClick={() => handlePriceHistory(product)}
+                            className="text-green-600 hover:text-green-900 mr-3"
+                            title="Lịch sử giá"
+                          >
+                            <DollarSign className="h-5 w-5" />
+                          </button>
+                          <button
                             onClick={() => handleEdit(product)}
                             className="text-blue-600 hover:text-blue-900 mr-3"
+                            title="Chỉnh sửa"
                           >
                             <Edit className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(product)}
                             className="text-red-600 hover:text-red-900"
+                            title="Xóa"
                           >
                             <Trash2 className="h-5 w-5" />
                           </button>
@@ -788,6 +814,14 @@ const AdminProducts = () => {
           </div>
         </div>
       )}
+
+      {/* Price History Modal */}
+      <PriceHistoryModal
+        isOpen={showPriceHistoryModal}
+        onClose={handlePriceHistoryClose}
+        product={priceHistoryProduct}
+        onPriceUpdated={fetchProducts}
+      />
     </div>
   )
 }

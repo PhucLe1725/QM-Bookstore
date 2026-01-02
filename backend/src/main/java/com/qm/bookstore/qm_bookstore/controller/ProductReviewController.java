@@ -10,6 +10,10 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -122,6 +126,33 @@ public class ProductReviewController {
         boolean hasPurchased = productReviewService.hasUserPurchasedProduct(productId, userId);
         return ApiResponse.<Boolean>builder()
                 .result(hasPurchased)
+                .build();
+    }
+    
+    /**
+     * Admin: Get all reviews with pagination and optional filters
+     */
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ApiResponse<Page<ProductReviewResponse>> getAllReviews(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer rating,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection
+    ) {
+        log.info("Admin getting all reviews. Page: {}, Size: {}, Rating: {}", page, size, rating);
+        
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        
+        Page<ProductReviewResponse> reviews = productReviewService.getAllReviews(pageable, rating);
+        
+        return ApiResponse.<Page<ProductReviewResponse>>builder()
+                .success(true)
+                .code(200)
+                .message("Lấy danh sách reviews thành công")
+                .result(reviews)
                 .build();
     }
 }
