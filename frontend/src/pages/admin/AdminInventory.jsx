@@ -221,7 +221,7 @@ const AdminInventory = () => {
             }))
         }
 
-        console.log('[AdminInventory] Creating transaction with payload:', JSON.stringify(payload, null, 2))
+        // console.log('[AdminInventory] Creating transaction with payload:', JSON.stringify(payload, null, 2))
 
         try {
             const response = await inventoryService.createTransaction(payload)

@@ -47,9 +47,9 @@ const Combos = () => {
   const handleAddToCart = async (combo) => {
     try {
       setAddingToCart(combo.id);
-      console.log('Adding combo to cart:', combo.id);
+      // console.log('Adding combo to cart:', combo.id);
       const response = await cartService.addComboToCart(combo.id, 1);
-      console.log('Add combo response:', response);
+      // console.log('Add combo response:', response);
       
       if (response.success) {
         toast.success(`Đã thêm combo "${combo.name}" vào giỏ hàng!`);
@@ -59,8 +59,8 @@ const Combos = () => {
       }
     } catch (error) {
       console.error('Error adding combo to cart:', error);
-      console.log('Error response:', error.response);
-      console.log('Error data:', error.response?.data);
+      // console.log('Error response:', error.response);
+      // console.log('Error data:', error.response?.data);
       
       // Handle specific error codes
       const errorData = error.response?.data;

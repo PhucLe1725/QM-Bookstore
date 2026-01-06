@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../store'
-import ApiStatus from '../components/ApiStatus'
 import HomeLink from '../components/HomeLink'
 
 const Login = () => {
@@ -107,9 +106,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      {/* API Status Indicator */}
-      <ApiStatus />
-      
       {/* Home Link - Top Left */}
       <HomeLink color="indigo" showLogo={true} />
       

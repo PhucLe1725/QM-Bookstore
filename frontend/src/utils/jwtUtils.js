@@ -54,21 +54,3 @@ export const hasRole = (token, role) => {
   const roles = getUserRoles(token)
   return roles.includes(role)
 }
-
-/**
- * Log token details for debugging
- * @param {string} token - JWT token string
- */
-export const logTokenDetails = (token) => {
-  const payload = decodeJWT(token)
-  if (payload) {
-    console.log('🔐 JWT Token Details:')
-    console.log('  User ID:', payload.sub)
-    console.log('  Roles:', getUserRoles(token))
-    console.log('  Issued At:', new Date(payload.iat * 1000).toLocaleString())
-    console.log('  Expires At:', new Date(payload.exp * 1000).toLocaleString())
-    console.log('  Full Payload:', payload)
-  } else {
-    console.error('❌ Invalid JWT token')
-  }
-}

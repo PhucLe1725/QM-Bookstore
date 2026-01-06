@@ -6,7 +6,8 @@ const ChatButton = () => {
   const { openChat, isOpen } = useChat()
   const { user } = useAuth()
 
-  if (isOpen) return null // Hide button when chat is open
+  // Chỉ hiện button khi user đã đăng nhập
+  if (!user || isOpen) return null
 
   return (
     <div className="fixed bottom-6 right-6 z-40">
