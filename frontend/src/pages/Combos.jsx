@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { comboService } from '../services';
+import { comboService, cartService } from '../services';
 import { Package, ShoppingCart, ArrowRight } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 const Combos = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [combos, setCombos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [addingToCart, setAddingToCart] = useState(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
@@ -41,9 +44,39 @@ const Combos = () => {
     }).format(amount);
   };
 
-  const handleAddToCart = (combo) => {
-    // TODO: Implement add combo to cart
-    console.log('Add combo to cart:', combo);
+  const handleAddToCart = async (combo) => {
+    try {
+      setAddingToCart(combo.id);
+      console.log('Adding combo to cart:', combo.id);
+      const response = await cartService.addComboToCart(combo.id, 1);
+      console.log('Add combo response:', response);
+      
+      if (response.success) {
+        toast.success(`Đã thêm combo "${combo.name}" vào giỏ hàng!`);
+        window.dispatchEvent(new Event('cartUpdated'));
+      } else {
+        toast.error(response.message || 'Không thể thêm combo vào giỏ hàng');
+      }
+    } catch (error) {
+      console.error('Error adding combo to cart:', error);
+      console.log('Error response:', error.response);
+      console.log('Error data:', error.response?.data);
+      
+      // Handle specific error codes
+      const errorData = error.response?.data;
+      if (errorData?.error?.code === 9201) {
+        toast.error('Combo không tồn tại');
+      } else if (errorData?.error?.code === 9202) {
+        toast.error('Combo hiện không khả dụng');
+      } else if (errorData?.error?.code === 1004) {
+        toast.error('Sản phẩm trong combo đã hết hàng');
+      } else {
+        const errorMessage = errorData?.message || errorData?.error?.message || 'Không thể thêm combo vào giỏ hàng';
+        toast.error(errorMessage);
+      }
+    } finally {
+      setAddingToCart(null);
+    }
   };
 
   if (loading) {
@@ -150,10 +183,11 @@ const Combos = () => {
                   {/* Actions */}
                   <button
                     onClick={() => handleAddToCart(combo)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    disabled={addingToCart === combo.id}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ShoppingCart className="w-5 h-5" />
-                    Thêm vào giỏ
+                    {addingToCart === combo.id ? 'Đang thêm...' : 'Thêm vào giỏ'}
                   </button>
                 </div>
               </div>

@@ -7,6 +7,7 @@ import com.qm.bookstore.qm_bookstore.dto.inventory.request.InventoryTransactionG
 import com.qm.bookstore.qm_bookstore.dto.inventory.request.InventoryTransactionItemRequest;
 import com.qm.bookstore.qm_bookstore.dto.inventory.response.InventoryTransactionItemResponse;
 import com.qm.bookstore.qm_bookstore.dto.inventory.response.InventoryTransactionResponse;
+import com.qm.bookstore.qm_bookstore.dto.order.ComboItemSnapshot;
 import com.qm.bookstore.qm_bookstore.entity.*;
 import com.qm.bookstore.qm_bookstore.exception.AppException;
 import com.qm.bookstore.qm_bookstore.exception.ErrorCode;
@@ -161,21 +162,58 @@ public class InventoryTransactionService {
 
         // 5. Duyệt từng order item
         for (OrderItem orderItem : orderItems) {
-            Product product = productRepository.findById(orderItem.getProductId())
-                    .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+            // Check if this is a combo or single product
+            if (orderItem.getItemType() == ItemType.COMBO) {
+                // Handle combo items: process each product in the combo
+                log.info("Processing combo item: comboId={}, comboName={}, quantity={}", 
+                    orderItem.getComboId(), orderItem.getComboName(), orderItem.getQuantity());
+                
+                if (orderItem.getComboSnapshot() == null || orderItem.getComboSnapshot().getItems() == null) {
+                    throw new AppException(ErrorCode.COMBO_SNAPSHOT_NOT_FOUND);
+                }
+                
+                // Iterate through each product in the combo
+                for (ComboItemSnapshot comboProduct : orderItem.getComboSnapshot().getItems()) {
+                    Product product = productRepository.findById(comboProduct.getProductId())
+                            .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
 
-            // Tạo item với headerId
-            InventoryTransactionItem item = InventoryTransactionItem.builder()
-                    .headerId(header.getId())  // ✅ Set headerId thủ công
-                    .productId(orderItem.getProductId())
-                    .changeType(CHANGE_TYPE_MINUS)
-                    .quantity(orderItem.getQuantity())
-                    .build();
+                    // Calculate total quantity: combo product quantity * order quantity
+                    int totalQuantity = comboProduct.getQuantity() * orderItem.getQuantity();
 
-            header.addItem(item);
+                    // Create transaction item for this product
+                    InventoryTransactionItem item = InventoryTransactionItem.builder()
+                            .headerId(header.getId())
+                            .productId(comboProduct.getProductId())
+                            .changeType(CHANGE_TYPE_MINUS)
+                            .quantity(totalQuantity)
+                            .build();
 
-            // 6. Trừ kho với điều kiện
-            deductStock(product, orderItem.getQuantity());
+                    header.addItem(item);
+
+                    // Deduct stock
+                    deductStock(product, totalQuantity);
+                    
+                    log.info("Deducted stock for combo product: productId={}, productName={}, quantity={}", 
+                        product.getId(), product.getName(), totalQuantity);
+                }
+            } else {
+                // Handle single product items (existing logic)
+                Product product = productRepository.findById(orderItem.getProductId())
+                        .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+
+                // Tạo item với headerId
+                InventoryTransactionItem item = InventoryTransactionItem.builder()
+                        .headerId(header.getId())  // ✅ Set headerId thủ công
+                        .productId(orderItem.getProductId())
+                        .changeType(CHANGE_TYPE_MINUS)
+                        .quantity(orderItem.getQuantity())
+                        .build();
+
+                header.addItem(item);
+
+                // 6. Trừ kho với điều kiện
+                deductStock(product, orderItem.getQuantity());
+            }
         }
 
         // 7. Lưu lại header (cascade save items)

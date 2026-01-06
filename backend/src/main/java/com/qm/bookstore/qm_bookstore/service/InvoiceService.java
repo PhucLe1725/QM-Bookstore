@@ -512,8 +512,16 @@ public class InvoiceService {
 
         int index = 1;
         for (OrderItem item : items) {
-            Product product = productRepository.findById(item.getProductId()).orElse(null);
-            String productName = product != null ? product.getName() : "N/A";
+            // Check if this is a combo or single product
+            String productName;
+            if (item.getItemType() == ItemType.COMBO) {
+                // For combo: use combo name from snapshot
+                productName = item.getComboName() != null ? item.getComboName() : "Combo Product";
+            } else {
+                // For single product: fetch from database
+                Product product = productRepository.findById(item.getProductId()).orElse(null);
+                productName = product != null ? product.getName() : "Unknown Product";
+            }
             
             html.append("            <tr>\n");
             html.append("                <td>").append(index++).append("</td>\n");
@@ -617,14 +625,28 @@ public class InvoiceService {
         List<OrderItem> items = orderItemRepository.findByOrderId(invoice.getOrderId());
         List<InvoiceResponse.InvoiceItemResponse> itemResponses = items.stream()
                 .map(item -> {
-                    Product product = productRepository.findById(item.getProductId()).orElse(null);
+                    String itemName;
+                    String categoryName = null;
+                    
+                    // Check if this is a combo or single product
+                    if (item.getItemType() == ItemType.COMBO) {
+                        // For combo: use combo name from snapshot
+                        itemName = item.getComboName() != null ? item.getComboName() : "Combo Product";
+                        // Combo doesn't have category in invoice
+                    } else {
+                        // For single product: fetch from database
+                        Product product = productRepository.findById(item.getProductId()).orElse(null);
+                        itemName = product != null ? product.getName() : "Unknown Product";
+                        categoryName = product != null && product.getCategory() != null ? 
+                                product.getCategory().getName() : null;
+                    }
+                    
                     return InvoiceResponse.InvoiceItemResponse.builder()
-                            .productName(product != null ? product.getName() : "Unknown")
+                            .productName(itemName)
                             .quantity(item.getQuantity())
                             .unitPrice(item.getUnitPrice())
                             .lineTotal(item.getLineTotal())
-                            .categoryName(product != null && product.getCategory() != null ? 
-                                    product.getCategory().getName() : null)
+                            .categoryName(categoryName)
                             .build();
                 })
                 .collect(Collectors.toList());

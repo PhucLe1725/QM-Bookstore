@@ -23,6 +23,7 @@ import {
 import orderService from '../../services/orderService'
 import inventoryService from '../../services/inventoryService'
 import invoiceService from '../../services/invoiceService'
+import comboService from '../../services/comboService'
 import { useToast } from '../../contexts/ToastContext'
 import AdminPageHeader from '../../components/AdminPageHeader'
 
@@ -40,6 +41,7 @@ const AdminOrders = () => {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [invoiceData, setInvoiceData] = useState(null)
   const [generatingInvoice, setGeneratingInvoice] = useState(false)
+  const [comboImages, setComboImages] = useState({})
 
   // Filters
   const [filters, setFilters] = useState({
@@ -76,6 +78,44 @@ const AdminOrders = () => {
   useEffect(() => {
     loadOrders()
   }, [filters])
+
+  // Fetch combo images when selectedOrder changes
+  useEffect(() => {
+    if (!selectedOrder || !selectedOrder.items) return
+
+    const fetchComboImages = async () => {
+      const comboIds = []
+      selectedOrder.items.forEach(item => {
+        if (item.itemType === 'COMBO' && item.comboId && !comboImages[item.comboId]) {
+          comboIds.push(item.comboId)
+        }
+      })
+
+      if (comboIds.length === 0) return
+
+      const uniqueComboIds = [...new Set(comboIds)]
+      const imageMap = {}
+      
+      await Promise.all(
+        uniqueComboIds.map(async (comboId) => {
+          try {
+            const response = await comboService.getComboById(comboId)
+            if (response.success && response.result?.imageUrl) {
+              imageMap[comboId] = response.result.imageUrl
+            }
+          } catch (error) {
+            console.error(`Failed to fetch combo ${comboId}:`, error)
+          }
+        })
+      )
+
+      if (Object.keys(imageMap).length > 0) {
+        setComboImages(prev => ({ ...prev, ...imageMap }))
+      }
+    }
+
+    fetchComboImages()
+  }, [selectedOrder])
 
   const loadOrders = async () => {
     try {
@@ -167,6 +207,10 @@ const AdminOrders = () => {
         showToast('Không đủ tồn kho. Vui lòng kiểm tra lại', 'error')
       } else if (errorData?.code === 7001) {
         showToast('Không tìm thấy đơn hàng', 'error')
+      } else if (errorData?.code === 3001) {
+        showToast('Không tìm thấy sản phẩm trong đơn hàng', 'error')
+      } else if (errorData?.code === 9206) {
+        showToast('Dữ liệu combo không hợp lệ. Vui lòng liên hệ hỗ trợ', 'error')
       } else {
         showToast(errorData?.message || 'Có lỗi xảy ra khi xuất kho', 'error')
       }
@@ -201,6 +245,7 @@ const AdminOrders = () => {
         setInvoiceStatus(prev => ({ ...prev, [order.orderId]: true }))
       }
     } catch (error) {
+      console.error('Error generating invoice:', error)
       const errorData = error.response?.data
       
       if (errorData?.code === 'INVOICE_ORDER_NOT_PAID') {
@@ -210,6 +255,8 @@ const AdminOrders = () => {
       } else if (errorData?.code === 'INVOICE_ALREADY_EXISTS') {
         showToast('Hóa đơn đã tồn tại', 'warning')
         setInvoiceStatus(prev => ({ ...prev, [order.orderId]: true }))
+      } else if (errorData?.code === 9999 && errorData?.error?.includes('null')) {
+        showToast('Có lỗi xảy ra với dữ liệu sản phẩm. Vui lòng liên hệ hỗ trợ', 'error')
       } else {
         showToast(errorData?.message || 'Có lỗi xảy ra khi xuất hóa đơn', 'error')
       }
@@ -591,7 +638,7 @@ const AdminOrders = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {order.paymentMethod === 'prepaid' ? 'Trả trước' : 'COD'}
+                        {order.paymentMethod === 'prepaid' ? 'Thanh toán Online' : 'COD'}
                       </div>
                       <div className="text-xs text-gray-500">
                         {order.fulfillmentMethod === 'delivery' ? 'Giao hàng' : 'Lấy tại CH'}
@@ -680,7 +727,7 @@ const AdminOrders = () => {
       {showDetailModal && selectedOrder && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
               <h2 className="text-xl font-bold text-gray-800">Chi tiết đơn hàng #{selectedOrder.orderId}</h2>
               <button
                 onClick={() => setShowDetailModal(false)}
@@ -724,21 +771,72 @@ const AdminOrders = () => {
                 <h3 className="font-semibold text-gray-800 mb-3">Sản phẩm</h3>
                 <div className="space-y-3">
                   {selectedOrder.items?.map((item, index) => (
-                    <div key={index} className="flex items-center gap-4 pb-3 border-b border-gray-100 last:border-0">
-                      <img
-                        src={item.thumbnail || '/placeholder.png'}
-                        alt={item.productName}
-                        className="w-16 h-16 object-cover rounded"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{item.productName}</div>
-                        <div className="text-sm text-gray-600">
-                          {formatCurrency(item.unitPrice)} × {item.quantity}
+                    <div key={index}>
+                      {item.itemType === 'COMBO' ? (
+                        <div className="border-l-4 border-purple-500 pl-3 py-2">
+                          <div className="flex items-start gap-4 pb-2">
+                            <div>
+                              {comboImages[item.comboId] ? (
+                                <img
+                                  src={comboImages[item.comboId]}
+                                  alt={item.comboName}
+                                  className="w-16 h-16 object-cover rounded"
+                                />
+                              ) : (
+                                <div className="w-16 h-16 rounded bg-gradient-to-br from-purple-400 via-pink-400 to-orange-400 flex items-center justify-center">
+                                  <Package className="w-8 h-8 text-white" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                  COMBO
+                                </span>
+                                <div className="font-medium text-gray-900">{item.comboName}</div>
+                              </div>
+                              {item.comboSnapshot && item.comboSnapshot.items && (
+                                <div className="mt-2 bg-purple-50 rounded p-2 text-sm">
+                                  <div className="font-medium text-gray-700 mb-1">Bao gồm:</div>
+                                  {item.comboSnapshot.items.map((comboItem, idx) => (
+                                    <div key={idx} className="text-gray-600 text-xs ml-2">
+                                      • {comboItem.productName} × {comboItem.quantity}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <div className="text-sm text-gray-600 mt-1">
+                                {formatCurrency(item.unitPrice)} × {item.quantity}
+                              </div>
+                              {item.comboSnapshot && item.comboSnapshot.discountPercentage > 0 && (
+                                <div className="text-xs text-green-600 mt-1">
+                                  Tiết kiệm {item.comboSnapshot.discountPercentage}%
+                                </div>
+                              )}
+                            </div>
+                            <div className="font-semibold text-gray-900">
+                              {formatCurrency(item.lineTotal)}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="font-semibold text-gray-900">
-                        {formatCurrency(item.lineTotal)}
-                      </div>
+                      ) : (
+                        <div className="flex items-center gap-4 pb-3 border-b border-gray-100 last:border-0">
+                          <img
+                            src={item.thumbnail || '/placeholder.png'}
+                            alt={item.productName}
+                            className="w-16 h-16 object-cover rounded"
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900">{item.productName}</div>
+                            <div className="text-sm text-gray-600">
+                              {formatCurrency(item.unitPrice)} × {item.quantity}
+                            </div>
+                          </div>
+                          <div className="font-semibold text-gray-900">
+                            {formatCurrency(item.lineTotal)}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -793,6 +891,35 @@ const AdminOrders = () => {
             </div>
 
             <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 space-y-3">
+              {/* Export Stock Button */}
+              {selectedOrder.paymentStatus === 'paid' && !inventoryStatus[selectedOrder.orderId] && (
+                <button
+                  onClick={() => {
+                    handleExportStock(selectedOrder)
+                  }}
+                  disabled={inventoryStatus[selectedOrder.orderId] === 'loading'}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <PackageCheck className="w-5 h-5" />
+                  {inventoryStatus[selectedOrder.orderId] === 'loading' ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Đang kiểm tra...
+                    </>
+                  ) : (
+                    'Xuất kho'
+                  )}
+                </button>
+              )}
+              
+              {/* Inventory Status Display */}
+              {inventoryStatus[selectedOrder.orderId] === true && (
+                <div className="w-full px-4 py-2 bg-green-50 border border-green-200 rounded-lg flex items-center justify-center gap-2 text-green-700">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="font-medium">Đã xuất kho</span>
+                </div>
+              )}
+              
               {/* Invoice Button */}
               {selectedOrder.paymentStatus === 'paid' && selectedOrder.orderStatus !== 'cancelled' && (
                 <button
@@ -996,9 +1123,21 @@ const AdminOrders = () => {
                     </thead>
                     <tbody>
                       {invoiceData.items.map((item, index) => (
-                        <tr key={index}>
+                        <tr key={index} className={!item.categoryName ? 'bg-purple-50' : ''}>
                           <td className="px-4 py-2 border text-sm">{index + 1}</td>
-                          <td className="px-4 py-2 border text-sm">{item.productName}</td>
+                          <td className="px-4 py-2 border text-sm">
+                            <div className="flex items-center gap-2">
+                              {!item.categoryName && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                                  COMBO
+                                </span>
+                              )}
+                              <span>{item.productName}</span>
+                            </div>
+                            {item.categoryName && (
+                              <div className="text-xs text-gray-500 mt-1">{item.categoryName}</div>
+                            )}
+                          </td>
                           <td className="px-4 py-2 border text-sm text-center">{item.quantity}</td>
                           <td className="px-4 py-2 border text-sm text-right">{formatCurrency(item.unitPrice)}</td>
                           <td className="px-4 py-2 border text-sm text-right">{formatCurrency(item.lineTotal)}</td>

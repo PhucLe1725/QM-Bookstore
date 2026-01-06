@@ -53,6 +53,23 @@ export const cartService = {
     }
   },
 
+  // Add combo to cart
+  addComboToCart: async (comboId, quantity = 1) => {
+    try {
+      const headers = getCartHeaders()
+      
+      const response = await api.post(
+        '/cart/combo',
+        { comboId, quantity },
+        { headers }
+      )
+      return response
+    } catch (error) {
+      console.error('Error adding combo to cart:', error)
+      throw error
+    }
+  },
+
   // Get cart
   getCart: async () => {
     try {

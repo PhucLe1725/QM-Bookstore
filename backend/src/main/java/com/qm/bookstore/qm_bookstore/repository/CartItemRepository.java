@@ -1,6 +1,7 @@
 package com.qm.bookstore.qm_bookstore.repository;
 
 import com.qm.bookstore.qm_bookstore.entity.CartItem;
+import com.qm.bookstore.qm_bookstore.entity.ItemType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -39,5 +40,23 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     void deleteSelectedItemsByUserId(@Param("userId") UUID userId);
     
     boolean existsByCartIdAndProductId(Long cartId, Long productId);
-}
-
+    
+    // New methods for combo support
+    
+    @Query("SELECT ci FROM CartItem ci WHERE ci.cartId = :cartId AND ci.comboId = :comboId AND ci.itemType = 'COMBO'")
+    Optional<CartItem> findByCartIdAndComboId(@Param("cartId") Long cartId, @Param("comboId") Integer comboId);
+    
+    @Query("SELECT ci FROM CartItem ci WHERE ci.cartId = :cartId AND ci.itemType = :itemType")
+    List<CartItem> findByCartIdAndItemType(@Param("cartId") Long cartId, @Param("itemType") ItemType itemType);
+    
+    @Query("""
+        SELECT ci FROM CartItem ci
+        LEFT JOIN FETCH ci.product p
+        LEFT JOIN FETCH ci.combo c
+        LEFT JOIN FETCH c.comboItems citem
+        LEFT JOIN FETCH citem.product
+        WHERE ci.cartId = :cartId
+        """)
+    List<CartItem> findByCartIdWithDetails(@Param("cartId") Long cartId);
+    
+    boolean existsByCartIdAndComboId(Long cartId, Integer comboId);}

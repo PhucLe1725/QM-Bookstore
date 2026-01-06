@@ -1,18 +1,20 @@
 package com.qm.bookstore.qm_bookstore.service;
 
+import com.qm.bookstore.qm_bookstore.dto.cart.AddComboToCartRequest;
+import com.qm.bookstore.qm_bookstore.dto.cart.ComboInCartResponse;
+import com.qm.bookstore.qm_bookstore.dto.cart.ComboItemInCartResponse;
 import com.qm.bookstore.qm_bookstore.dto.cart.request.AddToCartRequest;
 import com.qm.bookstore.qm_bookstore.dto.cart.request.ToggleItemSelectionRequest;
 import com.qm.bookstore.qm_bookstore.dto.cart.request.UpdateCartItemRequest;
 import com.qm.bookstore.qm_bookstore.dto.cart.response.CartItemResponse;
 import com.qm.bookstore.qm_bookstore.dto.cart.response.CartResponse;
 import com.qm.bookstore.qm_bookstore.dto.cart.response.CartSummary;
-import com.qm.bookstore.qm_bookstore.entity.Cart;
-import com.qm.bookstore.qm_bookstore.entity.CartItem;
-import com.qm.bookstore.qm_bookstore.entity.Product;
+import com.qm.bookstore.qm_bookstore.entity.*;
 import com.qm.bookstore.qm_bookstore.exception.AppException;
 import com.qm.bookstore.qm_bookstore.exception.ErrorCode;
 import com.qm.bookstore.qm_bookstore.repository.CartItemRepository;
 import com.qm.bookstore.qm_bookstore.repository.CartRepository;
+import com.qm.bookstore.qm_bookstore.repository.ProductComboRepository;
 import com.qm.bookstore.qm_bookstore.repository.ProductRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ public class CartService {
     CartRepository cartRepository;
     CartItemRepository cartItemRepository;
     ProductRepository productRepository;
+    ProductComboRepository productComboRepository;
 
     /**
      * Get or create cart for user or guest session
@@ -186,18 +189,30 @@ public class CartService {
         
         BigDecimal totalAmount = cartItems.stream()
                 .map(item -> {
-                    Product product = productRepository.findById(item.getProductId()).orElse(null);
-                    if (product == null) return BigDecimal.ZERO;
-                    return product.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+                    if (item.getItemType() == ItemType.COMBO) {
+                        ProductCombo combo = productComboRepository.findById(item.getComboId()).orElse(null);
+                        if (combo == null) return BigDecimal.ZERO;
+                        return combo.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+                    } else {
+                        Product product = productRepository.findById(item.getProductId()).orElse(null);
+                        if (product == null) return BigDecimal.ZERO;
+                        return product.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+                    }
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal selectedAmount = cartItems.stream()
                 .filter(CartItem::getIsSelected)
                 .map(item -> {
-                    Product product = productRepository.findById(item.getProductId()).orElse(null);
-                    if (product == null) return BigDecimal.ZERO;
-                    return product.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+                    if (item.getItemType() == ItemType.COMBO) {
+                        ProductCombo combo = productComboRepository.findById(item.getComboId()).orElse(null);
+                        if (combo == null) return BigDecimal.ZERO;
+                        return combo.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+                    } else {
+                        Product product = productRepository.findById(item.getProductId()).orElse(null);
+                        if (product == null) return BigDecimal.ZERO;
+                        return product.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+                    }
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -326,18 +341,36 @@ public class CartService {
         List<CartItem> guestItems = cartItemRepository.findByCartId(guestCart.getId());
 
         for (CartItem guestItem : guestItems) {
-            CartItem existingItem = cartItemRepository
-                    .findByCartIdAndProductId(userCart.getId(), guestItem.getProductId())
-                    .orElse(null);
+            if (guestItem.getItemType() == ItemType.COMBO) {
+                // Handle combo item
+                CartItem existingItem = cartItemRepository
+                        .findByCartIdAndComboId(userCart.getId(), guestItem.getComboId())
+                        .orElse(null);
 
-            if (existingItem != null) {
-                // Merge quantities
-                existingItem.setQuantity(existingItem.getQuantity() + guestItem.getQuantity());
-                cartItemRepository.save(existingItem);
+                if (existingItem != null) {
+                    // Merge quantities
+                    existingItem.setQuantity(existingItem.getQuantity() + guestItem.getQuantity());
+                    cartItemRepository.save(existingItem);
+                } else {
+                    // Move item to user cart
+                    guestItem.setCartId(userCart.getId());
+                    cartItemRepository.save(guestItem);
+                }
             } else {
-                // Move item to user cart
-                guestItem.setCartId(userCart.getId());
-                cartItemRepository.save(guestItem);
+                // Handle product item
+                CartItem existingItem = cartItemRepository
+                        .findByCartIdAndProductId(userCart.getId(), guestItem.getProductId())
+                        .orElse(null);
+
+                if (existingItem != null) {
+                    // Merge quantities
+                    existingItem.setQuantity(existingItem.getQuantity() + guestItem.getQuantity());
+                    cartItemRepository.save(existingItem);
+                } else {
+                    // Move item to user cart
+                    guestItem.setCartId(userCart.getId());
+                    cartItemRepository.save(guestItem);
+                }
             }
         }
 
@@ -346,26 +379,139 @@ public class CartService {
     }
 
     /**
+     * Add combo to cart
+     */
+    @Transactional
+    public CartResponse addComboToCart(AddComboToCartRequest request, UUID userId, String sessionId) {
+        log.info("[addComboToCart] START - comboId={}, quantity={}, userId={}, sessionId={}",
+                request.getComboId(), request.getQuantity(), userId, sessionId);
+
+        // 1. Validate combo exists and is available
+        ProductCombo combo = productComboRepository.findByIdWithItems(request.getComboId())
+                .orElseThrow(() -> {
+                    log.error("[addComboToCart] ❌ Combo not found: {}", request.getComboId());
+                    return new AppException(ErrorCode.PRODUCT_COMBO_NOT_FOUND);
+                });
+
+        if (!combo.getAvailability()) {
+            log.error("[addComboToCart] ❌ Combo unavailable: {}", request.getComboId());
+            throw new AppException(ErrorCode.PRODUCT_COMBO_UNAVAILABLE);
+        }
+
+        // 2. Validate stock for all products in combo
+        for (ProductComboItem item : combo.getComboItems()) {
+            int requiredStock = item.getQuantity() * request.getQuantity();
+            if (item.getProduct().getStockQuantity() < requiredStock) {
+                log.error("[addComboToCart] ❌ Insufficient stock for product {}: required={}, available={}",
+                        item.getProduct().getId(), requiredStock, item.getProduct().getStockQuantity());
+                throw new AppException(ErrorCode.PRODUCT_OUT_OF_STOCK);
+            }
+        }
+
+        // 3. Get or create cart
+        Cart cart = getOrCreateCart(userId, sessionId);
+        log.info("[addComboToCart] Using cart id={}", cart.getId());
+
+        // 4. Check if combo already exists in cart
+        CartItem existingItem = cartItemRepository
+                .findByCartIdAndComboId(cart.getId(), request.getComboId())
+                .orElse(null);
+
+        if (existingItem != null) {
+            // Combo already in cart - update quantity
+            existingItem.setQuantity(existingItem.getQuantity() + request.getQuantity());
+            cartItemRepository.save(existingItem);
+            log.info("[addComboToCart] Updated existing combo item quantity: {}", existingItem.getQuantity());
+        } else {
+            // 5. Combo not in cart - create new cart item
+            CartItem cartItem = CartItem.builder()
+                    .cartId(cart.getId())
+                    .comboId(request.getComboId())
+                    .itemType(ItemType.COMBO)
+                    .quantity(request.getQuantity())
+                    .isSelected(false)
+                    .build();
+            cartItemRepository.save(cartItem);
+            log.info("[addComboToCart] Added new combo item to cart: comboId={}, quantity={}",
+                    request.getComboId(), request.getQuantity());
+        }
+
+        return getCart(userId, sessionId);
+    }
+
+    /**
      * Convert CartItem to CartItemResponse
      */
     private CartItemResponse toCartItemResponse(CartItem cartItem) {
-        Product product = productRepository.findById(cartItem.getProductId())
-                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+        if (cartItem.getItemType() == ItemType.COMBO) {
+            // Handle combo item
+            ProductCombo combo = productComboRepository.findByIdWithItems(cartItem.getComboId())
+                    .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_COMBO_NOT_FOUND));
 
-        BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+            BigDecimal subtotal = combo.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
 
-        return CartItemResponse.builder()
-                .id(cartItem.getId())
-                .productId(product.getId())
-                .productName(product.getName())
-                .productImage(product.getImageUrl())
-                .price(product.getPrice())
-                .quantity(cartItem.getQuantity())
-                .subtotal(subtotal)
-                .isSelected(cartItem.getIsSelected())
-                .createdAt(cartItem.getCreatedAt())
-                .updatedAt(cartItem.getUpdatedAt())
-                .build();
+            List<ComboItemInCartResponse> comboItems = combo.getComboItems().stream()
+                    .map(item -> ComboItemInCartResponse.builder()
+                            .productId(item.getProduct().getId())
+                            .productName(item.getProduct().getName())
+                            .imageUrl(item.getProduct().getImageUrl())
+                            .quantity(item.getQuantity())
+                            .price(item.getProduct().getPrice())
+                            .build())
+                    .collect(Collectors.toList());
+
+            BigDecimal originalPrice = combo.getComboItems().stream()
+                    .map(item -> item.getProduct().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal discountAmount = originalPrice.subtract(combo.getPrice());
+            Double discountPercentage = originalPrice.compareTo(BigDecimal.ZERO) > 0
+                    ? discountAmount.divide(originalPrice, 4, BigDecimal.ROUND_HALF_UP)
+                            .multiply(BigDecimal.valueOf(100)).doubleValue()
+                    : 0.0;
+
+            ComboInCartResponse comboResponse = ComboInCartResponse.builder()
+                    .id(combo.getId())
+                    .name(combo.getName())
+                    .imageUrl(combo.getImageUrl())
+                    .price(combo.getPrice())
+                    .originalPrice(originalPrice)
+                    .discountAmount(discountAmount)
+                    .discountPercentage(discountPercentage)
+                    .items(comboItems)
+                    .build();
+
+            return CartItemResponse.builder()
+                    .id(cartItem.getId())
+                    .itemType(ItemType.COMBO)
+                    .combo(comboResponse)
+                    .quantity(cartItem.getQuantity())
+                    .subtotal(subtotal)
+                    .isSelected(cartItem.getIsSelected())
+                    .createdAt(cartItem.getCreatedAt())
+                    .updatedAt(cartItem.getUpdatedAt())
+                    .build();
+        } else {
+            // Handle single product (existing logic)
+            Product product = productRepository.findById(cartItem.getProductId())
+                    .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+
+            BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+
+            return CartItemResponse.builder()
+                    .id(cartItem.getId())
+                    .itemType(ItemType.PRODUCT)
+                    .productId(product.getId())
+                    .productName(product.getName())
+                    .productImage(product.getImageUrl())
+                    .price(product.getPrice())
+                    .quantity(cartItem.getQuantity())
+                    .subtotal(subtotal)
+                    .isSelected(cartItem.getIsSelected())
+                    .createdAt(cartItem.getCreatedAt())
+                    .updatedAt(cartItem.getUpdatedAt())
+                    .build();
+        }
     }
 
     /**

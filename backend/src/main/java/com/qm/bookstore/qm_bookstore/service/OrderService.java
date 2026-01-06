@@ -1,5 +1,7 @@
 package com.qm.bookstore.qm_bookstore.service;
 
+import com.qm.bookstore.qm_bookstore.dto.order.ComboItemSnapshot;
+import com.qm.bookstore.qm_bookstore.dto.order.ComboSnapshot;
 import com.qm.bookstore.qm_bookstore.dto.order.request.CancelOrderRequest;
 import com.qm.bookstore.qm_bookstore.dto.order.request.CheckoutRequest;
 import com.qm.bookstore.qm_bookstore.dto.order.request.UpdateOrderStatusRequest;
@@ -37,6 +39,7 @@ public class OrderService {
     OrderItemRepository orderItemRepository;
     CartItemRepository cartItemRepository;
     ProductRepository productRepository;
+    ProductComboRepository productComboRepository;
     VoucherRepository voucherRepository;
     VoucherService voucherService;
     OrderMapper orderMapper;
@@ -60,11 +63,25 @@ public class OrderService {
 
         // 2. Validate inventory
         for (CartItem item : selectedItems) {
-            Product product = productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+            if (item.getItemType() == ItemType.COMBO) {
+                // Validate combo stock
+                ProductCombo combo = productComboRepository.findByIdWithItems(item.getComboId())
+                        .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_COMBO_NOT_FOUND));
 
-            if (product.getStockQuantity() < item.getQuantity()) {
-                throw new AppException(ErrorCode.INSUFFICIENT_STOCK);
+                for (ProductComboItem comboItem : combo.getComboItems()) {
+                    int requiredStock = comboItem.getQuantity() * item.getQuantity();
+                    if (comboItem.getProduct().getStockQuantity() < requiredStock) {
+                        throw new AppException(ErrorCode.INSUFFICIENT_STOCK);
+                    }
+                }
+            } else {
+                // Validate single product stock
+                Product product = productRepository.findById(item.getProductId())
+                        .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+
+                if (product.getStockQuantity() < item.getQuantity()) {
+                    throw new AppException(ErrorCode.INSUFFICIENT_STOCK);
+                }
             }
         }
 
@@ -73,23 +90,75 @@ public class OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
 
         for (CartItem cartItem : selectedItems) {
-            Product product = productRepository.findById(cartItem.getProductId()).orElseThrow();
-            
-            // SNAPSHOT: unitPrice, categoryId
-            BigDecimal unitPrice = product.getPrice();
-            Long categoryId = product.getCategory() != null ? product.getCategory().getId() : null;
-            BigDecimal lineTotal = unitPrice.multiply(new BigDecimal(cartItem.getQuantity()));
-            
-            OrderItem orderItem = OrderItem.builder()
-                    .productId(cartItem.getProductId())
-                    .categoryId(categoryId)  // SNAPSHOT for statistics
-                    .quantity(cartItem.getQuantity())
-                    .unitPrice(unitPrice)    // SNAPSHOT price
-                    .lineTotal(lineTotal)
-                    .build();
-            
+            OrderItem orderItem;
+
+            if (cartItem.getItemType() == ItemType.COMBO) {
+                // Handle combo item
+                ProductCombo combo = productComboRepository.findByIdWithItems(cartItem.getComboId())
+                        .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_COMBO_NOT_FOUND));
+
+                // Create combo snapshot
+                List<ComboItemSnapshot> snapshotItems = combo.getComboItems().stream()
+                        .map(item -> ComboItemSnapshot.builder()
+                                .productId(item.getProduct().getId())
+                                .productName(item.getProduct().getName())
+                                .quantity(item.getQuantity())
+                                .productPrice(item.getProduct().getPrice())
+                                .build())
+                        .collect(Collectors.toList());
+
+                BigDecimal originalPrice = combo.getComboItems().stream()
+                        .map(item -> item.getProduct().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal discountAmountCombo = originalPrice.subtract(combo.getPrice());
+                BigDecimal discountPercentage = originalPrice.compareTo(BigDecimal.ZERO) > 0
+                        ? discountAmountCombo.divide(originalPrice, 4, RoundingMode.HALF_UP)
+                                .multiply(BigDecimal.valueOf(100))
+                        : BigDecimal.ZERO;
+
+                ComboSnapshot comboSnapshot = ComboSnapshot.builder()
+                        .items(snapshotItems)
+                        .originalPrice(originalPrice)
+                        .discountAmount(discountAmountCombo)
+                        .discountPercentage(discountPercentage)
+                        .build();
+
+                BigDecimal lineTotal = combo.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+
+                orderItem = OrderItem.builder()
+                        .comboId(combo.getId())
+                        .itemType(ItemType.COMBO)
+                        .comboName(combo.getName())
+                        .comboSnapshot(comboSnapshot)
+                        .quantity(cartItem.getQuantity())
+                        .unitPrice(combo.getPrice())
+                        .lineTotal(lineTotal)
+                        .build();
+
+                subtotalAmount = subtotalAmount.add(lineTotal);
+            } else {
+                // Handle single product (existing logic)
+                Product product = productRepository.findById(cartItem.getProductId()).orElseThrow();
+
+                // SNAPSHOT: unitPrice, categoryId
+                BigDecimal unitPrice = product.getPrice();
+                Long categoryId = product.getCategory() != null ? product.getCategory().getId() : null;
+                BigDecimal lineTotal = unitPrice.multiply(new BigDecimal(cartItem.getQuantity()));
+
+                orderItem = OrderItem.builder()
+                        .productId(cartItem.getProductId())
+                        .itemType(ItemType.PRODUCT)
+                        .categoryId(categoryId)
+                        .quantity(cartItem.getQuantity())
+                        .unitPrice(unitPrice)
+                        .lineTotal(lineTotal)
+                        .build();
+
+                subtotalAmount = subtotalAmount.add(lineTotal);
+            }
+
             orderItems.add(orderItem);
-            subtotalAmount = subtotalAmount.add(lineTotal);
         }
 
         // 4. Calculate shipping_fee
@@ -522,17 +591,34 @@ public class OrderService {
 
         List<OrderItemResponse> itemResponses = items.stream()
                 .map(item -> {
-                    Product product = productRepository.findById(item.getProductId()).orElseThrow();
-                    return OrderItemResponse.builder()
-                            .productId(item.getProductId())
-                            .productName(product.getName())
-                            .categoryId(item.getCategoryId())
-                            .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
-                            .quantity(item.getQuantity())
-                            .unitPrice(item.getUnitPrice())
-                            .lineTotal(item.getLineTotal())
-                            .thumbnail(product.getImageUrl())
-                            .build();
+                    if (item.getItemType() == ItemType.COMBO) {
+                        // Handle combo item
+                        return OrderItemResponse.builder()
+                                .itemType(ItemType.COMBO)
+                                .comboId(item.getComboId())
+                                .comboName(item.getComboName())
+                                .comboSnapshot(item.getComboSnapshot())
+                                .quantity(item.getQuantity())
+                                .unitPrice(item.getUnitPrice())
+                                .lineTotal(item.getLineTotal())
+                                .thumbnail(item.getComboSnapshot() != null && !item.getComboSnapshot().getItems().isEmpty() 
+                                    ? item.getComboSnapshot().getItems().get(0).getProductName() : null)
+                                .build();
+                    } else {
+                        // Handle product item
+                        Product product = productRepository.findById(item.getProductId()).orElseThrow();
+                        return OrderItemResponse.builder()
+                                .itemType(ItemType.PRODUCT)
+                                .productId(item.getProductId())
+                                .productName(product.getName())
+                                .categoryId(item.getCategoryId())
+                                .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
+                                .quantity(item.getQuantity())
+                                .unitPrice(item.getUnitPrice())
+                                .lineTotal(item.getLineTotal())
+                                .thumbnail(product.getImageUrl())
+                                .build();
+                    }
                 })
                 .collect(Collectors.toList());
 
@@ -548,17 +634,34 @@ public class OrderService {
 
         List<OrderItemResponse> itemResponses = items.stream()
                 .map(item -> {
-                    Product product = productRepository.findById(item.getProductId()).orElseThrow();
-                    return OrderItemResponse.builder()
-                            .productId(item.getProductId())
-                            .productName(product.getName())
-                            .categoryId(item.getCategoryId())
-                            .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
-                            .quantity(item.getQuantity())
-                            .unitPrice(item.getUnitPrice())
-                            .lineTotal(item.getLineTotal())
-                            .thumbnail(product.getImageUrl())
-                            .build();
+                    if (item.getItemType() == ItemType.COMBO) {
+                        // Handle combo item
+                        return OrderItemResponse.builder()
+                                .itemType(ItemType.COMBO)
+                                .comboId(item.getComboId())
+                                .comboName(item.getComboName())
+                                .comboSnapshot(item.getComboSnapshot())
+                                .quantity(item.getQuantity())
+                                .unitPrice(item.getUnitPrice())
+                                .lineTotal(item.getLineTotal())
+                                .thumbnail(item.getComboSnapshot() != null && !item.getComboSnapshot().getItems().isEmpty() 
+                                    ? item.getComboSnapshot().getItems().get(0).getProductName() : null)
+                                .build();
+                    } else {
+                        // Handle product item
+                        Product product = productRepository.findById(item.getProductId()).orElseThrow();
+                        return OrderItemResponse.builder()
+                                .itemType(ItemType.PRODUCT)
+                                .productId(item.getProductId())
+                                .productName(product.getName())
+                                .categoryId(item.getCategoryId())
+                                .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
+                                .quantity(item.getQuantity())
+                                .unitPrice(item.getUnitPrice())
+                                .lineTotal(item.getLineTotal())
+                                .thumbnail(product.getImageUrl())
+                                .build();
+                    }
                 })
                 .collect(Collectors.toList());
 

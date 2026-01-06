@@ -18,10 +18,17 @@ const PriceHistoryModal = ({ isOpen, onClose, product, onPriceUpdated }) => {
 
   useEffect(() => {
     if (isOpen && product) {
+      // Reset state when product changes to avoid showing old data
+      setHistory([])
+      setLatestChange(null)
+      setTrend(null)
+      setShowUpdateForm(false)
+      setFormErrors({})
+      
       loadPriceHistory()
       setNewPrice(product.price || '')
     }
-  }, [isOpen, product])
+  }, [isOpen, product?.id]) // Use product.id to detect actual product change
 
   const loadPriceHistory = async () => {
     if (!product?.id) return

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { orderService } from '../services/orderService'
+import { comboService } from '../services'
 import { Package, Clock, CheckCircle, XCircle, Truck, Eye, RotateCcw, DollarSign, Store } from 'lucide-react'
 
 const Orders = () => {
@@ -10,6 +11,7 @@ const Orders = () => {
   const [currentPage, setCurrentPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [selectedStatus, setSelectedStatus] = useState(null)
+  const [comboImages, setComboImages] = useState({})
   
   // 3-axis status system từ documentation
   const statusTabs = [
@@ -72,6 +74,45 @@ const Orders = () => {
   useEffect(() => {
     loadOrders()
   }, [currentPage, selectedStatus])
+
+  // Fetch combo images when orders change
+  useEffect(() => {
+    const fetchComboImages = async () => {
+      const comboIds = []
+      orders.forEach(order => {
+        order.items?.forEach(item => {
+          if (item.itemType === 'COMBO' && item.comboId && !comboImages[item.comboId]) {
+            comboIds.push(item.comboId)
+          }
+        })
+      })
+
+      if (comboIds.length === 0) return
+
+      // Fetch combo details for images
+      const uniqueComboIds = [...new Set(comboIds)]
+      const imageMap = {}
+      
+      await Promise.all(
+        uniqueComboIds.map(async (comboId) => {
+          try {
+            const response = await comboService.getComboById(comboId)
+            if (response.success && response.result?.imageUrl) {
+              imageMap[comboId] = response.result.imageUrl
+            }
+          } catch (error) {
+            console.error(`Failed to fetch combo ${comboId}:`, error)
+          }
+        })
+      )
+
+      if (Object.keys(imageMap).length > 0) {
+        setComboImages(prev => ({ ...prev, ...imageMap }))
+      }
+    }
+
+    fetchComboImages()
+  }, [orders])
 
   const loadOrders = async () => {
     try {
@@ -265,15 +306,54 @@ const Orders = () => {
                   <div className="space-y-4">
                     {order.items?.map((item, index) => (
                       <div key={index} className="flex items-center space-x-4">
-                        <img
-                          src={item.thumbnail || '/placeholder.png'}
-                          alt={item.productName}
-                          className="w-20 h-20 object-cover rounded-lg"
-                        />
-                        <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{item.productName}</h3>
-                          <p className="text-sm text-gray-600">Số lượng: {item.quantity}</p>
-                        </div>
+                        {item.itemType === 'COMBO' ? (
+                          // Combo Item
+                          <>
+                            <div className="relative">
+                              {comboImages[item.comboId] ? (
+                                <img
+                                  src={comboImages[item.comboId]}
+                                  alt={item.comboName}
+                                  className="w-20 h-20 object-cover rounded-lg"
+                                />
+                              ) : (
+                                <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center">
+                                  <Package className="w-10 h-10 text-purple-600" />
+                                </div>
+                              )}
+                              <div className="absolute -top-1 -right-1 bg-purple-600 text-white px-1.5 py-0.5 rounded-full text-xs font-bold shadow-lg">
+                                COMBO
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                  🎁 Combo
+                                </span>
+                              </div>
+                              <h3 className="font-medium text-gray-900">{item.comboName}</h3>
+                              {item.comboSnapshot?.items && (
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {item.comboSnapshot.items.length} sản phẩm
+                                </p>
+                              )}
+                              <p className="text-sm text-gray-600">Số lượng: {item.quantity}</p>
+                            </div>
+                          </>
+                        ) : (
+                          // Product Item
+                          <>
+                            <img
+                              src={item.thumbnail || '/placeholder.png'}
+                              alt={item.productName}
+                              className="w-20 h-20 object-cover rounded-lg"
+                            />
+                            <div className="flex-1">
+                              <h3 className="font-medium text-gray-900">{item.productName}</h3>
+                              <p className="text-sm text-gray-600">Số lượng: {item.quantity}</p>
+                            </div>
+                          </>
+                        )}
                         <div className="text-right">
                           <p className="font-semibold text-blue-600">{formatPrice(item.unitPrice)}</p>
                           <p className="text-sm text-gray-600">Tổng: {formatPrice(item.lineTotal)}</p>

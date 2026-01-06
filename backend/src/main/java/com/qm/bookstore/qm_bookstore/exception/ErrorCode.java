@@ -120,6 +120,7 @@ public enum ErrorCode {
     PRODUCT_COMBO_EMPTY_ITEMS(9203, "Combo must have at least one product"),
     PRODUCT_COMBO_INVALID_PRICE(9204, "Combo price must be less than total product prices"),
     PRODUCT_COMBO_UNAVAILABLE(9205, "Product combo is not available"),
+    COMBO_SNAPSHOT_NOT_FOUND(9206, "Combo snapshot data not found for order item"),
 
     // Generic errors
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error"),

@@ -1,5 +1,6 @@
 package com.qm.bookstore.qm_bookstore.controller;
 
+import com.qm.bookstore.qm_bookstore.dto.cart.AddComboToCartRequest;
 import com.qm.bookstore.qm_bookstore.dto.cart.request.AddToCartRequest;
 import com.qm.bookstore.qm_bookstore.dto.cart.request.SelectAllItemsRequest;
 import com.qm.bookstore.qm_bookstore.dto.cart.request.ToggleItemSelectionRequest;
@@ -192,6 +193,30 @@ public class CartController {
         
         return ApiResponse.<Void>builder()
                 .success(true)
+                .build();
+    }
+
+    /**
+     * Add combo to cart
+     * POST /api/cart/combo
+     */
+    @PostMapping("/combo")
+    public ApiResponse<CartResponse> addComboToCart(
+            @Valid @RequestBody AddComboToCartRequest request,
+            @RequestHeader(value = "X-Session-ID", required = false) String sessionId) {
+        
+        UUID userId = getUserId();
+        log.info("[POST /cart/combo] comboId={}, quantity={}, userId={}, sessionId={}", 
+                request.getComboId(), request.getQuantity(), userId, sessionId);
+        
+        CartResponse cart = cartService.addComboToCart(request, userId, sessionId);
+        
+        log.info("[POST /cart/combo] ✅ Success - cartId={}, totalItems={}", 
+                cart.getCartId(), cart.getSummary().getTotalItems());
+        
+        return ApiResponse.<CartResponse>builder()
+                .success(true)
+                .result(cart)
                 .build();
     }
 }

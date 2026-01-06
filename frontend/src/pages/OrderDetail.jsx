@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { orderService } from '../services/orderService'
+import { comboService } from '../services'
 import transactionService from '../services/transactionService'
 import QRPayment from '../components/QRPayment'
 import { useToast } from '../contexts/ToastContext'
@@ -19,10 +20,49 @@ const OrderDetail = () => {
   const [cancelReason, setCancelReason] = useState('')
   const [cancelling, setCancelling] = useState(false)
   const [validating, setValidating] = useState(false)
+  const [comboImages, setComboImages] = useState({})
 
   useEffect(() => {
     loadOrderDetail()
   }, [orderId])
+
+  // Fetch combo images when order changes
+  useEffect(() => {
+    const fetchComboImages = async () => {
+      if (!order?.items) return
+
+      const comboIds = []
+      order.items.forEach(item => {
+        if (item.itemType === 'COMBO' && item.comboId && !comboImages[item.comboId]) {
+          comboIds.push(item.comboId)
+        }
+      })
+
+      if (comboIds.length === 0) return
+
+      const uniqueComboIds = [...new Set(comboIds)]
+      const imageMap = {}
+      
+      await Promise.all(
+        uniqueComboIds.map(async (comboId) => {
+          try {
+            const response = await comboService.getComboById(comboId)
+            if (response.success && response.result?.imageUrl) {
+              imageMap[comboId] = response.result.imageUrl
+            }
+          } catch (error) {
+            console.error(`Failed to fetch combo ${comboId}:`, error)
+          }
+        })
+      )
+
+      if (Object.keys(imageMap).length > 0) {
+        setComboImages(prev => ({ ...prev, ...imageMap }))
+      }
+    }
+
+    fetchComboImages()
+  }, [order])
 
   const loadOrderDetail = async () => {
     try {
@@ -290,20 +330,119 @@ const OrderDetail = () => {
               
               <div className="space-y-4">
                 {order.items?.map((item, index) => (
-                  <div key={index} className="flex items-center space-x-4 py-4 border-b last:border-b-0">
-                    <img
-                      src={item.thumbnail || '/placeholder.png'}
-                      alt={item.productName}
-                      className="w-24 h-24 object-cover rounded-lg"
-                    />
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{item.productName}</h3>
-                      <p className="text-sm text-gray-600 mt-1">Số lượng: {item.quantity}</p>
-                      <p className="text-sm text-gray-600">Đơn giá: {formatPrice(item.unitPrice)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-semibold text-blue-600">{formatPrice(item.lineTotal)}</p>
-                    </div>
+                  <div key={index} className="py-4 border-b last:border-b-0">
+                    {item.itemType === 'COMBO' ? (
+                      // Render Combo Item
+                      <div className="flex items-start space-x-4">
+                        <div className="relative">
+                          {comboImages[item.comboId] ? (
+                            <img
+                              src={comboImages[item.comboId]}
+                              alt={item.comboName}
+                              className="w-24 h-24 object-cover rounded-lg"
+                            />
+                          ) : (
+                            <div className="w-24 h-24 bg-gradient-to-br from-purple-100 via-pink-100 to-orange-100 rounded-lg flex items-center justify-center shadow-sm">
+                              <Package className="w-12 h-12 text-purple-600" />
+                            </div>
+                          )}
+                          <div className="absolute -top-2 -right-2 bg-purple-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
+                            COMBO
+                          </div>
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 mb-2 text-lg">{item.comboName}</h3>
+                          
+                          {/* Combo snapshot - products at time of purchase */}
+                          {item.comboSnapshot?.items && item.comboSnapshot.items.length > 0 && (
+                            <div className="mb-3 p-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-100">
+                              <p className="text-xs font-semibold text-purple-800 mb-2 flex items-center">
+                                <Package className="w-3 h-3 mr-1" />
+                                Sản phẩm trong combo (tại thời điểm mua):
+                              </p>
+                              <ul className="text-sm text-gray-700 space-y-1.5">
+                                {item.comboSnapshot.items.map((product, idx) => (
+                                  <li key={idx} className="flex items-start">
+                                    <span className="text-purple-600 mr-2 font-bold">•</span>
+                                    <span className="flex-1">
+                                      <span className="font-medium">{product.quantity}x</span> {product.productName}
+                                      {product.productPrice && (
+                                        <span className="text-gray-500 ml-2 text-xs">
+                                          ({formatPrice(product.productPrice)})
+                                        </span>
+                                      )}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {/* Combo pricing */}
+                          {item.comboSnapshot && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Giá gốc:</span>
+                                <span className="text-gray-500 line-through font-medium">
+                                  {formatPrice(item.comboSnapshot.originalPrice)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Giảm:</span>
+                                <span className="text-green-600 font-bold">
+                                  -{formatPrice(item.comboSnapshot.discountAmount)} 
+                                  <span className="ml-1 bg-green-100 px-1.5 py-0.5 rounded text-xs">
+                                    {item.comboSnapshot.discountPercentage?.toFixed(0)}%
+                                  </span>
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Giá combo:</span>
+                                <span className="font-bold text-blue-600">
+                                  {formatPrice(item.unitPrice)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center justify-between mt-2 pt-2 border-t">
+                            <p className="text-sm text-gray-600">
+                              Số lượng: <span className="font-semibold">{item.quantity}</span>
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Tiết kiệm: {item.comboSnapshot?.discountAmount && (
+                                <span className="text-green-600 font-semibold">
+                                  {formatPrice(item.comboSnapshot.discountAmount * item.quantity)}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 mb-1">Thành tiền</p>
+                          <p className="text-xl font-bold text-blue-600">{formatPrice(item.lineTotal)}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      // Render Product Item
+                      <div className="flex items-center space-x-4">
+                        <img
+                          src={item.thumbnail || '/placeholder.png'}
+                          alt={item.productName}
+                          className="w-24 h-24 object-cover rounded-lg"
+                        />
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900">{item.productName}</h3>
+                          <p className="text-sm text-gray-600 mt-1">Số lượng: {item.quantity}</p>
+                          <p className="text-sm text-gray-600">Đơn giá: {formatPrice(item.unitPrice)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-semibold text-blue-600">{formatPrice(item.lineTotal)}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

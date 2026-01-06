@@ -1,8 +1,11 @@
 package com.qm.bookstore.qm_bookstore.entity;
 
+import com.qm.bookstore.qm_bookstore.dto.order.ComboSnapshot;
+import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.Type;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -34,12 +37,34 @@ public class OrderItem {
     @JoinColumn(name = "order_id", insertable = false, updatable = false)
     Order order;
 
-    @Column(name = "product_id", nullable = false)
+    // For single product
+    @Column(name = "product_id")
     Long productId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", insertable = false, updatable = false)
     Product product;
+
+    // For combo
+    @Column(name = "combo_id")
+    Integer comboId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "combo_id", insertable = false, updatable = false)
+    ProductCombo combo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "item_type", length = 20)
+    @Builder.Default
+    ItemType itemType = ItemType.PRODUCT;
+
+    // Snapshot for combo (at order time)
+    @Column(name = "combo_name")
+    String comboName;
+
+    @Type(JsonBinaryType.class)
+    @Column(name = "combo_snapshot", columnDefinition = "jsonb")
+    ComboSnapshot comboSnapshot;
 
     @Column(name = "category_id")
     Long categoryId; // Snapshot để thống kê theo thể loại

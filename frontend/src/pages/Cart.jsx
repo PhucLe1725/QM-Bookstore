@@ -80,7 +80,12 @@ const Cart = () => {
     setCart(prevCart => {
       const updatedItems = prevCart.items.map(item => {
         if (item.id === itemId) {
-          const amount = item.price * newQuantity
+          let amount;
+          if (item.itemType === 'COMBO') {
+            amount = item.combo.price * newQuantity;
+          } else {
+            amount = item.price * newQuantity;
+          }
           return { ...item, quantity: newQuantity, amount, subtotal: amount }
         }
         return item
@@ -156,7 +161,14 @@ const Cart = () => {
       const updatedItems = prevCart.items.map(item => {
         if (item.id === itemId) {
           const numValue = value === '' ? '' : parseInt(value)
-          const amount = value === '' ? 0 : item.price * numValue
+          let amount;
+          if (value === '') {
+            amount = 0;
+          } else if (item.itemType === 'COMBO') {
+            amount = item.combo.price * numValue;
+          } else {
+            amount = item.price * numValue;
+          }
           return { ...item, quantity: numValue, amount, subtotal: amount }
         }
         return item
@@ -413,88 +425,209 @@ const Cart = () => {
             {/* Cart Items List */}
             {cart.items.map((item) => (
               <div key={item.id} className="bg-white rounded-lg shadow-sm p-4">
-                <div className="flex space-x-4">
-                  {/* Checkbox */}
-                  <div className="flex-shrink-0 flex items-start pt-1">
-                    <input
-                      type="checkbox"
-                      checked={item.isSelected}
-                      onChange={(e) => handleToggleSelection(item.id, e.target.checked)}
-                      className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* Image */}
-                  <div className="flex-shrink-0">
-                    <img
-                      src={item.productImage || '/placeholder.png'}
-                      alt={item.productName}
-                      className="h-24 w-24 object-cover rounded-lg"
-                    />
-                  </div>
-
-                  {/* Details */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                      {item.productName}
-                    </h3>
-                    <p className="text-xl font-bold text-blue-600">
-                      {formatPrice(item.price)}
-                    </p>
-                  </div>
-
-                  {/* Quantity Controls */}
-                  <div className="flex-shrink-0 flex flex-col items-end space-y-3">
-                    <div className="flex items-center space-x-2 border border-gray-300 rounded-lg">
-                      <button
-                        onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                        disabled={item.quantity <= 1 || updatingItems.has(item.id)}
-                        className="p-2 hover:bg-gray-100 rounded-l-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
+                {item.itemType === 'COMBO' ? (
+                  // Render Combo Item
+                  <div className="flex space-x-4">
+                    {/* Checkbox */}
+                    <div className="flex-shrink-0 flex items-start pt-1">
                       <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={item.quantity}
-                        data-item-id={item.id}
-                        onChange={(e) => handleQuantityInputChange(e, item.id)}
-                        onKeyPress={(e) => handleQuantityKeyPress(e, item.id, item.quantity)}
-                        onPaste={handleQuantityPaste}
-                        onBlur={(e) => handleQuantityInputBlur(item.id, e.target.value)}
-                        disabled={updatingItems.has(item.id)}
-                        className="w-16 px-2 py-2 text-center font-medium border-0 focus:ring-0 focus:outline-none disabled:bg-gray-50"
+                        type="checkbox"
+                        checked={item.isSelected}
+                        onChange={(e) => handleToggleSelection(item.id, e.target.checked)}
+                        className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
-                      <button
-                        onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                        disabled={updatingItems.has(item.id)}
-                        className="p-2 hover:bg-gray-100 rounded-r-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
                     </div>
-                    
-                    {updatingItems.has(item.id) && (
-                      <span className="text-xs text-gray-500 italic">Đang cập nhật...</span>
-                    )}
 
-                    <div className="text-right">
-                      <p className="text-sm text-gray-500">Thành tiền:</p>
-                      <p className="text-lg font-bold text-gray-900">
-                        {formatPrice(item.subtotal || item.amount)}
+                    {/* Image */}
+                    <div className="flex-shrink-0">
+                      <img
+                        src={item.combo?.imageUrl || '/placeholder.png'}
+                        alt={item.combo?.name}
+                        className="h-24 w-24 object-cover rounded-lg"
+                      />
+                    </div>
+
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                          <Package className="w-3 h-3 mr-1" />
+                          Combo
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        {item.combo?.name}
+                      </h3>
+                      
+                      {/* Combo items */}
+                      {item.combo?.items && item.combo.items.length > 0 && (
+                        <div className="mb-2">
+                          <p className="text-sm text-gray-600 font-medium mb-1">Bao gồm:</p>
+                          <ul className="text-sm text-gray-600 space-y-1">
+                            {item.combo.items.map((product, idx) => (
+                              <li key={idx} className="flex items-start">
+                                <span className="mr-1">•</span>
+                                <span>{product.quantity}x {product.productName}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Pricing */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-xl font-bold text-blue-600">
+                          {formatPrice(item.combo?.price)}
+                        </p>
+                        <span className="text-sm text-gray-500 line-through">
+                          {formatPrice(item.combo?.originalPrice)}
+                        </span>
+                        <span className="text-sm font-medium px-2 py-1 bg-red-100 text-red-700 rounded">
+                          -{item.combo?.discountPercentage?.toFixed(0)}%
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Tiết kiệm: {formatPrice(item.combo?.discountAmount)}
                       </p>
                     </div>
 
-                    <button
-                      onClick={() => handleRemoveItem(item.id)}
-                      className="text-sm text-red-600 hover:text-red-700 flex items-center space-x-1"
-                    >
-                      <X className="h-4 w-4" />
-                      <span>Xóa</span>
-                    </button>
+                    {/* Quantity Controls */}
+                    <div className="flex-shrink-0 flex flex-col items-end space-y-3">
+                      <div className="flex items-center space-x-2 border border-gray-300 rounded-lg">
+                        <button
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                          disabled={item.quantity <= 1 || updatingItems.has(item.id)}
+                          className="p-2 hover:bg-gray-100 rounded-l-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={item.quantity}
+                          data-item-id={item.id}
+                          onChange={(e) => handleQuantityInputChange(e, item.id)}
+                          onKeyPress={(e) => handleQuantityKeyPress(e, item.id, item.quantity)}
+                          onPaste={handleQuantityPaste}
+                          onBlur={(e) => handleQuantityInputBlur(item.id, e.target.value)}
+                          disabled={updatingItems.has(item.id)}
+                          className="w-16 px-2 py-2 text-center font-medium border-0 focus:ring-0 focus:outline-none disabled:bg-gray-50"
+                        />
+                        <button
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                          disabled={updatingItems.has(item.id)}
+                          className="p-2 hover:bg-gray-100 rounded-r-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                      
+                      {updatingItems.has(item.id) && (
+                        <span className="text-xs text-gray-500 italic">Đang cập nhật...</span>
+                      )}
+
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">Thành tiền:</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          {formatPrice(item.subtotal)}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleRemoveItem(item.id)}
+                        className="text-sm text-red-600 hover:text-red-700 flex items-center space-x-1"
+                      >
+                        <X className="h-4 w-4" />
+                        <span>Xóa</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  // Render Product Item
+                  <div className="flex space-x-4">
+                    {/* Checkbox */}
+                    <div className="flex-shrink-0 flex items-start pt-1">
+                      <input
+                        type="checkbox"
+                        checked={item.isSelected}
+                        onChange={(e) => handleToggleSelection(item.id, e.target.checked)}
+                        className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Image */}
+                    <div className="flex-shrink-0">
+                      <img
+                        src={item.productImage || '/placeholder.png'}
+                        alt={item.productName}
+                        className="h-24 w-24 object-cover rounded-lg"
+                      />
+                    </div>
+
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                        {item.productName}
+                      </h3>
+                      <p className="text-xl font-bold text-blue-600">
+                        {formatPrice(item.price)}
+                      </p>
+                    </div>
+
+                    {/* Quantity Controls */}
+                    <div className="flex-shrink-0 flex flex-col items-end space-y-3">
+                      <div className="flex items-center space-x-2 border border-gray-300 rounded-lg">
+                        <button
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                          disabled={item.quantity <= 1 || updatingItems.has(item.id)}
+                          className="p-2 hover:bg-gray-100 rounded-l-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={item.quantity}
+                          data-item-id={item.id}
+                          onChange={(e) => handleQuantityInputChange(e, item.id)}
+                          onKeyPress={(e) => handleQuantityKeyPress(e, item.id, item.quantity)}
+                          onPaste={handleQuantityPaste}
+                          onBlur={(e) => handleQuantityInputBlur(item.id, e.target.value)}
+                          disabled={updatingItems.has(item.id)}
+                          className="w-16 px-2 py-2 text-center font-medium border-0 focus:ring-0 focus:outline-none disabled:bg-gray-50"
+                        />
+                        <button
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                          disabled={updatingItems.has(item.id)}
+                          className="p-2 hover:bg-gray-100 rounded-r-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                      
+                      {updatingItems.has(item.id) && (
+                        <span className="text-xs text-gray-500 italic">Đang cập nhật...</span>
+                      )}
+
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">Thành tiền:</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          {formatPrice(item.subtotal || item.amount)}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleRemoveItem(item.id)}
+                        className="text-sm text-red-600 hover:text-red-700 flex items-center space-x-1"
+                      >
+                        <X className="h-4 w-4" />
+                        <span>Xóa</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
