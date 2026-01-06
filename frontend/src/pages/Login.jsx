@@ -55,7 +55,7 @@ const Login = () => {
     const newErrors = {}
     
     if (!formData.email.trim()) {
-      newErrors.email = 'Username/Email là bắt buộc'
+      newErrors.email = 'Username là bắt buộc'
     }
     
     if (!formData.password.trim()) {
@@ -84,14 +84,14 @@ const Login = () => {
     } catch (error) {
       console.error('Login error:', error)
       
-      let errorMessage = 'Username/Email hoặc mật khẩu không đúng'
+      let errorMessage = 'Username hoặc mật khẩu không đúng'
       
       // Xử lý các loại lỗi khác nhau
       if (error.message) {
         if (error.message.includes('Network Error') || error.message.includes('ECONNREFUSED')) {
           errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra lại.'
         } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-          errorMessage = 'Username/Email hoặc mật khẩu không đúng'
+          errorMessage = 'Username hoặc mật khẩu không đúng'
         } else if (error.message.includes('403')) {
           errorMessage = 'Tài khoản bị khóa hoặc không có quyền truy cập'
         } else {
@@ -132,20 +132,13 @@ const Login = () => {
               tạo tài khoản mới
             </Link>
           </p>
-          
-          {/* Demo credentials */}
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-xs text-yellow-800 text-center">
-              <strong>Demo:</strong> Username: admin | Password: admin123
-            </p>
-          </div>
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Username/Email
+                Username
               </label>
               <input
                 id="email"
@@ -225,26 +218,6 @@ const Login = () => {
               </div>
             </div>
           )}
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                Ghi nhớ đăng nhập
-              </label>
-            </div>
-
-            <div className="text-sm">
-              <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
-                Quên mật khẩu?
-              </a>
-            </div>
-          </div>
 
           <div>
             <button
