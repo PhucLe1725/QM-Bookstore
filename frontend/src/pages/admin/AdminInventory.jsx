@@ -53,7 +53,7 @@ const AdminInventory = () => {
         transactionType: 'IN',
         referenceType: 'MANUAL',
         note: '',
-        items: [{ productId: '', quantity: 1, changeType: 'PLUS' }]
+        items: [{ productId: '', quantity: 1, changeType: 'PLUS', unitPrice: '' }]
     })
 
     // Quick filter buttons
@@ -165,7 +165,7 @@ const AdminInventory = () => {
         const defaultChangeType = createForm.transactionType === 'STOCKTAKE' ? 'PLUS' : getChangeTypeForTransaction(createForm.transactionType)
         setCreateForm(prev => ({
             ...prev,
-            items: [...prev.items, { productId: '', quantity: 1, changeType: defaultChangeType }]
+            items: [...prev.items, { productId: '', quantity: 1, changeType: defaultChangeType, unitPrice: '' }]
         }))
     }
 
@@ -207,18 +207,33 @@ const AdminInventory = () => {
             return
         }
 
+        // Validate unitPrice for IN transactions
+        if (createForm.transactionType === 'IN') {
+            if (createForm.items.some(item => !item.unitPrice || parseFloat(item.unitPrice) <= 0)) {
+                showToast('Vui lòng nhập giá nhập cho tất cả sản phẩm!', 'warning')
+                return
+            }
+        }
+
         const changeType = getChangeTypeForTransaction(createForm.transactionType)
 
         const payload = {
             transactionType: createForm.transactionType,
             referenceType: createForm.referenceType,
             note: createForm.note || undefined,
-            items: createForm.items.map(item => ({
-                productId: parseInt(item.productId),
-                // For STOCKTAKE, use individual item's changeType, otherwise use default
-                changeType: createForm.transactionType === 'STOCKTAKE' ? item.changeType : changeType,
-                quantity: parseInt(item.quantity)
-            }))
+            items: createForm.items.map(item => {
+                const itemData = {
+                    productId: parseInt(item.productId),
+                    // For STOCKTAKE, use individual item's changeType, otherwise use default
+                    changeType: createForm.transactionType === 'STOCKTAKE' ? item.changeType : changeType,
+                    quantity: parseInt(item.quantity)
+                }
+                // Add unitPrice for IN transactions
+                if (createForm.transactionType === 'IN' && item.unitPrice) {
+                    itemData.unitPrice = parseFloat(item.unitPrice)
+                }
+                return itemData
+            })
         }
 
         // console.log('[AdminInventory] Creating transaction with payload:', JSON.stringify(payload, null, 2))
@@ -245,7 +260,7 @@ const AdminInventory = () => {
             transactionType: 'IN',
             referenceType: 'MANUAL',
             note: '',
-            items: [{ productId: '', quantity: 1, changeType: 'PLUS' }]
+            items: [{ productId: '', quantity: 1, changeType: 'PLUS', unitPrice: '' }]
         })
     }
 
@@ -259,6 +274,25 @@ const AdminInventory = () => {
             hour: '2-digit',
             minute: '2-digit'
         })
+    }
+
+    const formatCurrency = (amount) => {
+        if (amount === null || amount === undefined) {
+            return '-'
+        }
+        return new Intl.NumberFormat('vi-VN', {
+            style: 'currency',
+            currency: 'VND',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(amount)
+    }
+
+    const calculateTransactionTotal = (items) => {
+        if (!items || items.length === 0) return 0
+        return items.reduce((sum, item) => {
+            return sum + (item.totalPrice || 0)
+        }, 0)
     }
 
     const totalPages = Math.ceil(totalRecords / filters.maxResultCount)
@@ -403,6 +437,9 @@ const AdminInventory = () => {
                                         Ngày
                                     </th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Tổng Giá Trị
+                                    </th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Thao Tác
                                     </th>
                                 </tr>
@@ -410,7 +447,7 @@ const AdminInventory = () => {
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="7" className="px-6 py-12 text-center">
+                                        <td colSpan="8" className="px-6 py-12 text-center">
                                             <div className="flex justify-center items-center">
                                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                                             </div>
@@ -418,7 +455,7 @@ const AdminInventory = () => {
                                     </tr>
                                 ) : transactions.length === 0 ? (
                                     <tr>
-                                        <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                                        <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
                                             Không có giao dịch nào
                                         </td>
                                     </tr>
@@ -457,6 +494,9 @@ const AdminInventory = () => {
                                                         <Calendar className="w-4 h-4 mr-2 text-gray-400" />
                                                         {formatDate(transaction.createdAt)}
                                                     </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
+                                                    {formatCurrency(calculateTransactionTotal(transaction.items))}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                     <button
@@ -608,6 +648,8 @@ const AdminInventory = () => {
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
                                                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Thay đổi</th>
                                                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Số lượng</th>
+                                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Đơn giá</th>
+                                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Thành tiền</th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200">
@@ -626,9 +668,25 @@ const AdminInventory = () => {
                                                     <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
                                                         {item.quantity}
                                                     </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                        {formatCurrency(item.unitPrice)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900 text-right font-semibold">
+                                                        {formatCurrency(item.totalPrice)}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
+                                        <tfoot className="bg-gray-50">
+                                            <tr>
+                                                <td colSpan="5" className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+                                                    Tổng cộng:
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-base font-bold text-blue-600">
+                                                    {formatCurrency(calculateTransactionTotal(selectedTransaction.items))}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
                                     </table>
                                 </div>
                             </div>
@@ -735,57 +793,104 @@ const AdminInventory = () => {
                                 <div className="space-y-3">
                                     {createForm.items.map((item, index) => {
                                         const isStocktake = createForm.transactionType === 'STOCKTAKE'
+                                        const isIn = createForm.transactionType === 'IN'
+                                        const calculatedTotal = item.quantity && item.unitPrice ? item.quantity * parseFloat(item.unitPrice) : 0
                                         
                                         return (
-                                            <div key={index} className="flex gap-3 items-start bg-gray-50 p-4 rounded-lg">
-                                                <div className="flex-1">
-                                                    <ProductSearchableSelect
-                                                        value={item.productId}
-                                                        onChange={(value) => handleItemChange(index, 'productId', value)}
-                                                        placeholder="Tìm và chọn sản phẩm..."
-                                                        showStock={true}
-                                                        showPrice={true}
-                                                    />
+                                            <div key={index} className="bg-gray-50 p-4 rounded-lg space-y-3">
+                                                <div className="flex gap-3 items-start">
+                                                    <div className="flex-1">
+                                                        <ProductSearchableSelect
+                                                            value={item.productId}
+                                                            onChange={(value) => handleItemChange(index, 'productId', value)}
+                                                            placeholder="Tìm và chọn sản phẩm..."
+                                                            showStock={true}
+                                                            showPrice={true}
+                                                        />
+                                                    </div>
+                                                    
+                                                    {/* Change Type for STOCKTAKE */}
+                                                    {isStocktake && (
+                                                        <div className="w-28">
+                                                            <select
+                                                                value={item.changeType || 'PLUS'}
+                                                                onChange={(e) => handleItemChange(index, 'changeType', e.target.value)}
+                                                                className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                                                required
+                                                            >
+                                                                <option value="PLUS">+ Tăng</option>
+                                                                <option value="MINUS">- Giảm</option>
+                                                            </select>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <div className={isStocktake ? 'w-24' : 'w-32'}>
+                                                        <input
+                                                            type="number"
+                                                            value={item.quantity}
+                                                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                                                            min="1"
+                                                            placeholder="Số lượng"
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    
+                                                    {/* Unit Price for IN transactions */}
+                                                    {isIn && (
+                                                        <div className="w-40">
+                                                            <input
+                                                                type="number"
+                                                                value={item.unitPrice}
+                                                                onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
+                                                                min="0"
+                                                                placeholder="Giá nhập (₫)"
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                                required
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeItem(index)}
+                                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        disabled={createForm.items.length === 1}
+                                                    >
+                                                        <X className="w-5 h-5" />
+                                                    </button>
                                                 </div>
                                                 
-                                                {/* Change Type for STOCKTAKE */}
-                                                {isStocktake && (
-                                                    <div className="w-28">
-                                                        <select
-                                                            value={item.changeType || 'PLUS'}
-                                                            onChange={(e) => handleItemChange(index, 'changeType', e.target.value)}
-                                                            className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                                                            required
-                                                        >
-                                                            <option value="PLUS">+ Tăng</option>
-                                                            <option value="MINUS">- Giảm</option>
-                                                        </select>
+                                                {/* Display calculated total for IN transactions */}
+                                                {isIn && item.productId && item.quantity && item.unitPrice && (
+                                                    <div className="flex justify-end items-center gap-2 text-sm">
+                                                        <span className="text-gray-600">Thành tiền:</span>
+                                                        <span className="font-semibold text-blue-600">
+                                                            {formatCurrency(calculatedTotal)}
+                                                        </span>
                                                     </div>
                                                 )}
-                                                
-                                                <div className={isStocktake ? 'w-24' : 'w-32'}>
-                                                    <input
-                                                        type="number"
-                                                        value={item.quantity}
-                                                        onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                                                        min="1"
-                                                        placeholder="Số lượng"
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                        required
-                                                    />
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeItem(index)}
-                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                    disabled={createForm.items.length === 1}
-                                                >
-                                                    <X className="w-5 h-5" />
-                                                </button>
                                             </div>
                                         )
                                     })}
                                 </div>
+                                
+                                {/* Total Amount for IN transactions */}
+                                {createForm.transactionType === 'IN' && createForm.items.length > 0 && (
+                                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-base font-semibold text-gray-700">Tổng giá trị nhập:</span>
+                                            <span className="text-xl font-bold text-blue-600">
+                                                {formatCurrency(
+                                                    createForm.items.reduce((sum, item) => {
+                                                        const itemTotal = item.quantity && item.unitPrice ? item.quantity * parseFloat(item.unitPrice) : 0
+                                                        return sum + itemTotal
+                                                    }, 0)
+                                                )}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Actions */}

@@ -22,6 +22,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -95,11 +96,19 @@ public class InventoryTransactionService {
             Product product = productRepository.findById(itemReq.getProductId())
                     .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
 
+            // Tính totalPrice nếu có unitPrice
+            BigDecimal totalPrice = null;
+            if (itemReq.getUnitPrice() != null) {
+                totalPrice = itemReq.getUnitPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+            }
+
             // Tạo item
             InventoryTransactionItem item = InventoryTransactionItem.builder()
                     .productId(itemReq.getProductId())
                     .changeType(itemReq.getChangeType())
                     .quantity(itemReq.getQuantity())
+                    .unitPrice(itemReq.getUnitPrice())
+                    .totalPrice(totalPrice)
                     .build();
 
             header.addItem(item);
@@ -180,26 +189,37 @@ public class InventoryTransactionService {
                     // Calculate total quantity: combo product quantity * order quantity
                     int totalQuantity = comboProduct.getQuantity() * orderItem.getQuantity();
 
+                    // Calculate price from product (for reference, optional for OUT)
+                    BigDecimal unitPrice = product.getPrice();
+                    BigDecimal totalPrice = unitPrice != null ? unitPrice.multiply(BigDecimal.valueOf(totalQuantity)) : null;
+
                     // Create transaction item for this product
                     InventoryTransactionItem item = InventoryTransactionItem.builder()
                             .headerId(header.getId())
                             .productId(comboProduct.getProductId())
                             .changeType(CHANGE_TYPE_MINUS)
                             .quantity(totalQuantity)
+                            .unitPrice(unitPrice)
+                            .totalPrice(totalPrice)
                             .build();
 
                     header.addItem(item);
 
-                    // Deduct stock
+                    // Deduct stock and save product
                     deductStock(product, totalQuantity);
+                    productRepository.save(product);
                     
-                    log.info("Deducted stock for combo product: productId={}, productName={}, quantity={}", 
-                        product.getId(), product.getName(), totalQuantity);
+                    log.info("Deducted stock for combo product: productId={}, productName={}, quantity={}, newStock={}", 
+                        product.getId(), product.getName(), totalQuantity, product.getStockQuantity());
                 }
             } else {
                 // Handle single product items (existing logic)
                 Product product = productRepository.findById(orderItem.getProductId())
                         .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+
+                // Calculate price from product (for reference, optional for OUT)
+                BigDecimal unitPrice = product.getPrice();
+                BigDecimal totalPrice = unitPrice != null ? unitPrice.multiply(BigDecimal.valueOf(orderItem.getQuantity())) : null;
 
                 // Tạo item với headerId
                 InventoryTransactionItem item = InventoryTransactionItem.builder()
@@ -207,12 +227,15 @@ public class InventoryTransactionService {
                         .productId(orderItem.getProductId())
                         .changeType(CHANGE_TYPE_MINUS)
                         .quantity(orderItem.getQuantity())
+                        .unitPrice(unitPrice)
+                        .totalPrice(totalPrice)
                         .build();
 
                 header.addItem(item);
 
-                // 6. Trừ kho với điều kiện
+                // 6. Trừ kho với điều kiện và lưu product
                 deductStock(product, orderItem.getQuantity());
+                productRepository.save(product);
             }
         }
 
@@ -365,6 +388,8 @@ public class InventoryTransactionService {
                             .productSku(product != null ? product.getSku() : "Unknown")
                             .changeType(item.getChangeType())
                             .quantity(item.getQuantity())
+                            .unitPrice(item.getUnitPrice())
+                            .totalPrice(item.getTotalPrice())
                             .build();
                 })
                 .collect(Collectors.toList());

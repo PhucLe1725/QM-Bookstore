@@ -6,6 +6,8 @@ import jakarta.validation.constraints.Positive;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
+
 /**
  * DTO cho từng dòng sản phẩm trong giao dịch kho
  */
@@ -25,4 +27,10 @@ public class InventoryTransactionItemRequest {
     @NotNull(message = "Quantity không được để trống")
     @Positive(message = "Quantity phải lớn hơn 0")
     Integer quantity;
+
+    /**
+     * Giá nhập đơn vị (bắt buộc cho giao dịch IN, optional cho OUT/DAMAGED)
+     */
+    @Positive(message = "Unit price phải lớn hơn 0")
+    BigDecimal unitPrice;
 }

@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
+
 /**
  * Đại diện cho từng dòng sản phẩm trong giao dịch kho
  * Mang dấu tăng/giảm (PLUS/MINUS)
@@ -59,4 +61,18 @@ public class InventoryTransactionItem {
      */
     @Column(nullable = false)
     Integer quantity;
+
+    /**
+     * Giá nhập đơn vị (cho giao dịch IN)
+     * Có thể null cho giao dịch OUT/DAMAGED
+     */
+    @Column(name = "unit_price", precision = 10, scale = 2)
+    BigDecimal unitPrice;
+
+    /**
+     * Tổng giá trị = unitPrice × quantity
+     * Tự động tính khi có unitPrice
+     */
+    @Column(name = "total_price", precision = 12, scale = 2)
+    BigDecimal totalPrice;
 }
