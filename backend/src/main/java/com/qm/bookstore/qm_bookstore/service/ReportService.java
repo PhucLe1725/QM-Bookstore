@@ -230,7 +230,9 @@ public class ReportService {
         List<Long> orderIds = paidOrders.stream().map(Order::getId).collect(Collectors.toList());
         List<OrderItem> orderItems = orderItemRepository.findByOrderIdIn(orderIds);
 
+        // ✅ FIX: Filter out combo items (productId = null) before grouping
         Map<Long, List<OrderItem>> itemsByProduct = orderItems.stream()
+                .filter(item -> item.getProductId() != null)  // Only single products
                 .collect(Collectors.groupingBy(OrderItem::getProductId));
 
         return itemsByProduct.entrySet().stream()
