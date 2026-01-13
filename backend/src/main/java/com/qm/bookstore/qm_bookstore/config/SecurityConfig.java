@@ -29,6 +29,8 @@ public class SecurityConfig {
                     var corsConfiguration = new org.springframework.web.cors.CorsConfiguration();
                     corsConfiguration.addAllowedOrigin("http://localhost:5173");
                     corsConfiguration.addAllowedOrigin("http://localhost:3000");
+                    corsConfiguration.addAllowedOrigin("https://qm-bookstore.vercel.app");
+                    corsConfiguration.addAllowedOrigin("https://phucle5066.id.vn");
                     corsConfiguration.addAllowedHeader("*");
                     corsConfiguration.addAllowedMethod("*");
                     corsConfiguration.setAllowCredentials(true);
