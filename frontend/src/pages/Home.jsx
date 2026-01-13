@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { productService, comboService } from '../services'
 import { useChat } from '../store'
-import { 
-  Truck, 
-  Shield, 
-  Award, 
+import {
+  Truck,
+  Shield,
+  Award,
   Clock,
   CheckCircle,
   ArrowRight,
@@ -34,7 +34,7 @@ const Home = () => {
         sortBy: 'name',
         sortDirection: 'asc'
       })
-      
+
       if (response?.success && response.result?.data) {
         setFeaturedProducts(response.result.data)
       }
@@ -54,7 +54,7 @@ const Home = () => {
         direction: 'DESC',
         available: true
       })
-      
+
       if (response?.result?.content) {
         setFeaturedCombos(response.result.content)
       }
@@ -160,7 +160,7 @@ const Home = () => {
                 <span className="block text-blue-600">Chất lượng - Giá tốt</span>
               </h1>
               <p className="text-lg md:text-xl text-gray-600 leading-relaxed">
-                Cung cấp đầy đủ văn phòng phẩm, đồ dùng học sinh: bút viết, thước kẻ, cặp sách, vở viết, sách giáo khoa. 
+                Cung cấp đầy đủ văn phòng phẩm, đồ dùng học sinh: bút viết, thước kẻ, cặp sách, vở viết, sách giáo khoa.
                 Sản phẩm đa dạng, chất lượng cao, giá cả hợp lý.
               </p>
               <div className="flex flex-wrap gap-4 pt-4">
@@ -178,7 +178,7 @@ const Home = () => {
                   Liên hệ tư vấn
                 </button>
               </div>
-              
+
               {/* Stats */}
               <div className="grid grid-cols-3 gap-6 pt-8 border-t border-gray-200">
                 <div>
@@ -200,7 +200,7 @@ const Home = () => {
             <div className="relative">
               <div className="aspect-square rounded-2xl overflow-hidden shadow-2xl">
                 <img
-                  src="/src/assets/website/library.jpg"
+                  src="/assets/website/library.jpg"
                   alt="Văn phòng phẩm chất lượng"
                   className="w-full h-full object-cover"
                   onError={(e) => {
@@ -277,12 +277,11 @@ const Home = () => {
               </p>
             </div>
 
-            <div className={`grid gap-6 ${
-              featuredCombos.length === 1 ? 'grid-cols-1 max-w-md mx-auto' :
-              featuredCombos.length === 2 ? 'grid-cols-1 sm:grid-cols-2 max-w-4xl mx-auto' :
-              featuredCombos.length === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
-              'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-            }`}>
+            <div className={`grid gap-6 ${featuredCombos.length === 1 ? 'grid-cols-1 max-w-md mx-auto' :
+                featuredCombos.length === 2 ? 'grid-cols-1 sm:grid-cols-2 max-w-4xl mx-auto' :
+                  featuredCombos.length === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
+                    'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+              }`}>
               {featuredCombos.map((combo) => (
                 <div
                   key={combo.id}
@@ -302,7 +301,7 @@ const Home = () => {
                         <Package className="w-20 h-20 text-gray-300" />
                       </div>
                     )}
-                    
+
                     {/* Discount Badge */}
                     <div className="absolute top-3 right-3 bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
                       -{combo.discountPercentage}%
@@ -404,7 +403,7 @@ const Home = () => {
                     <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
                       {product.name}
                     </h3>
-                    
+
                     {/* Rating */}
                     <div className="flex items-center gap-1 mb-3">
                       {[...Array(5)].map((_, i) => (

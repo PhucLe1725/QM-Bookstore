@@ -63,7 +63,7 @@ const Header = () => {
         <div className="flex justify-between items-center py-6">
           <div className="flex items-center">
             <img
-              src="/src/assets/website/logo.png"
+              src="/assets/website/logo.png"
               alt="QM Logo"
               className="h-8 w-auto"
             />
@@ -158,7 +158,7 @@ const Header = () => {
                   <div className="flex items-center space-x-3 cursor-pointer">
                     <div className="relative">
                       <img
-                        src="/src/assets/user.png"
+                        src="/assets/user.png"
                         alt="User Avatar"
                         className="h-10 w-10 rounded-full border-2 border-gray-200 hover:border-blue-300 transition-colors"
                       />

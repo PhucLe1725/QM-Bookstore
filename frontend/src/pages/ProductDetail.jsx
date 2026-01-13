@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { 
-  ShoppingCart, 
-  Heart, 
-  Star, 
-  ChevronLeft, 
-  Minus, 
+import {
+  ShoppingCart,
+  Heart,
+  Star,
+  ChevronLeft,
+  Minus,
   Plus,
   Share2,
   AlertCircle,
@@ -26,7 +26,7 @@ const ProductDetail = () => {
   const navigate = useNavigate()
   const { user, isAuthenticated } = useAuth()
   const toast = useToast()
-  
+
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -34,10 +34,10 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState(0)
   const [isInWishlist, setIsInWishlist] = useState(false)
   const [addingToCart, setAddingToCart] = useState(false)
-  
+
   // Tab state
   const [activeTab, setActiveTab] = useState('description') // 'description', 'comments', 'reviews'
-  
+
   // Comments state
   const [comments, setComments] = useState([])
   const [commentCount, setCommentCount] = useState(0)
@@ -49,7 +49,7 @@ const ProductDetail = () => {
   const [replyCounts, setReplyCounts] = useState({}) // Track reply count for each comment
   const [editingComment, setEditingComment] = useState(null) // ID of comment being edited
   const [editContent, setEditContent] = useState('')
-  
+
   // Reviews state
   const [reviews, setReviews] = useState([])
   const [reviewsLoading, setReviewsLoading] = useState(false)
@@ -66,10 +66,10 @@ const ProductDetail = () => {
     const fetchProduct = async () => {
       setLoading(true)
       setError(null)
-      
+
       try {
         const response = await productService.getProductById(id)
-        
+
         if (response.success) {
           setProduct(response.result)
           // Fetch reviews
@@ -113,7 +113,7 @@ const ProductDetail = () => {
   useEffect(() => {
     const fetchComments = async () => {
       if (!id) return
-      
+
       setCommentsLoading(true)
       try {
         // Fetch root comments only (for better performance)
@@ -121,10 +121,10 @@ const ProductDetail = () => {
           commentService.getRootCommentsByProduct(id),
           commentService.getCommentCount(id)
         ])
-        
+
         if (commentsResponse.success) {
           setComments(commentsResponse.result || [])
-          
+
           // Fetch reply counts for all root comments
           const rootComments = commentsResponse.result || []
           rootComments.forEach(async (comment) => {
@@ -141,7 +141,7 @@ const ProductDetail = () => {
             }
           })
         }
-        
+
         if (countResponse.success) {
           setCommentCount(countResponse.result || 0)
         }
@@ -167,12 +167,12 @@ const ProductDetail = () => {
   // Handle add to cart
   const handleAddToCart = async () => {
     if (addingToCart) return
-    
+
     setAddingToCart(true)
     try {
       await cartService.addToCart(id, quantity)
       toast.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng!`)
-      
+
       // Refresh cart count in header (dispatch custom event)
       window.dispatchEvent(new Event('cartUpdated'))
     } catch (error) {
@@ -194,9 +194,9 @@ const ProductDetail = () => {
     try {
       setReviewsLoading(true)
       const reviews = await reviewService.getProductReviews(productId)
-      
+
       setReviews(reviews)
-      
+
       // Check if current user has reviewed
       if (isAuthenticated && user) {
         const myReview = reviews.find(r => r.userId === user.id)
@@ -213,7 +213,7 @@ const ProductDetail = () => {
   // Handle submit review
   const handleSubmitReview = async (e) => {
     e.preventDefault()
-    
+
     if (!isAuthenticated) {
       toast.warning('Vui lòng đăng nhập để đánh giá sản phẩm')
       navigate('/login')
@@ -239,14 +239,14 @@ const ProductDetail = () => {
       }
 
       const response = await reviewService.createReview(reviewData)
-      
+
       // API response format: { success: true, result: {...} }
       if (response && (response.success || response.result)) {
         toast.success('Cảm ơn bạn đã đánh giá!')
-        
+
         // Refresh reviews
         await fetchReviews(id)
-        
+
         // Reset form
         setNewReview({ rating: 5, content: '' })
         setShowReviewForm(false)
@@ -263,7 +263,7 @@ const ProductDetail = () => {
   // Handle submit comment
   const handleSubmitComment = async (e) => {
     e.preventDefault()
-    
+
     if (!isAuthenticated) {
       toast.warning('Vui lòng đăng nhập để bình luận')
       navigate('/login')
@@ -366,7 +366,7 @@ const ProductDetail = () => {
 
     try {
       const response = await commentService.getRepliesByComment(commentId)
-      
+
       if (response.success) {
         setLoadedReplies({
           ...loadedReplies,
@@ -390,23 +390,23 @@ const ProductDetail = () => {
 
       if (response.success) {
         // Update comment in list
-        setComments(comments.map(c => 
+        setComments(comments.map(c =>
           c.id === commentId ? { ...c, content: editContent.trim() } : c
         ))
-        
+
         // Update in replies if exists
         Object.keys(loadedReplies).forEach(parentId => {
           const replies = loadedReplies[parentId]
           if (replies) {
             setLoadedReplies({
               ...loadedReplies,
-              [parentId]: replies.map(r => 
+              [parentId]: replies.map(r =>
                 r.id === commentId ? { ...r, content: editContent.trim() } : r
               )
             })
           }
         })
-        
+
         setEditingComment(null)
         setEditContent('')
         toast.success('Cập nhật bình luận thành công!')
@@ -441,13 +441,13 @@ const ProductDetail = () => {
           const { [commentId]: removed, ...rest } = loadedReplies
           setLoadedReplies(rest)
         }
-        
+
         // Refresh comment count
         const countResponse = await commentService.getCommentCount(id)
         if (countResponse.success) {
           setCommentCount(countResponse.result)
         }
-        
+
         toast.success('Xóa bình luận thành công!')
       }
     } catch (err) {
@@ -507,9 +507,9 @@ const ProductDetail = () => {
   }
 
   // Mock images (replace with actual product images)
-  const productImages = product.imageUrl 
+  const productImages = product.imageUrl
     ? [product.imageUrl]
-    : ['/src/assets/placeholder-product.jpg']
+    : ['/assets/placeholder-product.jpg']
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -543,7 +543,7 @@ const ProductDetail = () => {
                   alt={product.name}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.target.src = '/src/assets/placeholder-product.jpg'
+                    e.target.src = '/assets/placeholder-product.jpg'
                   }}
                 />
                 {!product.availability && (
@@ -562,9 +562,8 @@ const ProductDetail = () => {
                     <button
                       key={index}
                       onClick={() => setSelectedImage(index)}
-                      className={`aspect-square rounded-lg overflow-hidden border-2 ${
-                        selectedImage === index ? 'border-blue-600' : 'border-gray-200'
-                      }`}
+                      className={`aspect-square rounded-lg overflow-hidden border-2 ${selectedImage === index ? 'border-blue-600' : 'border-gray-200'
+                        }`}
                     >
                       <img
                         src={image}
@@ -597,11 +596,10 @@ const ProductDetail = () => {
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`h-5 w-5 ${
-                        i < Math.floor(averageRating)
+                      className={`h-5 w-5 ${i < Math.floor(averageRating)
                           ? 'text-yellow-400 fill-yellow-400'
                           : 'text-gray-300'
-                      }`}
+                        }`}
                     />
                   ))}
                 </div>
@@ -684,11 +682,10 @@ const ProductDetail = () => {
                     </button>
                     <button
                       onClick={handleWishlistToggle}
-                      className={`p-3 border rounded-lg transition-colors ${
-                        isInWishlist
+                      className={`p-3 border rounded-lg transition-colors ${isInWishlist
                           ? 'bg-red-50 border-red-300 text-red-600'
                           : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <Heart className={`h-6 w-6 ${isInWishlist ? 'fill-red-600' : ''}`} />
                     </button>
@@ -737,21 +734,19 @@ const ProductDetail = () => {
                 <nav className="flex -mb-px">
                   <button
                     onClick={() => setActiveTab('description')}
-                    className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
-                      activeTab === 'description'
+                    className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${activeTab === 'description'
                         ? 'border-b-2 border-blue-600 text-blue-600'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     Mô tả sản phẩm
                   </button>
                   <button
                     onClick={() => setActiveTab('comments')}
-                    className={`flex-1 py-4 px-6 text-center font-medium transition-colors relative ${
-                      activeTab === 'comments'
+                    className={`flex-1 py-4 px-6 text-center font-medium transition-colors relative ${activeTab === 'comments'
                         ? 'border-b-2 border-blue-600 text-blue-600'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-center space-x-2">
                       <MessageCircle className="h-5 w-5" />
@@ -763,11 +758,10 @@ const ProductDetail = () => {
                   </button>
                   <button
                     onClick={() => setActiveTab('reviews')}
-                    className={`flex-1 py-4 px-6 text-center font-medium transition-colors relative ${
-                      activeTab === 'reviews'
+                    className={`flex-1 py-4 px-6 text-center font-medium transition-colors relative ${activeTab === 'reviews'
                         ? 'border-b-2 border-blue-600 text-blue-600'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-center space-x-2">
                       <Star className="h-5 w-5" />
@@ -894,7 +888,7 @@ const ProductDetail = () => {
                                     {formatDate(comment.createdAt)}
                                   </span>
                                 </div>
-                                
+
                                 {/* Edit mode */}
                                 {editingComment === comment.id ? (
                                   <div className="mt-2">
@@ -925,7 +919,7 @@ const ProductDetail = () => {
                                 ) : (
                                   <>
                                     <p className="text-gray-600 whitespace-pre-wrap">{comment.content}</p>
-                                    
+
                                     {/* Action buttons */}
                                     <div className="mt-2 flex items-center space-x-4">
                                       <button
@@ -934,7 +928,7 @@ const ProductDetail = () => {
                                       >
                                         Trả lời
                                       </button>
-                                      
+
                                       {isAuthenticated && user?.id === comment.userId && (
                                         <>
                                           <button
@@ -954,14 +948,14 @@ const ProductDetail = () => {
                                           </button>
                                         </>
                                       )}
-                                      
+
                                       {replyCounts[comment.id] > 0 && (
                                         <button
                                           onClick={() => handleLoadReplies(comment.id)}
                                           className="text-sm text-gray-600 hover:text-gray-700"
                                         >
-                                          {loadedReplies[comment.id] 
-                                            ? 'Ẩn trả lời' 
+                                          {loadedReplies[comment.id]
+                                            ? 'Ẩn trả lời'
                                             : `Xem trả lời (${replyCounts[comment.id]})`}
                                         </button>
                                       )}
@@ -1023,7 +1017,7 @@ const ProductDetail = () => {
                                                 {formatDate(reply.createdAt)}
                                               </span>
                                             </div>
-                                            
+
                                             {editingComment === reply.id ? (
                                               <div className="mt-2">
                                                 <textarea
@@ -1053,7 +1047,7 @@ const ProductDetail = () => {
                                             ) : (
                                               <>
                                                 <p className="text-sm text-gray-600 whitespace-pre-wrap">{reply.content}</p>
-                                                
+
                                                 {isAuthenticated && user?.id === reply.userId && (
                                                   <div className="mt-1 flex items-center space-x-3">
                                                     <button
@@ -1120,7 +1114,7 @@ const ProductDetail = () => {
                             Bạn đã mua sản phẩm này. Hãy chia sẻ đánh giá của bạn!
                           </p>
                         </div>
-                        
+
                         {!showReviewForm ? (
                           <button
                             onClick={() => setShowReviewForm(true)}
@@ -1131,7 +1125,7 @@ const ProductDetail = () => {
                         ) : (
                           <form onSubmit={handleSubmitReview} className="bg-white p-4 rounded-lg">
                             <h3 className="font-medium text-gray-900 mb-4">Đánh giá của bạn</h3>
-                            
+
                             {/* Rating Stars */}
                             <div className="mb-4">
                               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1146,11 +1140,10 @@ const ProductDetail = () => {
                                     className="focus:outline-none transition-transform hover:scale-110"
                                   >
                                     <Star
-                                      className={`h-8 w-8 ${
-                                        star <= newReview.rating
+                                      className={`h-8 w-8 ${star <= newReview.rating
                                           ? 'text-yellow-400 fill-yellow-400'
                                           : 'text-gray-300'
-                                      }`}
+                                        }`}
                                     />
                                   </button>
                                 ))}
@@ -1233,11 +1226,10 @@ const ProductDetail = () => {
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
-                              className={`h-5 w-5 ${
-                                i < userReview.rating
+                              className={`h-5 w-5 ${i < userReview.rating
                                   ? 'text-yellow-400 fill-yellow-400'
                                   : 'text-gray-300'
-                              }`}
+                                }`}
                             />
                           ))}
                         </div>
@@ -1286,11 +1278,10 @@ const ProductDetail = () => {
                                       {[...Array(5)].map((_, i) => (
                                         <Star
                                           key={i}
-                                          className={`h-4 w-4 ${
-                                            i < review.rating
+                                          className={`h-4 w-4 ${i < review.rating
                                               ? 'text-yellow-400 fill-yellow-400'
                                               : 'text-gray-300'
-                                          }`}
+                                            }`}
                                         />
                                       ))}
                                     </div>
