@@ -1,0 +1,30 @@
+# Docker files
+*.tar
+docker-run-*.bat
+docker-stop-*.bat
+DOCKER-QUICK-START.md
+
+# Environment files with sensitive data
+.env
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Build
+target/
+build/
