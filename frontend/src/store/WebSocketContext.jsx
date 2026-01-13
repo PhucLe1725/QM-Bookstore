@@ -316,25 +316,14 @@ export const WebSocketProvider = ({ children }) => {
     }
 
     // Tạo kết nối SockJS + STOMP theo API guide
-    // Auto-detect WebSocket URL based on environment
     const getWebSocketUrl = () => {
       // Use environment variable if available
-      if (import.meta.env.VITE_WS_URL) {
-        return import.meta.env.VITE_WS_URL;
+      if (import.meta.env.VITE_WEBSOCKET_URL) {
+        return import.meta.env.VITE_WEBSOCKET_URL;
       }
 
-      // Auto-detect based on current page protocol
-      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
-
-      try {
-        const url = new URL(apiBaseUrl);
-        return `${protocol}//${url.host}/ws`;
-      } catch (error) {
-        console.error('Invalid API_BASE_URL:', apiBaseUrl, error);
-        // Fallback to localhost
-        return 'http://localhost:8080/ws';
-      }
+      // Fallback to localhost
+      return 'ws://localhost:8080/ws';
     };
 
     const socket = new SockJS(getWebSocketUrl());
