@@ -317,13 +317,19 @@ export const WebSocketProvider = ({ children }) => {
 
     // Tạo kết nối SockJS + STOMP theo API guide
     const getWebSocketUrl = () => {
-      // Use environment variable if available
-      if (import.meta.env.VITE_WEBSOCKET_URL) {
-        return import.meta.env.VITE_WEBSOCKET_URL;
+      // SockJS requires http:// or https://, NOT ws:// or wss://
+      // It will automatically upgrade to WebSocket
+      const wsUrl = import.meta.env.VITE_WEBSOCKET_URL;
+
+      if (wsUrl) {
+        // Convert ws:// to http:// and wss:// to https://
+        return wsUrl.replace(/^wss?:\/\//, (match) =>
+          match === 'wss://' ? 'https://' : 'http://'
+        );
       }
 
       // Fallback to localhost
-      return 'ws://localhost:8080/ws';
+      return 'http://localhost:8080/ws';
     };
 
     const socket = new SockJS(getWebSocketUrl());
