@@ -1,0 +1,41 @@
+name: Keep Render Service Alive
+
+on:
+  schedule:
+    # Chạy mỗi 10 phút để tránh Render sleep sau 15 phút
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Cho phép trigger thủ công từ GitHub UI
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    
+    steps:
+      - name: Ping QM Bookstore Backend
+        run: |
+          echo "🔔 Pinging backend at $(date)"
+          
+          # Gọi endpoint /api/auth/test
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET https://qm-bookstore-backend.onrender.com/api/auth/test \
+            --max-time 30 \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-max-time 60)
+          
+          echo "📊 Response code: $response"
+          
+          if [ "$response" -eq 200 ] || [ "$response" -eq 404 ]; then
+            echo "✅ Backend is alive (HTTP $response)"
+            exit 0
+          else
+            echo "⚠️ Unexpected response: $response (but continuing...)"
+            exit 0
+          fi
+      
+      - name: Log Completion
+        if: always()
+        run: |
+          echo "✨ Keep-alive job completed at $(date)"
+          echo "⏰ Next run in ~10 minutes"
