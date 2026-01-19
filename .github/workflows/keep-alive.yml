@@ -2,40 +2,58 @@ name: Keep Render Service Alive
 
 on:
   schedule:
-    # Chạy mỗi 10 phút để tránh Render sleep sau 15 phút
-    - cron: '*/10 * * * *'
+    # Chạy mỗi 5 phút để tránh Render sleep sau 15 phút
+    - cron: '*/5 * * * *'
   workflow_dispatch: # Cho phép trigger thủ công từ GitHub UI
 
 jobs:
   ping-backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     
     steps:
-      - name: Ping QM Bookstore Backend
+      - name: Ping QM Bookstore Backend - Health Check
         run: |
           echo "🔔 Pinging backend at $(date)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           
-          # Gọi endpoint /api/auth/test
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
+          # Endpoint 1: Health/Auth check
+          echo "📍 Checking /api/auth/test..."
+          response1=$(curl -s -o /dev/null -w "%{http_code}" \
             -X GET https://qm-bookstore-backend.onrender.com/api/auth/test \
             --max-time 30 \
-            --retry 3 \
-            --retry-delay 5 \
-            --retry-max-time 60)
+            --retry 2 \
+            --retry-delay 3)
+          echo "   Response: $response1"
           
-          echo "📊 Response code: $response"
+          # Endpoint 2: Alternative ping
+          echo "📍 Checking /api/books (backup ping)..."
+          response2=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET https://qm-bookstore-backend.onrender.com/api/books \
+            --max-time 30 \
+            --retry 2 \
+            --retry-delay 3)
+          echo "   Response: $response2"
           
-          if [ "$response" -eq 200 ] || [ "$response" -eq 404 ]; then
-            echo "✅ Backend is alive (HTTP $response)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          # Kiểm tra ít nhất 1 endpoint phản hồi
+          if [ "$response1" -ge 200 ] && [ "$response1" -lt 500 ]; then
+            echo "✅ Backend is alive (Auth endpoint: HTTP $response1)"
+            exit 0
+          elif [ "$response2" -ge 200 ] && [ "$response2" -lt 500 ]; then
+            echo "✅ Backend is alive (Books endpoint: HTTP $response2)"
             exit 0
           else
-            echo "⚠️ Unexpected response: $response (but continuing...)"
+            echo "⚠️ Both endpoints returned errors, but continuing..."
+            echo "   Auth: $response1, Books: $response2"
             exit 0
           fi
       
       - name: Log Completion
         if: always()
         run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "✨ Keep-alive job completed at $(date)"
-          echo "⏰ Next run in ~10 minutes"
+          echo "⏰ Next run in ~5 minutes"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
