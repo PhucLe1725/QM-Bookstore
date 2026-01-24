@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Search, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Search,
   Save,
   X,
   AlertCircle,
@@ -22,19 +22,19 @@ const AdminCategories = () => {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const { showToast } = useToast()
-  
+  const { success, error: showError, warning } = useToast()
+
   // Tree state
   const [expandedNodes, setExpandedNodes] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
-  
+
   // Modal states
   const [showModal, setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState('create') // 'create' or 'edit'
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [categoryToDelete, setCategoryToDelete] = useState(null)
-  
+
   // Form data
   const [formData, setFormData] = useState({
     name: '',
@@ -43,20 +43,20 @@ const AdminCategories = () => {
     parentId: null,
     status: true
   })
-  
+
   const [formErrors, setFormErrors] = useState({})
 
   // Fetch categories tree
   const fetchCategories = async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
-      const data = await categoryService.getCategoryTree()
+      const data = await categoryService.getAdminCategoryTree()
       setCategories(data)
     } catch (err) {
       setError(err.message || 'Không thể tải danh sách danh mục')
-      showToast('error', 'Lỗi khi tải danh mục')
+      showError('Không thể tải danh sách danh mục. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }
@@ -68,8 +68,8 @@ const AdminCategories = () => {
 
   // Toggle node expansion
   const toggleNode = (nodeId) => {
-    setExpandedNodes(prev => 
-      prev.includes(nodeId) 
+    setExpandedNodes(prev =>
+      prev.includes(nodeId)
         ? prev.filter(id => id !== nodeId)
         : [...prev, nodeId]
     )
@@ -89,11 +89,11 @@ const AdminCategories = () => {
   // Filter categories by search
   const filterTree = (nodes) => {
     if (!searchTerm) return nodes
-    
+
     return nodes.reduce((acc, node) => {
       const matchesSearch = node.name.toLowerCase().includes(searchTerm.toLowerCase())
       const filteredChildren = filterTree(node.children || [])
-      
+
       if (matchesSearch || filteredChildren.length > 0) {
         acc.push({
           ...node,
@@ -107,7 +107,7 @@ const AdminCategories = () => {
   // Get all category options for parent select (exclude self and descendants)
   const getCategoryOptions = (currentCategoryId = null) => {
     const flatList = []
-    
+
     const traverse = (nodes, level = 0) => {
       nodes.forEach(node => {
         if (node.id !== currentCategoryId) {
@@ -118,7 +118,7 @@ const AdminCategories = () => {
         }
       })
     }
-    
+
     traverse(categories)
     return flatList
   }
@@ -162,23 +162,23 @@ const AdminCategories = () => {
   // Validate form
   const validateForm = () => {
     const errors = {}
-    
+
     if (!formData.name.trim()) {
       errors.name = 'Tên danh mục không được để trống'
     }
-    
+
     if (formData.name.length > 255) {
       errors.name = 'Tên danh mục không được vượt quá 255 ký tự'
     }
-    
+
     if (formData.slug && formData.slug.length > 255) {
       errors.slug = 'Slug không được vượt quá 255 ký tự'
     }
-    
+
     if (formData.description && formData.description.length > 1000) {
       errors.description = 'Mô tả không được vượt quá 1000 ký tự'
     }
-    
+
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -186,26 +186,26 @@ const AdminCategories = () => {
   // Handle submit
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
-      showToast('error', 'Vui lòng kiểm tra lại thông tin')
+      warning('Vui lòng kiểm tra lại thông tin nhập vào')
       return
     }
 
     try {
       if (modalMode === 'create') {
         await categoryService.createCategory(formData)
-        showToast('success', 'Tạo danh mục thành công')
+        success(`Đã tạo danh mục "${formData.name}" thành công`)
       } else {
         await categoryService.updateCategory(selectedCategory.id, formData)
-        showToast('success', 'Cập nhật danh mục thành công')
+        success(`Đã cập nhật danh mục "${formData.name}" thành công`)
       }
-      
+
       setShowModal(false)
       await fetchCategories()
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message || 'Có lỗi xảy ra'
-      showToast('error', errorMsg)
+      showError(errorMsg)
     }
   }
 
@@ -214,14 +214,15 @@ const AdminCategories = () => {
     try {
       const hasChildren = categoryToDelete.children?.length > 0
       await categoryService.deleteCategory(categoryToDelete.id, hasChildren)
-      showToast('success', 'Xóa danh mục thành công')
-      
+      const deletedName = categoryToDelete.name
+      success(`Đã xóa danh mục "${deletedName}" thành công`)
+
       setShowDeleteConfirm(false)
       setCategoryToDelete(null)
       await fetchCategories()
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message || 'Không thể xóa danh mục'
-      showToast('error', errorMsg)
+      showError(errorMsg)
     }
   }
 
@@ -264,120 +265,120 @@ const AdminCategories = () => {
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-      {/* Search */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm danh mục..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+        {/* Search */}
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm danh mục..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Category Tree Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tên danh mục
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Slug
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Mô tả
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Trạng thái
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Thao tác
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {flatCategories.length === 0 ? (
+        {/* Category Tree Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center">
-                    <FolderTree className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">Không tìm thấy danh mục nào</p>
-                  </td>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tên danh mục
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Slug
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Mô tả
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Trạng thái
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Thao tác
+                  </th>
                 </tr>
-              ) : (
-                flatCategories.map((category) => (
-                  <tr key={category.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2" style={{ paddingLeft: `${category.level * 24}px` }}>
-                        {category.children?.length > 0 ? (
-                          <button
-                            onClick={() => toggleNode(category.id)}
-                            className="text-gray-500 hover:text-gray-700"
-                          >
-                            {expandedNodes.includes(category.id) ? (
-                              <ChevronDown className="w-4 h-4" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4" />
-                            )}
-                          </button>
-                        ) : (
-                          <span className="w-4" />
-                        )}
-                        <FolderTree className="w-4 h-4 text-gray-400" />
-                        <span className="font-medium text-gray-900">{category.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {category.slug}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="max-w-xs truncate">
-                        {category.description || '—'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {category.status ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <ToggleRight className="w-3 h-3" />
-                          Hoạt động
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          <ToggleLeft className="w-3 h-3" />
-                          Tạm ngừng
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(category)}
-                          className="text-blue-600 hover:text-blue-800"
-                          title="Sửa"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(category)}
-                          className="text-red-600 hover:text-red-800"
-                          title="Xóa"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {flatCategories.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-12 text-center">
+                      <FolderTree className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500">Không tìm thấy danh mục nào</p>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  flatCategories.map((category) => (
+                    <tr key={category.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2" style={{ paddingLeft: `${category.level * 24}px` }}>
+                          {category.children?.length > 0 ? (
+                            <button
+                              onClick={() => toggleNode(category.id)}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              {expandedNodes.includes(category.id) ? (
+                                <ChevronDown className="w-4 h-4" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4" />
+                              )}
+                            </button>
+                          ) : (
+                            <span className="w-4" />
+                          )}
+                          <FolderTree className="w-4 h-4 text-gray-400" />
+                          <span className="font-medium text-gray-900">{category.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {category.slug}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        <div className="max-w-xs truncate">
+                          {category.description || '—'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {category.status ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <ToggleRight className="w-3 h-3" />
+                            Hoạt động
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            <ToggleLeft className="w-3 h-3" />
+                            Tạm ngừng
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(category)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Sửa"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(category)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Xóa"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
       </div>
 
       {/* Create/Edit Modal */}
@@ -408,9 +409,8 @@ const AdminCategories = () => {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    formErrors.name ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   placeholder="VD: Văn phòng phẩm"
                 />
                 {formErrors.name && (
@@ -427,9 +427,8 @@ const AdminCategories = () => {
                   type="text"
                   value={formData.slug}
                   onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    formErrors.slug ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.slug ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   placeholder="van-phong-pham (để trống để tự động tạo)"
                 />
                 {formErrors.slug && (
@@ -468,9 +467,8 @@ const AdminCategories = () => {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={4}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    formErrors.description ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   placeholder="Mô tả ngắn về danh mục..."
                 />
                 {formErrors.description && (
@@ -526,15 +524,15 @@ const AdminCategories = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Xác nhận xóa</h3>
                 </div>
               </div>
-              
+
               <p className="text-gray-600 mb-2">
                 Bạn có chắc chắn muốn xóa danh mục <strong>{categoryToDelete.name}</strong>?
               </p>
-              
+
               {categoryToDelete.children?.length > 0 && (
                 <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-800">
-                    <strong>Cảnh báo:</strong> Danh mục này có {categoryToDelete.children.length} danh mục con. 
+                    <strong>Cảnh báo:</strong> Danh mục này có {categoryToDelete.children.length} danh mục con.
                     Backend sẽ kiểm tra và không cho phép xóa nếu có sản phẩm liên quan.
                   </p>
                 </div>

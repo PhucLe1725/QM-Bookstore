@@ -10,31 +10,42 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/admin/categories")
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
 public class AdminCategoryController {
-    
+
     private final CategoryService categoryService;
-    
+
+    /**
+     * GET /api/admin/categories/tree
+     * Returns hierarchical tree structure for admin (includes inactive categories)
+     */
+    @GetMapping("/tree")
+    public ResponseEntity<List<CategoryTreeDTO>> getAdminCategoryTree() {
+        List<CategoryTreeDTO> tree = categoryService.getAdminCategoryTree();
+        return ResponseEntity.ok(tree);
+    }
+
     /**
      * POST /api/admin/categories
      * Create new category
      */
     @PostMapping
     public ResponseEntity<ApiResponse<CategoryDetailDTO>> createCategory(
-            @Valid @RequestBody CreateCategoryRequest request
-    ) {
+            @Valid @RequestBody CreateCategoryRequest request) {
         try {
             CategoryDetailDTO created = categoryService.createCategory(request);
-            
+
             ApiResponse<CategoryDetailDTO> response = ApiResponse.<CategoryDetailDTO>builder()
                     .success(true)
                     .message("Category created successfully")
                     .result(created)
                     .build();
-            
+
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (RuntimeException e) {
             ApiResponse<CategoryDetailDTO> response = ApiResponse.<CategoryDetailDTO>builder()
@@ -42,11 +53,11 @@ public class AdminCategoryController {
                     .code(getErrorCode(e.getMessage()))
                     .message(e.getMessage())
                     .build();
-            
+
             return ResponseEntity.status(getHttpStatus(e.getMessage())).body(response);
         }
     }
-    
+
     /**
      * PUT /api/admin/categories/{id}
      * Update existing category
@@ -54,17 +65,16 @@ public class AdminCategoryController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<CategoryDetailDTO>> updateCategory(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateCategoryRequest request
-    ) {
+            @Valid @RequestBody UpdateCategoryRequest request) {
         try {
             CategoryDetailDTO updated = categoryService.updateCategory(id, request);
-            
+
             ApiResponse<CategoryDetailDTO> response = ApiResponse.<CategoryDetailDTO>builder()
                     .success(true)
                     .message("Category updated successfully")
                     .result(updated)
                     .build();
-            
+
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             ApiResponse<CategoryDetailDTO> response = ApiResponse.<CategoryDetailDTO>builder()
@@ -72,11 +82,11 @@ public class AdminCategoryController {
                     .code(getErrorCode(e.getMessage()))
                     .message(e.getMessage())
                     .build();
-            
+
             return ResponseEntity.status(getHttpStatus(e.getMessage())).body(response);
         }
     }
-    
+
     /**
      * DELETE /api/admin/categories/{id}
      * Delete category (with optional force flag)
@@ -84,21 +94,20 @@ public class AdminCategoryController {
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<DeleteResult>> deleteCategory(
             @PathVariable Long id,
-            @RequestParam(required = false, defaultValue = "false") Boolean force
-    ) {
+            @RequestParam(required = false, defaultValue = "false") Boolean force) {
         try {
             DeleteResult result = categoryService.deleteCategory(id, force);
-            
-            String message = result.getDeletedCount() == 1 
+
+            String message = result.getDeletedCount() == 1
                     ? "Category deleted successfully"
                     : "Category and " + (result.getDeletedCount() - 1) + " children deleted successfully";
-            
+
             ApiResponse<DeleteResult> response = ApiResponse.<DeleteResult>builder()
                     .success(true)
                     .message(message)
                     .result(result)
                     .build();
-            
+
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             ApiResponse<DeleteResult> response = ApiResponse.<DeleteResult>builder()
@@ -106,11 +115,11 @@ public class AdminCategoryController {
                     .code(getErrorCode(e.getMessage()))
                     .message(e.getMessage())
                     .build();
-            
+
             return ResponseEntity.status(getHttpStatus(e.getMessage())).body(response);
         }
     }
-    
+
     /**
      * PATCH /api/admin/categories/{id}/toggle-status
      * Toggle category status (active/inactive)
@@ -119,13 +128,13 @@ public class AdminCategoryController {
     public ResponseEntity<ApiResponse<CategoryDetailDTO>> toggleStatus(@PathVariable Long id) {
         try {
             CategoryDetailDTO updated = categoryService.toggleStatus(id);
-            
+
             ApiResponse<CategoryDetailDTO> response = ApiResponse.<CategoryDetailDTO>builder()
                     .success(true)
                     .message("Category status updated")
                     .result(updated)
                     .build();
-            
+
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             ApiResponse<CategoryDetailDTO> response = ApiResponse.<CategoryDetailDTO>builder()
@@ -133,11 +142,11 @@ public class AdminCategoryController {
                     .code(getErrorCode(e.getMessage()))
                     .message(e.getMessage())
                     .build();
-            
+
             return ResponseEntity.status(getHttpStatus(e.getMessage())).body(response);
         }
     }
-    
+
     /**
      * PATCH /api/admin/categories/{id}/move
      * Move category to new parent
@@ -145,17 +154,16 @@ public class AdminCategoryController {
     @PatchMapping("/{id}/move")
     public ResponseEntity<ApiResponse<CategoryDetailDTO>> moveCategory(
             @PathVariable Long id,
-            @Valid @RequestBody MoveCategoryRequest request
-    ) {
+            @Valid @RequestBody MoveCategoryRequest request) {
         try {
             CategoryDetailDTO updated = categoryService.moveCategory(id, request.getNewParentId());
-            
+
             ApiResponse<CategoryDetailDTO> response = ApiResponse.<CategoryDetailDTO>builder()
                     .success(true)
                     .message("Category moved successfully")
                     .result(updated)
                     .build();
-            
+
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             ApiResponse<CategoryDetailDTO> response = ApiResponse.<CategoryDetailDTO>builder()
@@ -163,39 +171,37 @@ public class AdminCategoryController {
                     .code(getErrorCode(e.getMessage()))
                     .message(e.getMessage())
                     .build();
-            
+
             return ResponseEntity.status(getHttpStatus(e.getMessage())).body(response);
         }
     }
-    
+
     /**
      * POST /api/admin/categories/bulk-delete
      * Delete multiple categories
      */
     @PostMapping("/bulk-delete")
     public ResponseEntity<ApiResponse<BulkDeleteResult>> bulkDeleteCategories(
-            @Valid @RequestBody BulkDeleteCategoryRequest request
-    ) {
+            @Valid @RequestBody BulkDeleteCategoryRequest request) {
         try {
             BulkDeleteResult result = categoryService.bulkDeleteCategories(
-                    request.getCategoryIds(), 
-                    request.getForce()
-            );
-            
+                    request.getCategoryIds(),
+                    request.getForce());
+
             String message = result.getFailed().isEmpty()
                     ? "Deleted " + result.getDeletedCount() + " categories successfully"
-                    : "Deleted " + result.getDeletedCount() + " out of " + 
-                      (result.getDeletedCount() + result.getFailed().size()) + " categories";
-            
+                    : "Deleted " + result.getDeletedCount() + " out of " +
+                            (result.getDeletedCount() + result.getFailed().size()) + " categories";
+
             boolean success = result.getFailed().isEmpty();
             HttpStatus status = success ? HttpStatus.OK : HttpStatus.MULTI_STATUS;
-            
+
             ApiResponse<BulkDeleteResult> response = ApiResponse.<BulkDeleteResult>builder()
                     .success(success)
                     .message(message)
                     .result(result)
                     .build();
-            
+
             return ResponseEntity.status(status).body(response);
         } catch (Exception e) {
             ApiResponse<BulkDeleteResult> response = ApiResponse.<BulkDeleteResult>builder()
@@ -203,30 +209,30 @@ public class AdminCategoryController {
                     .code(5000)
                     .message(e.getMessage())
                     .build();
-            
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
-    
+
     /**
      * Helper: Get HTTP status based on error message
      */
     private HttpStatus getHttpStatus(String message) {
         if (message.contains("not found")) {
             return HttpStatus.NOT_FOUND;
-        } else if (message.contains("already exists") || 
-                   message.contains("Cannot delete") || 
-                   message.contains("with children") ||
-                   message.contains("with products")) {
+        } else if (message.contains("already exists") ||
+                message.contains("Cannot delete") ||
+                message.contains("with children") ||
+                message.contains("with products")) {
             return HttpStatus.CONFLICT;
-        } else if (message.contains("Cannot set") || 
-                   message.contains("Cannot move") ||
-                   message.contains("circular")) {
+        } else if (message.contains("Cannot set") ||
+                message.contains("Cannot move") ||
+                message.contains("circular")) {
             return HttpStatus.BAD_REQUEST;
         }
         return HttpStatus.BAD_REQUEST;
     }
-    
+
     /**
      * Helper: Get error code based on error message
      */

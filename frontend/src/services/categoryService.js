@@ -20,7 +20,7 @@ export const categoryService = {
   getCategoryTree: async () => {
     try {
       const response = await api.get('/categories/tree')
-      
+
       // Check if response is wrapped in an object
       if (response && typeof response === 'object') {
         // Try common response patterns
@@ -32,12 +32,14 @@ export const categoryService = {
           return response.result
         }
       }
-      
-      // Fallback: return as is
-      return response
+
+      // Fallback: if not an array, return empty array to prevent map errors
+      console.warn('Unexpected response format from category tree API:', response)
+      return []
     } catch (error) {
       console.error('Error fetching category tree:', error)
-      throw error
+      // Return empty array instead of throwing to prevent app crash
+      return []
     }
   },
 
@@ -47,7 +49,7 @@ export const categoryService = {
    */
   getCategoriesByParent: async (parentId = null) => {
     try {
-      const url = parentId 
+      const url = parentId
         ? `/categories?parent_id=${parentId}`
         : '/categories'
       const response = await api.get(url)
@@ -144,7 +146,7 @@ export const categoryService = {
     if (!categoryNode || !categoryNode.children || categoryNode.children.length === 0) {
       return []
     }
-    
+
     let descendantIds = []
     for (const child of categoryNode.children) {
       descendantIds.push(child.id)
@@ -152,11 +154,41 @@ export const categoryService = {
       const childDescendants = categoryService.getAllDescendantIds(child)
       descendantIds = [...descendantIds, ...childDescendants]
     }
-    
+
     return descendantIds
   },
 
   // ==================== ADMIN APIs ====================
+
+  /**
+   * Lấy cây phân cấp hoàn chỉnh cho admin (bao gồm cả inactive)
+   * Response: Array của categories với children nested
+   */
+  getAdminCategoryTree: async () => {
+    try {
+      const response = await api.get('/admin/categories/tree')
+
+      // Check if response is wrapped in an object
+      if (response && typeof response === 'object') {
+        // Try common response patterns
+        if (Array.isArray(response)) {
+          return response
+        } else if (response.data && Array.isArray(response.data)) {
+          return response.data
+        } else if (response.result && Array.isArray(response.result)) {
+          return response.result
+        }
+      }
+
+      // Fallback: if not an array, return empty array to prevent map errors
+      console.warn('Unexpected response format from admin category tree API:', response)
+      return []
+    } catch (error) {
+      console.error('Error fetching admin category tree:', error)
+      // Return empty array instead of throwing to prevent app crash
+      return []
+    }
+  },
 
   /**
    * Tạo category mới (Admin only)
