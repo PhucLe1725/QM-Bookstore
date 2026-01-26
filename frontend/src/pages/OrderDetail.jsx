@@ -5,9 +5,9 @@ import { comboService } from '../services'
 import transactionService from '../services/transactionService'
 import QRPayment from '../components/QRPayment'
 import { useToast } from '../contexts/ToastContext'
-import { 
-  Package, MapPin, Phone, User, Tag, Truck, CreditCard, 
-  Calendar, CheckCircle, XCircle, Clock, AlertCircle, ArrowLeft, RefreshCw 
+import {
+  Package, MapPin, Phone, User, Tag, Truck, CreditCard,
+  Calendar, CheckCircle, XCircle, Clock, AlertCircle, ArrowLeft, RefreshCw
 } from 'lucide-react'
 
 const OrderDetail = () => {
@@ -42,7 +42,7 @@ const OrderDetail = () => {
 
       const uniqueComboIds = [...new Set(comboIds)]
       const imageMap = {}
-      
+
       await Promise.all(
         uniqueComboIds.map(async (comboId) => {
           try {
@@ -68,7 +68,7 @@ const OrderDetail = () => {
     try {
       setLoading(true)
       const response = await orderService.getOrderDetail(orderId)
-      
+
       if (response.success) {
         setOrder(response.result)
       } else {
@@ -91,7 +91,7 @@ const OrderDetail = () => {
     try {
       setCancelling(true)
       const result = await orderService.cancelOrder(orderId, cancelReason)
-      
+
       if (result.success) {
         toast.success('Đã hủy đơn hàng thành công')
         setShowCancelModal(false)
@@ -113,9 +113,9 @@ const OrderDetail = () => {
   }
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', { 
-      style: 'currency', 
-      currency: 'VND' 
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
     }).format(price)
   }
 
@@ -146,7 +146,7 @@ const OrderDetail = () => {
 
   const getPaymentStatusLabel = () => {
     if (!order) return ''
-    
+
     if (order.paymentStatus === 'pending') {
       // Phân biệt COD và Prepaid khi chưa thanh toán
       if (order.paymentMethod === 'prepaid') {
@@ -155,20 +155,20 @@ const OrderDetail = () => {
         return 'Thanh toán khi nhận hàng'
       }
     }
-    
+
     // Các trạng thái khác giống nhau
     const statusLabels = {
       paid: 'Đã thanh toán',
       failed: 'Thanh toán thất bại',
       refunded: 'Đã hoàn tiền'
     }
-    
+
     return statusLabels[order.paymentStatus] || order.paymentStatus
   }
 
   const getPaymentStatusColor = () => {
     if (!order) return 'bg-gray-100 text-gray-800 border-gray-200'
-    
+
     if (order.paymentStatus === 'pending') {
       // Prepaid: màu vàng (cảnh báo cần thanh toán)
       // COD: màu xanh nhạt (thông tin bình thường)
@@ -178,13 +178,13 @@ const OrderDetail = () => {
         return 'bg-blue-50 text-blue-700 border-blue-200'
       }
     }
-    
+
     const statusColors = {
       paid: 'bg-green-100 text-green-800 border-green-200',
       failed: 'bg-red-100 text-red-800 border-red-200',
       refunded: 'bg-blue-100 text-blue-800 border-blue-200'
     }
-    
+
     return statusColors[order.paymentStatus] || 'bg-gray-100 text-gray-800 border-gray-200'
   }
 
@@ -194,14 +194,14 @@ const OrderDetail = () => {
   }
 
   const shouldShowQRPayment = () => {
-    // Hiển thị QR khi: paymentMethod = prepaid VÀ paymentStatus = pending
-    return order && order.paymentMethod === 'prepaid' && order.paymentStatus === 'pending'
+    // Hiển thị QR khi: paymentMethod = prepaid VÀ paymentStatus = pending VÀ orderStatus != cancelled
+    return order && order.paymentMethod === 'prepaid' && order.paymentStatus === 'pending' && order.orderStatus !== 'cancelled'
   }
 
   const handleValidatePayment = async () => {
     try {
       setValidating(true)
-      
+
       // Step 1: Fetch latest transactions from email first
       toast.info('🔄 Đang kiểm tra giao dịch mới từ ngân hàng...')
       try {
@@ -210,10 +210,10 @@ const OrderDetail = () => {
         console.warn('Failed to fetch emails:', fetchError)
         // Continue anyway - transaction might already exist in DB
       }
-      
+
       // Step 2: Validate payment
       const response = await orderService.validatePayment(orderId)
-      
+
       if (response.success) {
         if (response.result.paymentConfirmed) {
           toast.success('✅ Thanh toán đã được xác nhận!')
@@ -278,41 +278,43 @@ const OrderDetail = () => {
             <ArrowLeft className="w-5 h-5 mr-2" />
             Quay lại
           </button>
-          
+
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Chi tiết đơn hàng #{order.orderId}</h1>
               <p className="text-gray-600 mt-1">Đặt hàng lúc {formatDate(order.createdAt)}</p>
             </div>
-            
+
             <div className="flex flex-wrap gap-2">
-              {/* Payment Status */}
-              <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border ${getPaymentStatusColor()}`}>
-                {getPaymentStatusLabel()}
-              </span>
-              
-              {/* Fulfillment Status */}
-              <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border
-                ${order.fulfillmentStatus === 'shipping' ? 'bg-blue-100 text-blue-800 border-blue-200' : ''}
-                ${order.fulfillmentStatus === 'delivered' ? 'bg-green-100 text-green-800 border-green-200' : ''}
-                ${order.fulfillmentStatus === 'pending_pickup' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : ''}
-                ${order.fulfillmentStatus === 'picked_up' ? 'bg-purple-100 text-purple-800 border-purple-200' : ''}
-                ${order.fulfillmentStatus === 'pickup' ? 'bg-purple-100 text-purple-800 border-purple-200' : ''}
-                ${order.fulfillmentStatus === 'returned' ? 'bg-orange-100 text-orange-800 border-orange-200' : ''}
-              `}>
-                {order.fulfillmentStatus === 'shipping' && 'Đang giao hàng'}
-                {order.fulfillmentStatus === 'delivered' && 'Đã giao hàng'}
-                {order.fulfillmentStatus === 'pending_pickup' && 'Chờ lấy tại quầy'}
-                {order.fulfillmentStatus === 'picked_up' && 'Đã nhận hàng'}
-                {order.fulfillmentStatus === 'pickup' && 'Đã nhận hàng'}
-                {order.fulfillmentStatus === 'returned' && 'Đã trả hàng'}
-              </span>
-              
-              {/* Order Status (chỉ hiện khi cancelled) */}
-              {order.orderStatus === 'cancelled' && (
+              {order.orderStatus === 'cancelled' ? (
+                // Nếu đơn hàng đã hủy, chỉ hiển thị badge "Đã hủy"
                 <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border bg-red-100 text-red-800 border-red-200">
                   Đã hủy
                 </span>
+              ) : (
+                <>
+                  {/* Payment Status */}
+                  <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border ${getPaymentStatusColor()}`}>
+                    {getPaymentStatusLabel()}
+                  </span>
+
+                  {/* Fulfillment Status */}
+                  <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border
+                    ${order.fulfillmentStatus === 'shipping' ? 'bg-blue-100 text-blue-800 border-blue-200' : ''}
+                    ${order.fulfillmentStatus === 'delivered' ? 'bg-green-100 text-green-800 border-green-200' : ''}
+                    ${order.fulfillmentStatus === 'pending_pickup' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : ''}
+                    ${order.fulfillmentStatus === 'picked_up' ? 'bg-purple-100 text-purple-800 border-purple-200' : ''}
+                    ${order.fulfillmentStatus === 'pickup' ? 'bg-purple-100 text-purple-800 border-purple-200' : ''}
+                    ${order.fulfillmentStatus === 'returned' ? 'bg-orange-100 text-orange-800 border-orange-200' : ''}
+                  `}>
+                    {order.fulfillmentStatus === 'shipping' && 'Đang giao hàng'}
+                    {order.fulfillmentStatus === 'delivered' && 'Đã giao hàng'}
+                    {order.fulfillmentStatus === 'pending_pickup' && 'Chờ lấy tại quầy'}
+                    {order.fulfillmentStatus === 'picked_up' && 'Đã nhận hàng'}
+                    {order.fulfillmentStatus === 'pickup' && 'Đã nhận hàng'}
+                    {order.fulfillmentStatus === 'returned' && 'Đã trả hàng'}
+                  </span>
+                </>
               )}
             </div>
           </div>
@@ -327,7 +329,7 @@ const OrderDetail = () => {
                 <Package className="w-5 h-5 mr-2 text-blue-600" />
                 Sản phẩm
               </h2>
-              
+
               <div className="space-y-4">
                 {order.items?.map((item, index) => (
                   <div key={index} className="py-4 border-b last:border-b-0">
@@ -350,10 +352,10 @@ const OrderDetail = () => {
                             COMBO
                           </div>
                         </div>
-                        
+
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 mb-2 text-lg">{item.comboName}</h3>
-                          
+
                           {/* Combo snapshot - products at time of purchase */}
                           {item.comboSnapshot?.items && item.comboSnapshot.items.length > 0 && (
                             <div className="mb-3 p-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-100">
@@ -378,7 +380,7 @@ const OrderDetail = () => {
                               </ul>
                             </div>
                           )}
-                          
+
                           {/* Combo pricing */}
                           {item.comboSnapshot && (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm mb-2">
@@ -391,7 +393,7 @@ const OrderDetail = () => {
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-600">Giảm:</span>
                                 <span className="text-green-600 font-bold">
-                                  -{formatPrice(item.comboSnapshot.discountAmount)} 
+                                  -{formatPrice(item.comboSnapshot.discountAmount)}
                                   <span className="ml-1 bg-green-100 px-1.5 py-0.5 rounded text-xs">
                                     {item.comboSnapshot.discountPercentage?.toFixed(0)}%
                                   </span>
@@ -405,7 +407,7 @@ const OrderDetail = () => {
                               </div>
                             </div>
                           )}
-                          
+
                           <div className="flex items-center justify-between mt-2 pt-2 border-t">
                             <p className="text-sm text-gray-600">
                               Số lượng: <span className="font-semibold">{item.quantity}</span>
@@ -419,7 +421,7 @@ const OrderDetail = () => {
                             </p>
                           </div>
                         </div>
-                        
+
                         <div className="text-right">
                           <p className="text-xs text-gray-500 mb-1">Thành tiền</p>
                           <p className="text-xl font-bold text-blue-600">{formatPrice(item.lineTotal)}</p>
@@ -455,7 +457,7 @@ const OrderDetail = () => {
                   <Truck className="w-5 h-5 mr-2 text-blue-600" />
                   Thông tin vận chuyển
                 </h2>
-                
+
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Đơn vị vận chuyển:</span>
@@ -492,7 +494,7 @@ const OrderDetail = () => {
                 <User className="w-5 h-5 mr-2 text-blue-600" />
                 Thông tin người nhận
               </h2>
-              
+
               {order.receiver && (
                 <div className="space-y-3">
                   <div>
@@ -517,7 +519,7 @@ const OrderDetail = () => {
                 <CreditCard className="w-5 h-5 mr-2 text-blue-600" />
                 Thanh toán
               </h2>
-              
+
               <div className="space-y-3">
                 <div className="flex justify-between text-gray-600">
                   <span>Tạm tính</span>
@@ -552,7 +554,7 @@ const OrderDetail = () => {
                   </p>
                 </div>
               )}
-              
+
               {/* Payment Method Info */}
               <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex justify-between items-center">
@@ -561,8 +563,9 @@ const OrderDetail = () => {
                     {order.paymentMethod === 'prepaid' ? 'Chuyển khoản ngân hàng' : 'Tiền mặt (COD)'}
                   </span>
                 </div>
-                
-                {order.paymentStatus === 'pending' && (
+
+
+                {order.paymentStatus === 'pending' && order.orderStatus !== 'cancelled' && (
                   <div className="mt-2 pt-2 border-t border-gray-200">
                     {order.paymentMethod === 'prepaid' ? (
                       <p className="text-xs text-yellow-700">
@@ -585,13 +588,13 @@ const OrderDetail = () => {
                   <CreditCard className="w-5 h-5 mr-2 text-blue-600" />
                   Quét mã thanh toán
                 </h2>
-                
+
                 <QRPayment
                   amount={order.totalPay || (order.totalAmount + (order.vatAmount || 0) + (order.shippingFee || 0))}
                   orderCode={`QMORD${order.orderId}`}
                   showInstructions={false}
                 />
-                
+
                 <div className="mt-4 space-y-3">
                   <button
                     onClick={handleValidatePayment}
@@ -610,7 +613,7 @@ const OrderDetail = () => {
                       </>
                     )}
                   </button>
-                  
+
                   <p className="text-xs text-gray-500 text-center">
                     Sau khi chuyển khoản, bấm nút trên để kiểm tra và xác nhận thanh toán
                   </p>
@@ -637,7 +640,7 @@ const OrderDetail = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Hủy đơn hàng</h3>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Lý do hủy đơn *

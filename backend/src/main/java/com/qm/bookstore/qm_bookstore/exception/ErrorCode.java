@@ -4,13 +4,14 @@ public enum ErrorCode {
     // Authentication errors
     USER_NOT_FOUND(1001, "User not found"),
     INVALID_CREDENTIALS(1002, "Invalid username or password"),
-    INVALID_REFRESH_TOKEN(1003, "Invalid refresh token"),
-    REFRESH_TOKEN_EXPIRED(1004, "Refresh token has expired"),
-    USER_ALREADY_EXISTS(1005, "Username already exists"),
-    EMAIL_ALREADY_EXISTS(1006, "Email already exists"),
-    WRONG_PASSWORD(1007, "Current password is incorrect"),
-    PASSWORD_NOT_MATCH(1008, "New password and confirm password do not match"),
-    
+    ACCOUNT_DISABLED(1003, "Account has been disabled"),
+    INVALID_REFRESH_TOKEN(1004, "Invalid refresh token"),
+    REFRESH_TOKEN_EXPIRED(1005, "Refresh token has expired"),
+    USER_ALREADY_EXISTS(1006, "Username already exists"),
+    EMAIL_ALREADY_EXISTS(1007, "Email already exists"),
+    WRONG_PASSWORD(1008, "Current password is incorrect"),
+    PASSWORD_NOT_MATCH(1009, "New password and confirm password do not match"),
+
     // OTP & Registration errors
     INVALID_OTP(1010, "Invalid OTP code"),
     OTP_EXPIRED(1011, "OTP code has expired. Please request a new one"),
@@ -26,16 +27,16 @@ public enum ErrorCode {
     PRODUCT_NOT_FOUND(3001, "Product not found"),
     PRODUCT_SKU_ALREADY_EXISTS(3002, "Product SKU already exists"),
     PRODUCT_OUT_OF_STOCK(3003, "Product is out of stock"),
-    
+
     // Review errors
     REVIEW_NOT_FOUND(3101, "Review not found"),
     REVIEW_ALREADY_EXISTS(3102, "You have already reviewed this product"),
     INVALID_RATING(3103, "Rating must be between 1 and 5"),
     USER_NOT_PURCHASED_PRODUCT(3104, "You must purchase this product before reviewing"),
-    
+
     // Category errors
     CATEGORY_NOT_FOUND(4001, "Category not found"),
-    
+
     // Cart errors
     CART_NOT_FOUND(6001, "Cart not found"),
     CART_ITEM_NOT_FOUND(6002, "Cart item not found"),

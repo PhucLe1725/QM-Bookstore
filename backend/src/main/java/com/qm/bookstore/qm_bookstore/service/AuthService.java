@@ -37,6 +37,11 @@ public class AuthService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
+        // Check if account is active
+        if (!user.getStatus()) {
+            throw new AppException(ErrorCode.ACCOUNT_DISABLED);
+        }
+
         if (passwordEncoder.matches(password, user.getPasswordHash())) {
             return jwtUtil.generateToken(user.getUsername(), user.getRole().getName(), user.getId().toString());
         } else {

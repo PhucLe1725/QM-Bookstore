@@ -12,25 +12,25 @@ export const authService = {
         username: credentials.email, // Tạm thời dùng email làm username
         password: credentials.password
       }
-      
+
       const response = await api.post('/auth/login', loginData)
-            
+
       // Xử lý response với cấu trúc mới
       if (response.success && response.result) {
         const { accessToken, refreshToken, userResponse } = response.result
-        
+
         if (accessToken) {
           // Lưu accessToken vào secure cookie (7 ngày)
-          Cookies.set('token', accessToken, { 
+          Cookies.set('token', accessToken, {
             expires: 7,
             secure: window.location.protocol === 'https:',
             sameSite: 'strict',
             path: '/'
           })
-          
+
           // Backup trong localStorage cho compatibility
           localStorage.setItem('token', accessToken)
-          
+
           // Lưu refreshToken vào secure cookie (30 ngày)
           if (refreshToken) {
             Cookies.set('refreshToken', refreshToken, {
@@ -41,7 +41,7 @@ export const authService = {
             })
             localStorage.setItem('refreshToken', refreshToken)
           }
-          
+
           // Lưu thông tin user đầy đủ trong localStorage (không sensitive)
           if (userResponse) {
             // Đảm bảo lưu tất cả thông tin từ UserResponse
@@ -63,7 +63,7 @@ export const authService = {
             }
             localStorage.setItem('user', JSON.stringify(userInfo))
           }
-          
+
           // Merge guest cart to user cart after successful login
           try {
             const sessionId = cartService.getSessionId()
@@ -75,7 +75,7 @@ export const authService = {
               })
               // Clear session ID after merge
               localStorage.removeItem('cart_session_id')
-              
+
               // Trigger cart update
               window.dispatchEvent(new Event('cartUpdated'))
             }
@@ -85,11 +85,12 @@ export const authService = {
           }
         }
       }
-      
+
       return response
     } catch (error) {
       console.error('Login service error:', error)
-      throw new Error(error.message || 'Đăng nhập thất bại')
+      // Throw the original error to preserve response data (including error codes)
+      throw error
     }
   },
 
@@ -136,7 +137,7 @@ export const authService = {
     // Xóa cookies
     Cookies.remove('token', { path: '/' })
     Cookies.remove('refreshToken', { path: '/' })
-    
+
     // Xóa localStorage backup
     localStorage.removeItem('token')
     localStorage.removeItem('refreshToken')
@@ -171,7 +172,7 @@ export const authService = {
       const response = await api.post('/auth/refresh')
       if (response.token) {
         // Cập nhật token mới vào cookie và localStorage
-        Cookies.set('token', response.token, { 
+        Cookies.set('token', response.token, {
           expires: 7,
           secure: window.location.protocol === 'https:',
           sameSite: 'strict',

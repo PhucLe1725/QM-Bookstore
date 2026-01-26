@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { orderService } from '../services/orderService'
 import { comboService } from '../services'
-import { Package, Clock, CheckCircle, XCircle, Truck, Eye, RotateCcw, DollarSign, Store } from 'lucide-react'
+import { Package, Clock, CheckCircle, XCircle, Truck, Eye, DollarSign, Store } from 'lucide-react'
 
 const Orders = () => {
   const navigate = useNavigate()
@@ -12,59 +12,59 @@ const Orders = () => {
   const [totalPages, setTotalPages] = useState(0)
   const [selectedStatus, setSelectedStatus] = useState(null)
   const [comboImages, setComboImages] = useState({})
-  
+
   // 3-axis status system từ documentation
   const statusTabs = [
-    { 
-      key: null, 
-      label: 'Tất cả', 
-      filter: {} 
+    {
+      key: null,
+      label: 'Tất cả',
+      filter: {}
     },
-    { 
-      key: 'pending', 
-      label: 'Chờ thanh toán', 
+    {
+      key: 'pending',
+      label: 'Chờ thanh toán',
       filter: { paymentStatus: 'pending' },
       color: 'yellow',
       icon: Clock
     },
-    { 
-      key: 'paid', 
-      label: 'Đã thanh toán', 
+    {
+      key: 'paid',
+      label: 'Đã thanh toán',
       filter: { paymentStatus: 'paid' },
       color: 'green',
       icon: CheckCircle
     },
-    { 
-      key: 'shipping', 
-      label: 'Đang giao', 
+    {
+      key: 'shipping',
+      label: 'Đang giao',
       filter: { fulfillmentStatus: 'shipping' },
       color: 'blue',
       icon: Truck
     },
-    { 
-      key: 'delivered', 
-      label: 'Đã giao', 
+    {
+      key: 'delivered',
+      label: 'Đã giao',
       filter: { fulfillmentStatus: 'delivered' },
       color: 'green',
       icon: CheckCircle
     },
-    { 
-      key: 'pending_pickup', 
-      label: 'Chờ lấy hàng', 
+    {
+      key: 'pending_pickup',
+      label: 'Chờ lấy hàng',
       filter: { fulfillmentStatus: 'pending_pickup' },
       color: 'yellow',
       icon: Store
     },
-    { 
-      key: 'picked_up', 
-      label: 'Đã nhận hàng', 
+    {
+      key: 'picked_up',
+      label: 'Đã nhận hàng',
       filter: { fulfillmentStatus: 'picked_up' },
       color: 'purple',
       icon: CheckCircle
     },
-    { 
-      key: 'cancelled', 
-      label: 'Đã hủy', 
+    {
+      key: 'cancelled',
+      label: 'Đã hủy',
       filter: { orderStatus: 'cancelled' },
       color: 'red',
       icon: XCircle
@@ -92,7 +92,7 @@ const Orders = () => {
       // Fetch combo details for images
       const uniqueComboIds = [...new Set(comboIds)]
       const imageMap = {}
-      
+
       await Promise.all(
         uniqueComboIds.map(async (comboId) => {
           try {
@@ -117,7 +117,7 @@ const Orders = () => {
   const loadOrders = async () => {
     try {
       setLoading(true)
-      
+
       // Tìm filter config cho selected status
       const activeTab = statusTabs.find(tab => tab.key === selectedStatus)
       const filters = {
@@ -125,9 +125,9 @@ const Orders = () => {
         size: 10,
         ...(activeTab?.filter || {})
       }
-      
+
       const response = await orderService.getMyOrders(filters)
-      
+
       if (response.success) {
         setOrders(response.result.content || [])
         setTotalPages(response.result.totalPages || 0)
@@ -144,23 +144,12 @@ const Orders = () => {
     setCurrentPage(0)
   }
 
-  const handleReorder = async (orderId) => {
-    try {
-      const result = await orderService.reorder(orderId)
-      if (result.success) {
-        alert('Đã thêm sản phẩm vào giỏ hàng!')
-        navigate('/cart')
-      }
-    } catch (error) {
-      console.error('Reorder error:', error)
-      alert('Không thể đặt lại đơn hàng')
-    }
-  }
+
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', { 
-      style: 'currency', 
-      currency: 'VND' 
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
     }).format(price)
   }
 
@@ -182,7 +171,7 @@ const Orders = () => {
       failed: 'bg-red-100 text-red-800',
       refunded: 'bg-blue-100 text-blue-800'
     }
-    
+
     const fulfillmentColors = {
       shipping: 'bg-blue-100 text-blue-800',
       delivered: 'bg-green-100 text-green-800',
@@ -191,20 +180,20 @@ const Orders = () => {
       pickup: 'bg-purple-100 text-purple-800',  // backward compatibility
       returned: 'bg-orange-100 text-orange-800'
     }
-    
+
     const orderColors = {
       confirmed: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
       closed: 'bg-gray-100 text-gray-800'
     }
-    
+
     const paymentLabels = {
       pending: 'Chờ thanh toán',
       paid: 'Đã thanh toán',
       failed: 'Thanh toán thất bại',
       refunded: 'Đã hoàn tiền'
     }
-    
+
     const fulfillmentLabels = {
       shipping: 'Đang giao hàng',
       delivered: 'Đã giao hàng',
@@ -213,13 +202,24 @@ const Orders = () => {
       pickup: 'Đã nhận hàng',  // backward compatibility
       returned: 'Đã trả hàng'
     }
-    
+
     const orderLabels = {
       confirmed: 'Đã xác nhận',
       cancelled: 'Đã hủy',
       closed: 'Hoàn thành'
     }
-    
+
+    // Nếu đơn hàng đã bị hủy, chỉ hiển thị trạng thái "Đã hủy"
+    if (order.orderStatus === 'cancelled') {
+      return (
+        <div className="flex flex-wrap gap-2">
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${orderColors.cancelled}`}>
+            {orderLabels.cancelled}
+          </span>
+        </div>
+      )
+    }
+
     return (
       <div className="flex flex-wrap gap-2">
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${paymentColors[order.paymentStatus] || 'bg-gray-100 text-gray-800'}`}>
@@ -228,11 +228,6 @@ const Orders = () => {
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${fulfillmentColors[order.fulfillmentStatus] || 'bg-gray-100 text-gray-800'}`}>
           {fulfillmentLabels[order.fulfillmentStatus] || order.fulfillmentStatus}
         </span>
-        {order.orderStatus === 'cancelled' && (
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${orderColors[order.orderStatus]}`}>
-            {orderLabels[order.orderStatus]}
-          </span>
-        )}
       </div>
     )
   }
@@ -250,18 +245,17 @@ const Orders = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Đơn hàng của tôi</h1>
-          
+
           {/* Status Filter */}
           <div className="flex flex-wrap gap-2">
             {statusTabs.map((tab) => (
               <button
                 key={tab.key || 'all'}
                 onClick={() => handleStatusFilter(tab.key)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedStatus === tab.key
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedStatus === tab.key
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
               >
                 {tab.label}
               </button>
@@ -384,16 +378,6 @@ const Orders = () => {
                       <Eye className="w-4 h-4 mr-2" />
                       Chi tiết
                     </button>
-                    
-                    {order.orderStatus === 'closed' && order.fulfillmentStatus === 'delivered' && (
-                      <button
-                        onClick={() => handleReorder(order.orderId)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-                      >
-                        <RotateCcw className="w-4 h-4 mr-2" />
-                        Mua lại
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -412,21 +396,20 @@ const Orders = () => {
               >
                 Trước
               </button>
-              
+
               {[...Array(totalPages)].map((_, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentPage(index)}
-                  className={`px-4 py-2 rounded-lg ${
-                    currentPage === index
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white border border-gray-300 hover:bg-gray-50'
-                  }`}
+                  className={`px-4 py-2 rounded-lg ${currentPage === index
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white border border-gray-300 hover:bg-gray-50'
+                    }`}
                 >
                   {index + 1}
                 </button>
               ))}
-              
+
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
                 disabled={currentPage === totalPages - 1}
