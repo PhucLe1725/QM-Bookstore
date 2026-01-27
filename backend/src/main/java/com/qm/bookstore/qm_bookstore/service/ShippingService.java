@@ -115,15 +115,19 @@ public class ShippingService {
      * Calculate fee based on distance
      * Formula: baseFee for first baseDistanceKm, then add perKmFee for each
      * additional km
+     * Distance is rounded up before calculation
      *
      * @param distanceInKm The distance in kilometers
      * @return The calculated shipping fee
      */
     private Double calculateFee(Double distanceInKm) {
-        if (distanceInKm <= baseDistanceKm) {
+        // Round up the distance first
+        double roundedDistance = Math.ceil(distanceInKm);
+
+        if (roundedDistance <= baseDistanceKm) {
             return baseFee;
         }
-        double additionalDistance = Math.ceil(distanceInKm - baseDistanceKm);
+        double additionalDistance = roundedDistance - baseDistanceKm;
         return baseFee + (additionalDistance * perKmFee);
     }
 
