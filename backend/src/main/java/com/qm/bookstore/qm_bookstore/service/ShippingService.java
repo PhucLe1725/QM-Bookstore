@@ -34,14 +34,16 @@ public class ShippingService {
      * Calculate shipping fee based on receiver address and order subtotal
      *
      * @param receiverAddress The delivery address
-     * @param subtotal The order subtotal amount
-     * @param receiverLat Optional: Receiver latitude (if already available from frontend)
-     * @param receiverLng Optional: Receiver longitude (if already available from frontend)
+     * @param subtotal        The order subtotal amount
+     * @param receiverLat     Optional: Receiver latitude (if already available from
+     *                        frontend)
+     * @param receiverLng     Optional: Receiver longitude (if already available
+     *                        from frontend)
      * @return Shipping calculation response with fee details
      */
-    public ShippingCalculationResponse calculateShippingFee(String receiverAddress, Double subtotal, 
-                                                           Double receiverLat, Double receiverLng) {
-        log.info("[calculateShippingFee] Calculating shipping for address={}, subtotal={}, lat={}, lng={}", 
+    public ShippingCalculationResponse calculateShippingFee(String receiverAddress, Double subtotal,
+            Double receiverLat, Double receiverLng) {
+        log.info("[calculateShippingFee] Calculating shipping for address={}, subtotal={}, lat={}, lng={}",
                 receiverAddress, subtotal, receiverLat, receiverLng);
 
         try {
@@ -111,7 +113,8 @@ public class ShippingService {
 
     /**
      * Calculate fee based on distance
-     * Formula: baseFee for first baseDistanceKm, then add perKmFee for each additional km
+     * Formula: baseFee for first baseDistanceKm, then add perKmFee for each
+     * additional km
      *
      * @param distanceInKm The distance in kilometers
      * @return The calculated shipping fee
@@ -120,7 +123,7 @@ public class ShippingService {
         if (distanceInKm <= baseDistanceKm) {
             return baseFee;
         }
-        Double additionalDistance = distanceInKm - baseDistanceKm;
+        double additionalDistance = Math.ceil(distanceInKm - baseDistanceKm);
         return baseFee + (additionalDistance * perKmFee);
     }
 

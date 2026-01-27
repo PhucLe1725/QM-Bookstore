@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { isAdmin } from '../../utils/adminUtils'
-import { 
-  Users, 
-  ShoppingBag, 
-  BookOpen, 
-  MessageSquare, 
-  BarChart3, 
+import {
+  Users,
+  ShoppingBag,
+  BookOpen,
+  MessageSquare,
+  BarChart3,
   Settings,
   Package,
   TrendingUp,
@@ -21,7 +21,8 @@ import {
   ArrowDown,
   Loader2,
   FolderTree,
-  Warehouse
+  Warehouse,
+  CreditCard
 } from 'lucide-react'
 import {
   Chart as ChartJS,
@@ -44,7 +45,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 const AdminDashboard = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
-  
+
   const [loading, setLoading] = useState(true)
   const [dashboardData, setDashboardData] = useState(null)
   const [recentOrders, setRecentOrders] = useState([])
@@ -53,7 +54,7 @@ const AdminDashboard = () => {
   const [chartPeriod, setChartPeriod] = useState('week')
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
-  
+
   // Fetch dashboard data
   useEffect(() => {
     fetchDashboardData()
@@ -63,30 +64,30 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchRevenueChart()
   }, [chartPeriod, selectedYear, selectedMonth])
-  
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
-      
+
       // Fetch dashboard summary
       const summary = await reportService.getDashboardSummary()
       setDashboardData(summary)
-      
+
       // Fetch recent orders (admin view)
-      const ordersResponse = await orderService.getAllOrders({ 
-        page: 0, 
+      const ordersResponse = await orderService.getAllOrders({
+        page: 0,
         size: 5
       })
       if (ordersResponse.success) {
         setRecentOrders(ordersResponse.result?.content || ordersResponse.result || [])
       }
-      
+
       // Fetch recent chat messages
       const messagesResponse = await chatService.getRecentMessages(5)
       if (messagesResponse.success) {
         setRecentMessages(messagesResponse.result || [])
       }
-      
+
     } catch (error) {
       // console.error('Error fetching dashboard data:', error)
     } finally {
@@ -119,7 +120,7 @@ const AdminDashboard = () => {
     'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8',
     'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
   ]
-  
+
   // Format currency
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -127,12 +128,12 @@ const AdminDashboard = () => {
       currency: 'VND'
     }).format(amount)
   }
-  
+
   // Format number with commas
   const formatNumber = (num) => {
     return new Intl.NumberFormat('vi-VN').format(num)
   }
-  
+
   // Format date
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
@@ -143,13 +144,13 @@ const AdminDashboard = () => {
       minute: '2-digit'
     })
   }
-  
+
   // Get time ago
   const getTimeAgo = (dateString) => {
     const now = new Date()
     const date = new Date(dateString)
     const seconds = Math.floor((now - date) / 1000)
-    
+
     if (seconds < 60) return `${seconds} giây trước`
     const minutes = Math.floor(seconds / 60)
     if (minutes < 60) return `${minutes} phút trước`
@@ -262,6 +263,14 @@ const AdminDashboard = () => {
       adminOnly: true // MANAGER không có quyền
     },
     {
+      title: 'Giao dịch',
+      description: 'Xem lịch sử giao dịch ngân hàng',
+      icon: CreditCard,
+      href: '/admin/transactions',
+      color: 'border-emerald-200 hover:border-emerald-300',
+      adminOnly: true // MANAGER không có quyền
+    },
+    {
       title: 'Quản lý Role',
       description: 'Quản lý vai trò người dùng',
       icon: Shield,
@@ -269,13 +278,13 @@ const AdminDashboard = () => {
       color: 'border-cyan-200 hover:border-cyan-300',
       adminOnly: true // MANAGER không có quyền
     },
-    {
-      title: 'Báo cáo & Thống kê',
-      description: 'Xem báo cáo chi tiết về doanh thu',
-      icon: BarChart3,
-      href: '/admin/reports',
-      color: 'border-red-200 hover:border-red-300'
-    },
+    // {
+    //   title: 'Báo cáo & Thống kê',
+    //   description: 'Xem báo cáo chi tiết về doanh thu',
+    //   icon: BarChart3,
+    //   href: '/admin/reports',
+    //   color: 'border-red-200 hover:border-red-300'
+    // },
     {
       title: 'Cài đặt hệ thống',
       description: 'Cấu hình chung của website',
@@ -304,7 +313,7 @@ const AdminDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">
-                  Bảng điều khiển Admin
+                  Bảng điều khiển hệ thống
                 </h1>
                 <p className="mt-1 text-sm text-gray-600">
                   Chào mừng trở lại, {user?.fullName || user?.username}
@@ -375,37 +384,34 @@ const AdminDashboard = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setChartPeriod('week')}
-                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                        chartPeriod === 'week'
+                      className={`px-3 py-1 text-sm rounded-md transition-colors ${chartPeriod === 'week'
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                        }`}
                     >
                       7 ngày
                     </button>
                     <button
                       onClick={() => setChartPeriod('month')}
-                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                        chartPeriod === 'month'
+                      className={`px-3 py-1 text-sm rounded-md transition-colors ${chartPeriod === 'month'
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                        }`}
                     >
                       Tháng
                     </button>
                     <button
                       onClick={() => setChartPeriod('year')}
-                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                        chartPeriod === 'year'
+                      className={`px-3 py-1 text-sm rounded-md transition-colors ${chartPeriod === 'year'
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                        }`}
                     >
                       Năm
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Year and Month Selectors */}
                 {(chartPeriod === 'month' || chartPeriod === 'year') && (
                   <div className="flex items-center gap-3">
@@ -534,7 +540,7 @@ const AdminDashboard = () => {
             {quickActions.map((action, index) => {
               const IconComponent = action.icon
               return (
-                <div 
+                <div
                   key={index}
                   className={`bg-white rounded-lg border-2 ${action.color} p-6 cursor-pointer transition-all duration-200 hover:shadow-md`}
                   onClick={() => {
@@ -586,10 +592,10 @@ const AdminDashboard = () => {
                         }
                         return badges[order.paymentStatus] || 'bg-gray-100 text-gray-800'
                       }
-                      
+
                       return (
-                        <div 
-                          key={order.orderId} 
+                        <div
+                          key={order.orderId}
                           className="flex items-center justify-between py-2 hover:bg-gray-50 px-2 rounded cursor-pointer"
                           onClick={() => navigate(`/admin/orders`)}
                         >
@@ -614,7 +620,7 @@ const AdminDashboard = () => {
                     })}
                   </div>
                   <div className="mt-4 pt-4 border-t">
-                    <button 
+                    <button
                       className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                       onClick={() => navigate('/admin/orders')}
                     >
@@ -646,10 +652,10 @@ const AdminDashboard = () => {
                         if (!name) return 'U'
                         return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
                       }
-                      
+
                       return (
-                        <div 
-                          key={index} 
+                        <div
+                          key={index}
                           className="flex items-start space-x-3 hover:bg-gray-50 p-2 rounded cursor-pointer"
                           onClick={() => navigate('/admin/messages')}
                         >
@@ -676,7 +682,7 @@ const AdminDashboard = () => {
                     })}
                   </div>
                   <div className="mt-4 pt-4 border-t">
-                    <button 
+                    <button
                       className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                       onClick={() => navigate('/admin/messages')}
                     >

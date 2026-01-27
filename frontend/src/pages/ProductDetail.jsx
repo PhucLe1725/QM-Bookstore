@@ -680,18 +680,6 @@ const ProductDetail = () => {
                       <ShoppingCart className="h-5 w-5" />
                       <span>Thêm vào giỏ hàng</span>
                     </button>
-                    <button
-                      onClick={handleWishlistToggle}
-                      className={`p-3 border rounded-lg transition-colors ${isInWishlist
-                          ? 'bg-red-50 border-red-300 text-red-600'
-                          : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                        }`}
-                    >
-                      <Heart className={`h-6 w-6 ${isInWishlist ? 'fill-red-600' : ''}`} />
-                    </button>
-                    <button className="p-3 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50">
-                      <Share2 className="h-6 w-6" />
-                    </button>
                   </div>
                 </div>
               )}
@@ -709,7 +697,7 @@ const ProductDetail = () => {
                   <Truck className="h-6 w-6 text-blue-600 flex-shrink-0 mt-1" />
                   <div>
                     <p className="font-medium text-gray-900">Giao hàng nhanh</p>
-                    <p className="text-sm text-gray-600">2-3 ngày trong nội thành</p>
+                    <p className="text-sm text-gray-600">Trong vòng 2-3 ngày làm việc</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
@@ -1338,14 +1326,6 @@ const ProductDetail = () => {
                   </span>
                 </div>
               </div>
-            </div>
-
-            {/* Related Products - Placeholder */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Sản phẩm tương tự</h3>
-              <p className="text-sm text-gray-500 text-center py-4">
-                Đang cập nhật...
-              </p>
             </div>
           </div>
         </div>

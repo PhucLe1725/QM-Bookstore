@@ -11,15 +11,15 @@ const Products = () => {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  
+
   // Add to cart state
   const [addingToCartId, setAddingToCartId] = useState(null)
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [totalRecords, setTotalRecords] = useState(0)
   const [pageSize] = useState(12)
-  
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(null)
@@ -34,7 +34,7 @@ const Products = () => {
   const handleAddToCart = async (productId, e) => {
     e.stopPropagation() // Prevent navigating to product detail
     if (addingToCartId) return
-    
+
     setAddingToCartId(productId)
     try {
       await cartService.addToCart(productId, 1) // Always add 1 quantity from this page
@@ -52,7 +52,7 @@ const Products = () => {
   const fetchProducts = async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
       const params = {
         skipCount: (currentPage - 1) * pageSize,
@@ -60,15 +60,15 @@ const Products = () => {
         sortBy,
         sortDirection
       }
-      
+
       // Add filters if set
       if (searchTerm) params.name = searchTerm
       if (selectedCategory) params.categoryId = selectedCategory
       if (priceRange.min) params.minPrice = priceRange.min
       if (priceRange.max) params.maxPrice = priceRange.max
-      
+
       const response = await productService.getAllProducts(params)
-      
+
       if (response.success) {
         setProducts(response.result.data || [])
         setTotalRecords(response.result.totalRecords || 0)
@@ -156,7 +156,7 @@ const Products = () => {
                     </button>
                   )}
                 </div>
-                
+
                 {/* Selected Category Display */}
                 {selectedCategory && (
                   <div className="mb-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
@@ -173,12 +173,12 @@ const Products = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Category Tree Menu */}
                 <div className="border border-gray-200 rounded-lg p-2 max-h-96 overflow-y-auto">
-                  <CategoryMenu 
+                  <CategoryMenu
                     onCategorySelect={handleCategorySelect}
-                    compact 
+                    compact
                   />
                 </div>
               </div>
@@ -386,16 +386,17 @@ const Products = () => {
                             </div>
                           )}
                           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-300 z-10"></div>
-                          {!product.availability && (
+                          {(!product.availability || product.stockQuantity === 0) && (
                             <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30">
                               <span className="bg-red-500 text-white px-4 py-2 rounded-full font-medium">
                                 Hết hàng
                               </span>
                             </div>
                           )}
-                           <button
+                          {product.availability && product.stockQuantity > 0 && (
+                            <button
                               onClick={(e) => handleAddToCart(product.id, e)}
-                              disabled={addingToCartId === product.id || !product.availability}
+                              disabled={addingToCartId === product.id}
                               className="absolute bottom-3 right-3 bg-blue-600 text-white p-2 rounded-full shadow-lg opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed z-20"
                               aria-label="Thêm vào giỏ hàng"
                             >
@@ -405,6 +406,7 @@ const Products = () => {
                                 <ShoppingCart className="h-6 w-6" />
                               )}
                             </button>
+                          )}
                         </div>
                         <div className="p-4">
                           <h3 className="text-sm font-medium text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
@@ -419,7 +421,7 @@ const Products = () => {
                             <span className="text-lg font-bold text-blue-600">
                               {formatPrice(product.price)}
                             </span>
-                            {product.availability && (
+                            {product.availability && product.stockQuantity > 0 && (
                               <span className="text-xs text-green-600 font-medium">
                                 Còn hàng
                               </span>
@@ -459,16 +461,17 @@ const Products = () => {
                               </div>
                             )}
                             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-300 z-10"></div>
-                            {!product.availability && (
+                            {(!product.availability || product.stockQuantity === 0) && (
                               <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30">
                                 <span className="bg-red-500 text-white px-4 py-2 rounded-full font-medium text-sm">
                                   Hết hàng
                                 </span>
                               </div>
                             )}
-                             <button
+                            {product.availability && product.stockQuantity > 0 && (
+                              <button
                                 onClick={(e) => handleAddToCart(product.id, e)}
-                                disabled={addingToCartId === product.id || !product.availability}
+                                disabled={addingToCartId === product.id}
                                 className="absolute bottom-3 right-3 bg-blue-600 text-white p-2 rounded-full shadow-lg opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed z-20"
                                 aria-label="Thêm vào giỏ hàng"
                               >
@@ -478,6 +481,7 @@ const Products = () => {
                                   <ShoppingCart className="h-6 w-6" />
                                 )}
                               </button>
+                            )}
                           </div>
                           <div className="flex-1 p-6">
                             <div className="flex flex-col h-full">
@@ -500,7 +504,7 @@ const Products = () => {
                                     </p>
                                   )}
                                 </div>
-                                {product.availability && (
+                                {product.availability && product.stockQuantity > 0 && (
                                   <span className="text-sm text-green-600 font-medium">
                                     Còn hàng: {product.stockQuantity}
                                   </span>
@@ -524,7 +528,7 @@ const Products = () => {
                     >
                       Trước
                     </button>
-                    
+
                     <div className="flex gap-2">
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                         let pageNum
@@ -537,16 +541,15 @@ const Products = () => {
                         } else {
                           pageNum = currentPage - 2 + i
                         }
-                        
+
                         return (
                           <button
                             key={pageNum}
                             onClick={() => setCurrentPage(pageNum)}
-                            className={`px-4 py-2 rounded-lg ${
-                              currentPage === pageNum
-                                ? 'bg-blue-600 text-white'
-                                : 'border border-gray-300 hover:bg-gray-50'
-                            }`}
+                            className={`px-4 py-2 rounded-lg ${currentPage === pageNum
+                              ? 'bg-blue-600 text-white'
+                              : 'border border-gray-300 hover:bg-gray-50'
+                              }`}
                           >
                             {pageNum}
                           </button>

@@ -182,12 +182,8 @@ const Home = () => {
               {/* Stats */}
               <div className="grid grid-cols-3 gap-6 pt-8 border-t border-gray-200">
                 <div>
-                  <div className="text-3xl font-bold text-gray-900">500+</div>
+                  <div className="text-3xl font-bold text-gray-900">300+</div>
                   <div className="text-sm text-gray-600">Sản phẩm</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-gray-900">98%</div>
-                  <div className="text-sm text-gray-600">Hài lòng</div>
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-gray-900">24/7</div>
