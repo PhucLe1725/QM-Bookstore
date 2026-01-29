@@ -189,12 +189,10 @@ const OrderDetail = () => {
   }
 
   const canCancelOrder = () => {
-    // Chỉ có thể hủy khi orderStatus = confirmed và paymentStatus != paid
     return order && order.orderStatus === 'confirmed' && order.paymentStatus !== 'paid'
   }
 
   const shouldShowQRPayment = () => {
-    // Hiển thị QR khi: paymentMethod = prepaid VÀ paymentStatus = pending VÀ orderStatus != cancelled
     return order && order.paymentMethod === 'prepaid' && order.paymentStatus === 'pending' && order.orderStatus !== 'cancelled'
   }
 
@@ -208,7 +206,6 @@ const OrderDetail = () => {
         await transactionService.fetchFromEmail(10)
       } catch (fetchError) {
         console.warn('Failed to fetch emails:', fetchError)
-        // Continue anyway - transaction might already exist in DB
       }
 
       // Step 2: Validate payment
@@ -217,12 +214,11 @@ const OrderDetail = () => {
       if (response.success) {
         if (response.result.paymentConfirmed) {
           toast.success('✅ Thanh toán đã được xác nhận!')
-          loadOrderDetail() // Reload để cập nhật trạng thái
+          loadOrderDetail()
         } else {
           toast.warning('⏳ Chưa nhận được thanh toán. Vui lòng thử lại sau vài phút.')
         }
       } else {
-        // Handle error codes
         if (response.error?.code === 7209) {
           toast.error('Đơn hàng không dùng phương thức chuyển khoản')
         } else if (response.error?.code === 7210) {

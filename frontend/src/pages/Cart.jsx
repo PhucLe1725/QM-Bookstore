@@ -14,10 +14,10 @@ const Cart = () => {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
-  
+
   // Track updating items for individual loading states
   const [updatingItems, setUpdatingItems] = useState(new Set())
-  
+
   // Debounce timers for quantity updates
   const [updateTimers, setUpdateTimers] = useState({})
 
@@ -65,7 +65,7 @@ const Cart = () => {
 
   useEffect(() => {
     fetchCart()
-    
+
     // Cleanup timers on unmount
     return () => {
       Object.values(updateTimers).forEach(timer => clearTimeout(timer))
@@ -92,10 +92,10 @@ const Cart = () => {
       })
 
       const totalAmount = updatedItems.reduce((sum, item) => sum + (item.amount || item.subtotal || 0), 0)
-      const selectedAmount = updatedItems.reduce((sum, item) => 
+      const selectedAmount = updatedItems.reduce((sum, item) =>
         item.isSelected ? sum + (item.amount || item.subtotal || 0) : sum, 0)
       const totalQuantity = updatedItems.reduce((sum, item) => sum + item.quantity, 0)
-      const selectedQuantity = updatedItems.reduce((sum, item) => 
+      const selectedQuantity = updatedItems.reduce((sum, item) =>
         item.isSelected ? sum + item.quantity : sum, 0)
 
       return {
@@ -124,7 +124,7 @@ const Cart = () => {
       try {
         await cartService.updateQuantity(itemId, newQuantity)
         window.dispatchEvent(new Event('cartUpdated'))
-        
+
         // Remove item from updating set
         setUpdatingItems(prev => {
           const newSet = new Set(prev)
@@ -149,7 +149,7 @@ const Cart = () => {
   // Handle direct input change - only update local display
   const handleQuantityInputChange = (e, itemId) => {
     const value = e.target.value
-    
+
     // Block all non-digit characters immediately (including +, -, e, E, ., etc.)
     // Only allow empty string or digits 0-9
     if (value !== '' && !/^[0-9]+$/.test(value)) {
@@ -176,10 +176,10 @@ const Cart = () => {
 
       // Calculate new summary
       const totalAmount = updatedItems.reduce((sum, item) => sum + (item.amount || item.subtotal || 0), 0)
-      const selectedAmount = updatedItems.reduce((sum, item) => 
+      const selectedAmount = updatedItems.reduce((sum, item) =>
         item.isSelected ? sum + (item.amount || item.subtotal || 0) : sum, 0)
       const totalQuantity = updatedItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
-      const selectedQuantity = updatedItems.reduce((sum, item) => 
+      const selectedQuantity = updatedItems.reduce((sum, item) =>
         item.isSelected ? sum + (item.quantity || 0) : sum, 0)
 
       return {
@@ -215,7 +215,7 @@ const Cart = () => {
     // Only allow paste if it's purely numeric (no +, -, e, E, ., spaces, etc.)
     if (/^[0-9]+$/.test(pastedText)) {
       const itemId = parseInt(e.target.dataset.itemId)
-      const syntheticEvent = { target: { value: pastedText }, preventDefault: () => {} }
+      const syntheticEvent = { target: { value: pastedText }, preventDefault: () => { } }
       handleQuantityInputChange(syntheticEvent, itemId)
     }
   }
@@ -236,21 +236,21 @@ const Cart = () => {
     // Optimistic update
     setCart(prevCart => ({
       ...prevCart,
-      items: prevCart.items.map(item => 
+      items: prevCart.items.map(item =>
         item.id === itemId ? { ...item, isSelected: selected } : item
       ),
       summary: {
         ...prevCart.summary,
-        selectedItems: selected 
-          ? prevCart.summary.selectedItems + 1 
+        selectedItems: selected
+          ? prevCart.summary.selectedItems + 1
           : prevCart.summary.selectedItems - 1,
-        selectedAmount: prevCart.items.reduce((sum, item) => 
-          (item.id === itemId ? selected : item.isSelected) 
-            ? sum + item.price * item.quantity 
+        selectedAmount: prevCart.items.reduce((sum, item) =>
+          (item.id === itemId ? selected : item.isSelected)
+            ? sum + (item.subtotal || item.amount || 0)
             : sum, 0),
-        selectedQuantity: prevCart.items.reduce((sum, item) => 
-          (item.id === itemId ? selected : item.isSelected) 
-            ? sum + item.quantity 
+        selectedQuantity: prevCart.items.reduce((sum, item) =>
+          (item.id === itemId ? selected : item.isSelected)
+            ? sum + item.quantity
             : sum, 0)
       }
     }))
@@ -337,7 +337,7 @@ const Cart = () => {
     try {
       setCheckoutLoading(true)
       const response = await cartService.checkout(checkoutData)
-      
+
       if (response.success) {
         toast.success('Đặt hàng thành công!')
         navigate(`/orders/${response.result.orderId}`)
@@ -458,7 +458,7 @@ const Cart = () => {
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">
                         {item.combo?.name}
                       </h3>
-                      
+
                       {/* Combo items */}
                       {item.combo?.items && item.combo.items.length > 0 && (
                         <div className="mb-2">
@@ -522,7 +522,7 @@ const Cart = () => {
                           <Plus className="h-4 w-4" />
                         </button>
                       </div>
-                      
+
                       {updatingItems.has(item.id) && (
                         <span className="text-xs text-gray-500 italic">Đang cập nhật...</span>
                       )}
@@ -606,7 +606,7 @@ const Cart = () => {
                           <Plus className="h-4 w-4" />
                         </button>
                       </div>
-                      
+
                       {updatingItems.has(item.id) && (
                         <span className="text-xs text-gray-500 italic">Đang cập nhật...</span>
                       )}

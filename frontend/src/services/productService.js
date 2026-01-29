@@ -28,7 +28,7 @@ export const productService = {
       sortDirection: 'desc',
       ...params
     })
-    
+
     try {
       const response = await api.get(`/products?${queryParams}`)
       return response
@@ -100,6 +100,17 @@ export const productService = {
       return response
     } catch (error) {
       console.error('Error fetching available products:', error)
+      throw error
+    }
+  },
+
+  // Get low stock products (stockQuantity <= reorderLevel)
+  getLowStockProducts: async () => {
+    try {
+      const response = await api.get('/products/low-stock')
+      return response
+    } catch (error) {
+      console.error('Error fetching low stock products:', error)
       throw error
     }
   },

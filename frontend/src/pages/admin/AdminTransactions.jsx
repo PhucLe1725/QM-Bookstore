@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { 
-  RefreshCw, 
-  Search, 
-  CheckCircle, 
-  XCircle, 
+import {
+  RefreshCw,
+  Search,
+  CheckCircle,
+  XCircle,
   Clock,
   Download,
   Filter,
@@ -18,7 +18,7 @@ import AdminPageHeader from '../../components/AdminPageHeader'
 const AdminTransactions = () => {
   const navigate = useNavigate()
   const { showToast } = useToast()
-  
+
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(false)
@@ -54,14 +54,14 @@ const AdminTransactions = () => {
       const response = await transactionService.fetchFromEmail(maxEmails)
       if (response.success) {
         const newTransactions = response.result || []
-        showToast('success', `Đã fetch ${newTransactions.length} giao dịch từ email`)
+        showToast('Fetch email giao dịch thành công', `Đã fetch ${newTransactions.length} giao dịch từ email`)
         await loadTransactions() // Reload all transactions
       } else {
-        showToast('error', 'Không thể fetch email')
+        showToast('Có lỗi xảy ra', 'Không thể fetch email')
       }
     } catch (error) {
       console.error('Failed to fetch emails:', error)
-      showToast('error', 'Lỗi khi fetch email: ' + (error.message || 'Unknown error'))
+      showToast('Có lỗi xảy ra', 'Lỗi khi fetch email: ' + (error.message || 'Unknown error'))
     } finally {
       setFetching(false)
     }
@@ -82,7 +82,7 @@ const AdminTransactions = () => {
       }
     } catch (error) {
       console.error('Search failed:', error)
-      showToast('error', 'Lỗi khi tìm kiếm')
+      showToast('Có lỗi xảy ra', 'Lỗi khi tìm kiếm')
     } finally {
       setLoading(false)
     }
@@ -114,8 +114,8 @@ const AdminTransactions = () => {
           await orderService.updateOrderStatus(orderId, {
             paymentStatus: 'paid'
           })
-          
-          showToast('success', `✅ Đã xác nhận thanh toán và cập nhật đơn hàng #${orderId}`)
+
+          showToast('Thành công', `✅ Đã xác nhận thanh toán và cập nhật đơn hàng #${orderId}`)
           await loadTransactions()
         } catch (orderError) {
           console.error('Failed to update order:', orderError)
@@ -126,7 +126,7 @@ const AdminTransactions = () => {
       }
     } catch (error) {
       console.error('Verification failed:', error)
-      showToast('error', 'Lỗi khi xác thực: ' + (error.message || 'Unknown error'))
+      showToast('Có lỗi xảy ra', 'Lỗi khi xác thực: ' + (error.message || 'Unknown error'))
     } finally {
       setVerifying(prev => ({ ...prev, [transaction.id]: false }))
     }
@@ -168,59 +168,59 @@ const AdminTransactions = () => {
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-      {/* Controls */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Fetch Emails */}
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              value={maxEmails}
-              onChange={(e) => setMaxEmails(parseInt(e.target.value) || 10)}
-              min="1"
-              max="50"
-              className="w-20 px-3 py-2 border rounded-lg"
-              placeholder="10"
-            />
-            <button
-              onClick={handleFetchEmails}
-              disabled={fetching}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition"
-            >
-              {fetching ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  Fetching...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  Fetch Emails
-                </>
-              )}
-            </button>
-          </div>
+        {/* Controls */}
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Fetch Emails */}
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={maxEmails}
+                onChange={(e) => setMaxEmails(parseInt(e.target.value) || 10)}
+                min="1"
+                max="50"
+                className="w-20 px-3 py-2 border rounded-lg"
+                placeholder="10"
+              />
+              <button
+                onClick={handleFetchEmails}
+                disabled={fetching}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition"
+              >
+                {fetching ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Fetching...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Fetch Emails
+                  </>
+                )}
+              </button>
+            </div>
 
-          {/* Search */}
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={searchOrderCode}
-              onChange={(e) => setSearchOrderCode(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Tìm theo mã đơn (QMORD123)"
-              className="flex-1 px-3 py-2 border rounded-lg"
-            />
-            <button
-              onClick={handleSearch}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-          </div>
+            {/* Search */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={searchOrderCode}
+                onChange={(e) => setSearchOrderCode(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Tìm theo mã đơn (QMORD123)"
+                className="flex-1 px-3 py-2 border rounded-lg"
+              />
+              <button
+                onClick={handleSearch}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </div>
 
-          {/* Refresh */}
-          <div className="flex items-center gap-2">
+            {/* Refresh */}
+            {/* <div className="flex items-center gap-2">
             <button
               onClick={loadTransactions}
               disabled={loading}
@@ -229,137 +229,136 @@ const AdminTransactions = () => {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
+          </div> */}
+          </div>
+
+          {/* Filters */}
+          <div className="flex items-center gap-2 mt-4">
+            <Filter className="w-4 h-4 text-gray-600" />
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-3 py-1 rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+            >
+              Tất cả ({transactions.length})
+            </button>
+            <button
+              onClick={() => setFilter('unverified')}
+              className={`px-3 py-1 rounded ${filter === 'unverified' ? 'bg-yellow-600 text-white' : 'bg-gray-200'}`}
+            >
+              Chưa verify ({transactions.filter(t => !t.verified).length})
+            </button>
+            <button
+              onClick={() => setFilter('verified')}
+              className={`px-3 py-1 rounded ${filter === 'verified' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}
+            >
+              Đã verify ({transactions.filter(t => t.verified).length})
+            </button>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-2 mt-4">
-          <Filter className="w-4 h-4 text-gray-600" />
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1 rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-          >
-            Tất cả ({transactions.length})
-          </button>
-          <button
-            onClick={() => setFilter('unverified')}
-            className={`px-3 py-1 rounded ${filter === 'unverified' ? 'bg-yellow-600 text-white' : 'bg-gray-200'}`}
-          >
-            Chưa verify ({transactions.filter(t => !t.verified).length})
-          </button>
-          <button
-            onClick={() => setFilter('verified')}
-            className={`px-3 py-1 rounded ${filter === 'verified' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}
-          >
-            Đã verify ({transactions.filter(t => t.verified).length})
-          </button>
-        </div>
-      </div>
-
-      {/* Transaction List */}
-      {loading && !fetching ? (
-        <div className="flex justify-center items-center py-12">
-          <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
-        </div>
-      ) : filteredTransactions.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">Không có giao dịch nào</p>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {filteredTransactions.map(transaction => (
-            <div
-              key={transaction.id}
-              className={`bg-white rounded-lg shadow p-4 border-l-4 ${
-                transaction.verified 
-                  ? 'border-green-500' 
-                  : isExpired(transaction.transactionDate)
-                  ? 'border-red-500'
-                  : 'border-yellow-500'
-              }`}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Transaction Info */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">ID:</span>
-                    <span className="font-semibold">#{transaction.id}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">Ngày GD:</span>
-                    <span className="text-sm">{formatDate(transaction.transactionDate)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
+        {/* Transaction List */}
+        {loading && !fetching ? (
+          <div className="flex justify-center items-center py-12">
+            <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        ) : filteredTransactions.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">Không có giao dịch nào</p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {filteredTransactions.map(transaction => (
+              <div
+                key={transaction.id}
+                className={`bg-white rounded-lg shadow p-4 border-l-4 ${transaction.verified
+                    ? 'border-green-500'
+                    : isExpired(transaction.transactionDate)
+                      ? 'border-red-500'
+                      : 'border-yellow-500'
+                  }`}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Transaction Info */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">ID:</span>
+                      <span className="font-semibold">#{transaction.id}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">Thời gian GD:</span>
+                      <span className="text-sm">{formatDate(transaction.transactionDate)}</span>
+                    </div>
+                    {/* <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-500">Mã GD:</span>
                     <span className="text-sm font-mono">{transaction.orderNumber}</span>
+                  </div> */}
                   </div>
-                </div>
 
-                {/* Sender/Amount Info */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
+                  {/* Sender/Amount Info */}
+                  <div className="space-y-2">
+                    {/* <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-500">Từ:</span>
                     <span className="text-sm font-semibold">{transaction.remitterName}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-500">TK:</span>
                     <span className="text-sm font-mono">{transaction.debitAccount}</span>
+                  </div> */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">Số tiền:</span>
+                      <span className="text-lg font-bold text-green-600">
+                        {formatCurrency(transaction.amount)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">Số tiền:</span>
-                    <span className="text-lg font-bold text-green-600">
-                      {formatCurrency(transaction.amount)}
-                    </span>
-                  </div>
-                </div>
 
-                {/* Payment Details & Actions */}
-                <div className="space-y-2">
-                  <div>
-                    <span className="text-sm text-gray-500">Nội dung:</span>
-                    <p className="text-sm font-mono bg-gray-50 p-2 rounded mt-1">
-                      {transaction.paymentDetails}
-                    </p>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 mt-3">
-                    {transaction.verified ? (
-                      <div className="flex items-center gap-2 text-green-600">
-                        <CheckCircle className="w-5 h-5" />
-                        <span className="font-semibold">Đã verify</span>
-                      </div>
-                    ) : isExpired(transaction.transactionDate) ? (
-                      <div className="flex items-center gap-2 text-red-600">
-                        <XCircle className="w-5 h-5" />
-                        <span className="font-semibold">Hết hạn (&gt;24h)</span>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleVerify(transaction)}
-                        disabled={verifying[transaction.id]}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition"
-                      >
-                        {verifying[transaction.id] ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                            Verifying...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="w-4 h-4" />
-                            Verify & Update Order
-                          </>
-                        )}
-                      </button>
-                    )}
+                  {/* Payment Details & Actions */}
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-sm text-gray-500">Nội dung:</span>
+                      <p className="text-sm font-mono bg-gray-50 p-2 rounded mt-1">
+                        {transaction.paymentDetails}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-3">
+                      {transaction.verified ? (
+                        <div className="flex items-center gap-2 text-green-600">
+                          <CheckCircle className="w-5 h-5" />
+                          <span className="font-semibold">Đã verify</span>
+                        </div>
+                      ) : isExpired(transaction.transactionDate) ? (
+                        <div className="flex items-center gap-2 text-red-600">
+                          <XCircle className="w-5 h-5" />
+                          <span className="font-semibold">Hết hạn (&gt;24h)</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleVerify(transaction)}
+                          disabled={verifying[transaction.id]}
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition"
+                        >
+                          {verifying[transaction.id] ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                              Verifying...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4" />
+                              Verify & Update Order
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

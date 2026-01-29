@@ -12,11 +12,11 @@ import { generateVietQRUrl, getVietQRConfig } from '../utils/systemConfig'
  * @param {Function} props.onPaymentSuccess - Callback when payment is verified
  * @param {boolean} props.showInstructions - Show payment instructions (default: true)
  */
-const QRPayment = ({ 
-  amount, 
-  orderCode, 
+const QRPayment = ({
+  amount,
+  orderCode,
   onPaymentSuccess,
-  showInstructions = true 
+  showInstructions = true
 }) => {
   const [qrUrl, setQrUrl] = useState('')
   const [loading, setLoading] = useState(true)
@@ -36,8 +36,9 @@ const QRPayment = ({
     try {
       setLoading(true)
       const config = await getVietQRConfig()
+      console.log('Loaded VietQR config:', config)
       setVietQRConfig(config)
-      
+
       const url = generateVietQRUrl(
         amount,
         orderCode,
@@ -91,8 +92,8 @@ const QRPayment = ({
 
       {/* QR Code */}
       <div className="qr-code-wrapper bg-white border-4 border-blue-100 rounded-lg p-4 mb-6">
-        <img 
-          src={qrUrl} 
+        <img
+          src={qrUrl}
           alt="VietQR Payment Code"
           className="w-full max-w-sm mx-auto"
           onError={(e) => {

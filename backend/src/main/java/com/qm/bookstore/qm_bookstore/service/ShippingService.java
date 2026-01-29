@@ -21,12 +21,6 @@ public class ShippingService {
     private final GoongService goongService;
     private final SystemConfigService systemConfigService;
 
-    @Value("${shipping.base-fee:15000}")
-    private Double baseFee;
-
-    @Value("${shipping.per-km-fee:3000}")
-    private Double perKmFee;
-
     @Value("${shipping.base-distance-km:5}")
     private Double baseDistanceKm;
 
@@ -55,11 +49,9 @@ public class ShippingService {
                         .lat(receiverLat)
                         .lng(receiverLng)
                         .build();
-                log.debug("[calculateShippingFee] Using coordinates from frontend: {}", receiverCoords);
             } else {
                 // Geocode the receiver address
                 receiverCoords = goongService.geocodeAddress(receiverAddress);
-                log.debug("[calculateShippingFee] Geocoded receiver coordinates: {}", receiverCoords);
             }
 
             // Step 2: Get store location from system config
@@ -84,6 +76,9 @@ public class ShippingService {
                     finalFee, isFreeShipping, freeShippingThreshold);
 
             // Step 6: Build response
+            // Load baseFee for response display
+            Double baseFee = systemConfigService.getConfigValueAsDouble("default_shipping_fee", 15000.0);
+
             ShippingFeeDetails feeDetails = ShippingFeeDetails.builder()
                     .baseFee(baseFee)
                     .distanceFee(shippingFee - baseFee)
@@ -115,19 +110,19 @@ public class ShippingService {
      * Calculate fee based on distance
      * Formula: baseFee for first baseDistanceKm, then add perKmFee for each
      * additional km
-     * Distance is rounded up before calculation
      *
      * @param distanceInKm The distance in kilometers
      * @return The calculated shipping fee
      */
     private Double calculateFee(Double distanceInKm) {
-        // Round up the distance first
-        double roundedDistance = Math.ceil(distanceInKm);
+        // Load shipping fees from system config
+        Double baseFee = systemConfigService.getConfigValueAsDouble("default_shipping_fee", 15000.0);
+        Double perKmFee = systemConfigService.getConfigValueAsDouble("shipping_per_km_fee", 3000.0);
 
-        if (roundedDistance <= baseDistanceKm) {
+        if (distanceInKm <= baseDistanceKm) {
             return baseFee;
         }
-        double additionalDistance = roundedDistance - baseDistanceKm;
+        double additionalDistance = Math.ceil(distanceInKm - baseDistanceKm);
         return baseFee + (additionalDistance * perKmFee);
     }
 

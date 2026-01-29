@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react'
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Search, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Search,
   Filter,
   X,
   Save,
   AlertCircle,
   Package,
   Image as ImageIcon,
-  DollarSign
+  DollarSign,
+  AlertTriangle,
+  PackagePlus,
+  TrendingUp
 } from 'lucide-react'
 import { productService, categoryService } from '../../services'
+import inventoryService from '../../services/inventoryService'
 import { useToast } from '../../contexts/ToastContext'
 import AdminPageHeader from '../../components/AdminPageHeader'
 import SearchableSelect from '../../components/SearchableSelect'
@@ -23,27 +27,41 @@ const AdminProducts = () => {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [totalRecords, setTotalRecords] = useState(0)
   const [pageSize] = useState(10)
-  
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(null)
-  
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false)
+
   // Modal states
   const [showModal, setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState('create') // 'create' or 'edit'
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [productToDelete, setProductToDelete] = useState(null)
-  
+
   // Price History Modal
   const [showPriceHistoryModal, setShowPriceHistoryModal] = useState(false)
   const [priceHistoryProduct, setPriceHistoryProduct] = useState(null)
-  
+
+  // Low Stock Warning
+  const [lowStockProducts, setLowStockProducts] = useState([])
+  const [showLowStockAlert, setShowLowStockAlert] = useState(true)
+
+  // Restock Modal
+  const [showRestockModal, setShowRestockModal] = useState(false)
+  const [productToRestock, setProductToRestock] = useState(null)
+  const [restockForm, setRestockForm] = useState({
+    quantity: '',
+    unitPrice: '',
+    note: ''
+  })
+
   // Form data
   const [formData, setFormData] = useState({
     categoryId: '',
@@ -59,9 +77,9 @@ const AdminProducts = () => {
     reorderLevel: 10,
     reorderQuantity: 50
   })
-  
+
   const [formErrors, setFormErrors] = useState({})
-  
+
   // Categories - fetch from API
   const [categories, setCategories] = useState([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
@@ -70,7 +88,7 @@ const AdminProducts = () => {
   const fetchProducts = async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
       const params = {
         skipCount: (currentPage - 1) * pageSize,
@@ -78,12 +96,12 @@ const AdminProducts = () => {
         sortBy: 'createdAt',
         sortDirection: 'desc'
       }
-      
+
       if (searchTerm) params.name = searchTerm
       if (selectedCategory) params.categoryId = selectedCategory
-      
+
       const response = await productService.getAllProducts(params)
-      
+
       if (response.success) {
         setProducts(response.result.data || [])
         setTotalRecords(response.result.totalRecords || 0)
@@ -96,6 +114,19 @@ const AdminProducts = () => {
     }
   }
 
+  // Fetch low stock products
+  const fetchLowStockProducts = async () => {
+    try {
+      const response = await productService.getLowStockProducts()
+      if (response.success) {
+        setLowStockProducts(response.result || [])
+      }
+    } catch (err) {
+      console.error('Error fetching low stock products:', err)
+      // Don't show error toast, just log it
+    }
+  }
+
   useEffect(() => {
     fetchProducts()
   }, [currentPage, selectedCategory])
@@ -103,6 +134,7 @@ const AdminProducts = () => {
   // Fetch categories on mount
   useEffect(() => {
     fetchCategories()
+    fetchLowStockProducts()
   }, [])
 
   const fetchCategories = async () => {
@@ -190,23 +222,23 @@ const AdminProducts = () => {
   // Validate form
   const validateForm = () => {
     const errors = {}
-    
+
     if (!formData.name.trim()) {
       errors.name = 'Tên sản phẩm là bắt buộc'
     }
-    
+
     if (!formData.sku.trim()) {
       errors.sku = 'Mã SKU là bắt buộc'
     }
-    
+
     if (!formData.price || parseFloat(formData.price) <= 0) {
       errors.price = 'Giá phải lớn hơn 0'
     }
-    
+
     if (formData.stockQuantity < 0) {
       errors.stockQuantity = 'Số lượng không được âm'
     }
-    
+
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -214,11 +246,11 @@ const AdminProducts = () => {
   // Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
-    
+
     try {
       const submitData = {
         ...formData,
@@ -228,14 +260,14 @@ const AdminProducts = () => {
         reorderLevel: parseInt(formData.reorderLevel),
         reorderQuantity: parseInt(formData.reorderQuantity)
       }
-      
+
       let response
       if (modalMode === 'create') {
         response = await productService.createProduct(submitData)
       } else {
         response = await productService.updateProduct(selectedProduct.id, submitData)
       }
-      
+
       if (response.success) {
         setShowModal(false)
         fetchProducts()
@@ -267,7 +299,7 @@ const AdminProducts = () => {
   const confirmDelete = async () => {
     try {
       const response = await productService.deleteProduct(productToDelete.id)
-      
+
       if (response.success) {
         setShowDeleteConfirm(false)
         setProductToDelete(null)
@@ -288,8 +320,98 @@ const AdminProducts = () => {
     }).format(price)
   }
 
+  // Get stock status helper
+  const getStockStatus = (product) => {
+    if (!product.reorderLevel || product.reorderLevel === 0) {
+      return { status: 'good', color: 'text-green-600', bgColor: 'bg-green-50', label: 'Tồn kho tốt' }
+    }
+
+    if (product.stockQuantity <= product.reorderLevel) {
+      return { status: 'low', color: 'text-red-600', bgColor: 'bg-red-50', label: 'Tồn kho thấp', icon: AlertTriangle }
+    } else if (product.stockQuantity <= product.reorderLevel * 2) {
+      return { status: 'medium', color: 'text-yellow-600', bgColor: 'bg-yellow-50', label: 'Tồn kho trung bình' }
+    }
+    return { status: 'good', color: 'text-green-600', bgColor: 'bg-green-50', label: 'Tồn kho tốt' }
+  }
+
+  // Handle restock
+  const handleRestock = (product) => {
+    setProductToRestock(product)
+    setRestockForm({
+      quantity: product.reorderQuantity || 50,
+      unitPrice: '',
+      note: `Nhập hàng bổ sung cho ${product.name}`
+    })
+    setShowRestockModal(true)
+  }
+
+  const handleRestockSubmit = async (e) => {
+    e.preventDefault()
+
+    if (!restockForm.quantity || restockForm.quantity <= 0) {
+      showToast('Vui lòng nhập số lượng hợp lệ', 'warning')
+      return
+    }
+
+    if (!restockForm.unitPrice || parseFloat(restockForm.unitPrice) <= 0) {
+      showToast('Vui lòng nhập giá nhập hợp lệ', 'warning')
+      return
+    }
+
+    try {
+      const payload = {
+        transactionType: 'IN',
+        referenceType: 'MANUAL',
+        note: restockForm.note || `Nhập hàng bổ sung cho ${productToRestock.name}`,
+        items: [{
+          productId: productToRestock.id,
+          changeType: 'PLUS',
+          quantity: parseInt(restockForm.quantity),
+          unitPrice: parseFloat(restockForm.unitPrice)
+        }]
+      }
+
+      const response = await inventoryService.createTransaction(payload)
+      if (response.success) {
+        showToast('Tạo phiếu nhập kho thành công!', 'success')
+        setShowRestockModal(false)
+        setProductToRestock(null)
+        setRestockForm({ quantity: '', unitPrice: '', note: '' })
+        // Refresh data
+        fetchProducts()
+        fetchLowStockProducts()
+      }
+    } catch (err) {
+      console.error('Error creating restock transaction:', err)
+      showToast('Có lỗi xảy ra khi tạo phiếu nhập kho', 'error')
+    }
+  }
+
+  // Format currency for restock modal
+  const formatCurrency = (amount) => {
+    if (!amount) return '0₫'
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount)
+  }
+
+  // Calculate total for restock
+  const restockTotal = restockForm.quantity && restockForm.unitPrice
+    ? parseInt(restockForm.quantity) * parseFloat(restockForm.unitPrice)
+    : 0
+
   // Calculate pagination
   const totalPages = Math.ceil(totalRecords / pageSize)
+
+  // Filter products for display
+  // When showing low stock only, use the lowStockProducts array
+  // Otherwise use the paginated products array
+  const displayProducts = showLowStockOnly ? lowStockProducts : products
+
+  const lowStockCount = lowStockProducts.length
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -307,6 +429,37 @@ const AdminProducts = () => {
         }
       />
       <div className="max-w-7xl mx-auto p-6">
+
+        {/* Low Stock Alert Banner */}
+        {lowStockCount > 0 && showLowStockAlert && (
+          <div className="mb-6 bg-orange-50 border-l-4 border-orange-400 p-4 rounded-lg">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start">
+                <AlertTriangle className="h-5 w-5 text-orange-400 mt-0.5 mr-3" />
+                <div>
+                  <h3 className="text-sm font-medium text-orange-800">
+                    Cảnh báo tồn kho thấp
+                  </h3>
+                  <p className="mt-1 text-sm text-orange-700">
+                    Có <span className="font-semibold">{lowStockCount}</span> sản phẩm đang có tồn kho thấp hơn mức đặt hàng lại.
+                  </p>
+                  <button
+                    onClick={() => setShowLowStockOnly(true)}
+                    className="mt-2 text-sm font-medium text-orange-800 hover:text-orange-900 underline"
+                  >
+                    Xem danh sách sản phẩm →
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowLowStockAlert(false)}
+                className="text-orange-400 hover:text-orange-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Toolbar */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
@@ -342,6 +495,24 @@ const AdminProducts = () => {
               />
             </div>
 
+            {/* Low Stock Filter */}
+            <button
+              onClick={() => setShowLowStockOnly(!showLowStockOnly)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium relative ${showLowStockOnly
+                ? 'bg-orange-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+            >
+              <AlertTriangle className="h-5 w-5" />
+              <span>Tồn kho thấp</span>
+              {lowStockCount > 0 && (
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${showLowStockOnly ? 'bg-orange-800 text-white' : 'bg-orange-100 text-orange-800'
+                  }`}>
+                  {lowStockCount}
+                </span>
+              )}
+            </button>
+
             {/* Add Button */}
             <button
               onClick={handleCreate}
@@ -370,18 +541,27 @@ const AdminProducts = () => {
                 Thử lại
               </button>
             </div>
-          ) : products.length === 0 ? (
+          ) : displayProducts.length === 0 ? (
             <div className="p-12 text-center">
               <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có sản phẩm nào</h3>
-              <p className="text-gray-500 mb-4">Bắt đầu bằng cách thêm sản phẩm đầu tiên</p>
-              <button
-                onClick={handleCreate}
-                className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                <Plus className="h-5 w-5" />
-                <span>Thêm sản phẩm</span>
-              </button>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {showLowStockOnly ? 'Không có sản phẩm tồn kho thấp' : 'Chưa có sản phẩm nào'}
+              </h3>
+              <p className="text-gray-500 mb-4">
+                {showLowStockOnly
+                  ? 'Tất cả sản phẩm đều có tồn kho đầy đủ'
+                  : 'Bắt đầu bằng cách thêm sản phẩm đầu tiên'
+                }
+              </p>
+              {!showLowStockOnly && (
+                <button
+                  onClick={handleCreate}
+                  className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span>Thêm sản phẩm</span>
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -413,95 +593,109 @@ const AdminProducts = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {products.map((product) => (
-                      <tr key={product.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 flex-shrink-0">
-                              {product.imageUrl ? (
-                                <img
-                                  className="h-10 w-10 rounded object-cover"
-                                  src={product.imageUrl}
-                                  alt={product.name}
-                                />
-                              ) : (
-                                <div className="h-10 w-10 rounded bg-gray-100 flex items-center justify-center">
-                                  <Package className="h-5 w-5 text-gray-400" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {product.name}
+                    {displayProducts.map((product) => {
+                      const stockStatus = getStockStatus(product)
+                      const StockIcon = stockStatus.icon
+
+                      return (
+                        <tr key={product.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="h-10 w-10 flex-shrink-0">
+                                {product.imageUrl ? (
+                                  <img
+                                    className="h-10 w-10 rounded object-cover"
+                                    src={product.imageUrl}
+                                    alt={product.name}
+                                  />
+                                ) : (
+                                  <div className="h-10 w-10 rounded bg-gray-100 flex items-center justify-center">
+                                    <Package className="h-5 w-5 text-gray-400" />
+                                  </div>
+                                )}
                               </div>
-                              {product.brand && (
-                                <div className="text-sm text-gray-500">
-                                  {product.brand}
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {product.name}
                                 </div>
-                              )}
+                                {product.brand && (
+                                  <div className="text-sm text-gray-500">
+                                    {product.brand}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{product.sku}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {product.categoryName || '-'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {formatPrice(product.price)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {product.stockQuantity}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {product.availability ? (
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                              Còn hàng
-                            </span>
-                          ) : (
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                              Hết hàng
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => handlePriceHistory(product)}
-                            className="text-green-600 hover:text-green-900 mr-3"
-                            title="Lịch sử giá"
-                          >
-                            <DollarSign className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => handleEdit(product)}
-                            className="text-blue-600 hover:text-blue-900 mr-3"
-                            title="Chỉnh sửa"
-                          >
-                            <Edit className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(product)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Xóa"
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{product.sku}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {product.categoryName || '-'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {formatPrice(product.price)}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {product.stockQuantity}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {product.availability ? (
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Còn hàng
+                              </span>
+                            ) : (
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                Hết hàng
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            {stockStatus.status === 'low' && (
+                              <button
+                                onClick={() => handleRestock(product)}
+                                className="text-orange-600 hover:text-orange-900 mr-3"
+                                title="Nhập hàng"
+                              >
+                                <PackagePlus className="h-5 w-5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handlePriceHistory(product)}
+                              className="text-green-600 hover:text-green-900 mr-3"
+                              title="Lịch sử giá"
+                            >
+                              <DollarSign className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleEdit(product)}
+                              className="text-blue-600 hover:text-blue-900 mr-3"
+                              title="Chỉnh sửa"
+                            >
+                              <Edit className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(product)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Xóa"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
+              {/* Pagination - hide when showing low stock filter */}
+              {!showLowStockOnly && totalPages > 1 && (
                 <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-700">
@@ -562,9 +756,8 @@ const AdminProducts = () => {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.name ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.name ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     placeholder="Nhập tên sản phẩm"
                   />
                   {formErrors.name && (
@@ -581,9 +774,8 @@ const AdminProducts = () => {
                     type="text"
                     value={formData.sku}
                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.sku ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.sku ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     placeholder="SKU001"
                   />
                   {formErrors.sku && (
@@ -615,9 +807,8 @@ const AdminProducts = () => {
                     step="0.01"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.price ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.price ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     placeholder="0.00"
                   />
                   {formErrors.price && (
@@ -648,9 +839,8 @@ const AdminProducts = () => {
                     type="number"
                     value={formData.stockQuantity}
                     onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.stockQuantity ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.stockQuantity ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     placeholder="0"
                   />
                   {formErrors.stockQuantity && (
@@ -811,6 +1001,147 @@ const AdminProducts = () => {
                 Xóa
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restock Modal */}
+      {showRestockModal && productToRestock && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <PackagePlus className="h-6 w-6 text-orange-600" />
+                Nhập hàng bổ sung
+              </h2>
+              <button
+                onClick={() => {
+                  setShowRestockModal(false)
+                  setProductToRestock(null)
+                  setRestockForm({ quantity: '', unitPrice: '', note: '' })
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Product Info */}
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-4">
+                {productToRestock.imageUrl ? (
+                  <img
+                    src={productToRestock.imageUrl}
+                    alt={productToRestock.name}
+                    className="w-16 h-16 rounded object-cover"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded bg-gray-200 flex items-center justify-center">
+                    <Package className="h-8 w-8 text-gray-400" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900">{productToRestock.name}</h3>
+                  <p className="text-sm text-gray-600">SKU: {productToRestock.sku}</p>
+                  <div className="mt-2 grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Tồn kho hiện tại:</span>
+                      <span className="ml-2 font-semibold text-red-600">{productToRestock.stockQuantity}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Mức đặt lại:</span>
+                      <span className="ml-2 font-semibold text-gray-900">{productToRestock.reorderLevel}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">SL đề xuất:</span>
+                      <span className="ml-2 font-semibold text-blue-600">{productToRestock.reorderQuantity}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Restock Form */}
+            <form onSubmit={handleRestockSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Số lượng nhập <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={restockForm.quantity}
+                    onChange={(e) => setRestockForm({ ...restockForm, quantity: e.target.value })}
+                    min="1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="Nhập số lượng"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Giá nhập (₫) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={restockForm.unitPrice}
+                    onChange={(e) => setRestockForm({ ...restockForm, unitPrice: e.target.value })}
+                    min="0"
+                    step="1000"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="Nhập giá"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Ghi chú
+                </label>
+                <textarea
+                  value={restockForm.note}
+                  onChange={(e) => setRestockForm({ ...restockForm, note: e.target.value })}
+                  rows="3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Nhập ghi chú (tùy chọn)"
+                />
+              </div>
+
+              {/* Total */}
+              {restockTotal > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-base font-semibold text-gray-700">Tổng giá trị nhập:</span>
+                    <span className="text-xl font-bold text-blue-600">
+                      {formatCurrency(restockTotal)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRestockModal(false)
+                    setProductToRestock(null)
+                    setRestockForm({ quantity: '', unitPrice: '', note: '' })
+                  }}
+                  className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="flex items-center gap-2 px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+                >
+                  <TrendingUp className="h-5 w-5" />
+                  <span>Tạo Phiếu Nhập Kho</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
