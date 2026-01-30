@@ -41,7 +41,7 @@ public class ShippingService {
                 receiverAddress, subtotal, receiverLat, receiverLng);
 
         try {
-            // Step 1: Get receiver coordinates
+            // Get receiver coordinates
             Coordinates receiverCoords;
             if (receiverLat != null && receiverLng != null) {
                 // Use coordinates from frontend (already geocoded by map selection)
@@ -54,20 +54,20 @@ public class ShippingService {
                 receiverCoords = goongService.geocodeAddress(receiverAddress);
             }
 
-            // Step 2: Get store location from system config
+            // Get store location from system config
             Coordinates storeCoords = systemConfigService.getStoreLocation();
             log.debug("[calculateShippingFee] Store coordinates: {}", storeCoords);
 
-            // Step 3: Calculate route between store and receiver
+            // Calculate route between store and receiver
             RouteInfo routeInfo = goongService.calculateRoute(storeCoords, receiverCoords);
             log.debug("[calculateShippingFee] Route info: distance={} km, duration={} mins",
                     routeInfo.getDistanceInKm(), routeInfo.getDurationInMinutes());
 
-            // Step 4: Calculate shipping fee
+            // Calculate shipping fee
             Double shippingFee = calculateFee(routeInfo.getDistanceInKm());
             log.debug("[calculateShippingFee] Calculated fee: {}", shippingFee);
 
-            // Step 5: Check for free shipping
+            // Check for free shipping
             Double freeShippingThreshold = systemConfigService.getFreeShippingThreshold();
             boolean isFreeShipping = subtotal >= freeShippingThreshold && freeShippingThreshold > 0;
             Double finalFee = isFreeShipping ? 0.0 : shippingFee;
@@ -75,8 +75,7 @@ public class ShippingService {
             log.info("[calculateShippingFee] Final fee={}, isFreeShipping={}, threshold={}",
                     finalFee, isFreeShipping, freeShippingThreshold);
 
-            // Step 6: Build response
-            // Load baseFee for response display
+            // Build response
             Double baseFee = systemConfigService.getConfigValueAsDouble("default_shipping_fee", 15000.0);
 
             ShippingFeeDetails feeDetails = ShippingFeeDetails.builder()
@@ -148,5 +147,9 @@ public class ShippingService {
             log.error("[geocodeAddress] Unexpected error: {}", e.getMessage(), e);
             throw new AppException(ErrorCode.GEOCODING_FAILED);
         }
+    }
+
+    public Double getDefaultShippingFee() {
+        return systemConfigService.getConfigValueAsDouble("default_shipping_fee", 15000.0);
     }
 }

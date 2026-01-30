@@ -72,7 +72,6 @@ public class EmailParsingService {
                     String fullContent = cleanContent(value);
                     String paymentContent = extractPaymentContent(fullContent);
                     transaction.setPaymentDetails(paymentContent);
-                    // extractDetailsFromContent() removed - không cần extract chi tiết nữa
                 }
             }
         }
@@ -81,16 +80,7 @@ public class EmailParsingService {
     }
     
     /**
-     * Trích xuất nội dung chuyển khoản - Universal format support
-     * 
-     * Hỗ trợ TẤT CẢ các ngân hàng:
-     * - Vietcombank: MBVCB.12136287102.5348BFTVG2ZI2G3 Q.QMORD34.CT tu...
-     * - QR/Internet Banking: QR - QMORD35 CKN 324624 - NGUYEN LINH SON...
-     * - ACB/Techcombank: QMORD36 thanh toan don hang
-     * - Momo/E-wallet: QMORD37 - Payment
-     * 
-     * Strategy: Giữ TOÀN BỘ content gốc để validation dễ dàng
-     * Quan trọng: Content phải chứa QMORD{id}
+     * Trích xuất nội dung chuyển khoản (Tất cả ngân hàng)
      */
     private String extractPaymentContent(String fullContent) {
         if (fullContent == null || fullContent.isEmpty()) {
@@ -115,53 +105,10 @@ public class EmailParsingService {
             log.info("✅ Found QMORD pattern in content");
         }
         
-        /* ============================================================
-         * VCB EXTRACTION LOGIC - COMMENTED OUT (không dùng nữa)
-         * ============================================================
-         * Lý do comment: Giữ full content đơn giản hơn và universal hơn
-         * Có thể uncomment nếu muốn extract clean content cho VCB
-         * 
-        // Option 1: MBVCB format (Vietcombank) - Extract meaningful part
-        if (cleaned.startsWith("MBVCB.")) {
-            try {
-                // Try to extract: "5348BFTVG2ZI2G3 Q.QMORD34"
-                int firstDot = cleaned.indexOf(".", 6);
-                if (firstDot != -1) {
-                    int secondDot = cleaned.indexOf(".", firstDot + 1);
-                    if (secondDot != -1) {
-                        int ctTuIndex = cleaned.indexOf(".CT tu");
-                        if (ctTuIndex != -1 && ctTuIndex > secondDot) {
-                            String extracted = cleaned.substring(secondDot + 1, ctTuIndex).trim();
-                            log.info("✅ Extracted from MBVCB format: {}", extracted);
-                            return extracted;
-                        }
-                    }
-                }
-                log.info("⚠️ MBVCB format but cannot extract, using full content");
-            } catch (Exception e) {
-                log.warn("Error extracting MBVCB format: {}", e.getMessage());
-            }
-        }
-        * ============================================================ */
-        
-        // Return FULL CONTENT - Works for ALL banks
-        // Validation sẽ tìm QMORD{id} trong toàn bộ content này
         log.info("✅ Returning full content (length: {})", cleaned.length());
         
         return cleaned;
     }
-    
-    /* ============================================================
-     * extractDetailsFromContent() - REMOVED
-     * ============================================================
-     * Các trường order_number, debit_account, remitter_name, 
-     * beneficiary_name đã bị xóa khỏi Transaction entity.
-     * 
-     * Lý do: Các trường này không ổn định giữa các ngân hàng khác nhau
-     * và không cần thiết cho logic validate payment.
-     * 
-     * Chỉ cần: creditAccount, amount, paymentDetails, transactionDate
-     * ============================================================ */
     
     /**
      * Parse datetime
@@ -175,7 +122,6 @@ public class EmailParsingService {
             try {
                 return LocalDateTime.parse(dateTimeStr, formatter);
             } catch (DateTimeParseException e) {
-                // Try next format
             }
         }
         

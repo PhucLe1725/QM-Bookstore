@@ -47,24 +47,25 @@ public class OrderService {
     TransactionService transactionService;
     UserRepository userRepository;
     UserService userService;
+    ShippingService shippingService;
+    SystemConfigService systemConfigService;
 
     /**
      * Checkout - Tạo đơn hàng từ giỏ hàng (Updated with new schema)
      */
     public CheckoutResponse checkout(UUID userId, CheckoutRequest request) {
-        log.info("[checkout] User {} is checking out with paymentMethod={}, fulfillmentMethod={}", 
+        log.info("[checkout] User {} is checking out with paymentMethod={}, fulfillmentMethod={}",
                 userId, request.getPaymentMethod(), request.getFulfillmentMethod());
 
-        // 1. Lấy cart items đã được chọn
+        // Lấy cart items đã được chọn
         List<CartItem> selectedItems = cartItemRepository.findSelectedItemsByUserId(userId);
         if (selectedItems.isEmpty()) {
             throw new AppException(ErrorCode.CART_EMPTY);
         }
 
-        // 2. Validate inventory
+        // Validate inventory
         for (CartItem item : selectedItems) {
             if (item.getItemType() == ItemType.COMBO) {
-                // Validate combo stock
                 ProductCombo combo = productComboRepository.findByIdWithItems(item.getComboId())
                         .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_COMBO_NOT_FOUND));
 
@@ -85,7 +86,7 @@ public class OrderService {
             }
         }
 
-        // 3. Calculate subtotal_amount và tạo OrderItems với snapshot
+        // Calculate subtotal_amount và tạo OrderItems với snapshot
         BigDecimal subtotalAmount = BigDecimal.ZERO;
         List<OrderItem> orderItems = new ArrayList<>();
 
@@ -164,22 +165,21 @@ public class OrderService {
         // 4. Calculate shipping_fee
         BigDecimal shippingFee = BigDecimal.ZERO;
         if ("delivery".equals(request.getFulfillmentMethod())) {
-            // Use frontend-calculated shipping fee based on distance
-            // If not provided, default to 25k
-            shippingFee = request.getShippingFee() != null 
-                ? request.getShippingFee() 
-                : new BigDecimal("25000");
+            shippingFee = request.getShippingFee() != null
+                    ? request.getShippingFee()
+                    : new BigDecimal(shippingService.getDefaultShippingFee().toString());
         }
 
         // 5. Apply voucher using VoucherService (calculate discount_amount)
         BigDecimal discountAmount = BigDecimal.ZERO;
         Long voucherId = null;
-        
+
         if (request.getVoucherCode() != null && !request.getVoucherCode().isEmpty()) {
-            // Use new VoucherService to validate and calculate discount (with userId for per-user limit check)
+            // Use new VoucherService to validate and calculate discount (with userId for
+            // per-user limit check)
             var validationResult = voucherService.validateVoucher(
-                    request.getVoucherCode(), 
-                    subtotalAmount, 
+                    request.getVoucherCode(),
+                    subtotalAmount,
                     shippingFee,
                     userId // Pass userId to check per-user limit
             );
@@ -192,37 +192,37 @@ public class OrderService {
             // Get voucherId for saving in order
             Voucher voucher = voucherRepository.findActiveVoucherByCode(request.getVoucherCode())
                     .orElseThrow(() -> new AppException(ErrorCode.VOUCHER_NOT_FOUND));
-            
+
             voucherId = voucher.getId();
             discountAmount = validationResult.getDiscountValue();
-            
-            log.info("[checkout] Applied voucher {} - Discount: {} (apply to: {})", 
+
+            log.info("[checkout] Applied voucher {} - Discount: {} (apply to: {})",
                     request.getVoucherCode(), discountAmount, validationResult.getApplyTo());
         }
 
-        // 6. Calculate amounts according to new logic:
-        // Step 1: total_amount = subtotal - discount (tạm tính, chưa VAT, chưa ship)
+        // Calculate amounts:
+        // total_amount = subtotal - discount (tạm tính, chưa VAT, chưa ship)
         BigDecimal totalAmount = subtotalAmount.subtract(discountAmount);
-        
-        // Step 2: vat_amount = total_amount * 10%
+
+        // vat_amount = total_amount * 10%
         BigDecimal vatAmount = totalAmount.multiply(new BigDecimal("0.10")).setScale(2, RoundingMode.HALF_UP);
-        
-        // Step 3: total_pay = total_amount + vat_amount + shipping_fee (số tiền khách thực trả)
+
+        // total_pay = total_amount + vat_amount + shipping_fee (số tiền khách thực trả)
         BigDecimal totalPay = totalAmount.add(vatAmount).add(shippingFee);
-        
-        log.info("[checkout] Calculation: subtotal={}, discount={}, total_amount={}, vat={}, shipping={}, total_pay={}", 
+
+        log.info("[checkout] Calculation: subtotal={}, discount={}, total_amount={}, vat={}, shipping={}, total_pay={}",
                 subtotalAmount, discountAmount, totalAmount, vatAmount, shippingFee, totalPay);
 
-        // 7. Create Order với 3 trục trạng thái
+        // Create Order với 3 trục trạng thái
         Order order = Order.builder()
                 .userId(userId)
                 .voucherId(voucherId)
                 .subtotalAmount(subtotalAmount)
                 .discountAmount(discountAmount)
-                .totalAmount(totalAmount)      // Tạm tính (dùng cho doanh thu)
-                .vatAmount(vatAmount)          // Thuế VAT 10%
+                .totalAmount(totalAmount)
+                .vatAmount(vatAmount)
                 .shippingFee(shippingFee)
-                .totalPay(totalPay)            // Số tiền khách thực trả
+                .totalPay(totalPay)
                 .paymentStatus("pending")
                 .orderStatus("confirmed")
                 .paymentMethod(request.getPaymentMethod())
@@ -235,7 +235,7 @@ public class OrderService {
 
         // Set fulfillment_status based on fulfillment_method
         if ("pickup".equals(request.getFulfillmentMethod())) {
-            order.setFulfillmentStatus("pending_pickup");  // Changed from "pickup" to "pending_pickup"
+            order.setFulfillmentStatus("pending_pickup");
         } else {
             order.setFulfillmentStatus("shipping");
         }
@@ -245,7 +245,6 @@ public class OrderService {
             order.setReceiverName(request.getReceiverName());
             order.setReceiverPhone(request.getReceiverPhone());
             order.setReceiverAddress(request.getReceiverAddress());
-            // Set expected delivery time (example: 3 days from now)
             order.setExpectedDeliveryTime(LocalDateTime.now().plusDays(3));
         }
 
@@ -259,7 +258,8 @@ public class OrderService {
         log.info("[checkout] Generated transferContent: {}", transferContent);
 
         // 7.6. KHÔNG increment voucher tại đây nữa
-        // Voucher sẽ được increment SAU KHI payment được confirm (trong validatePayment method)
+        // Voucher sẽ được increment SAU KHI payment được confirm (trong validatePayment
+        // method)
         // Điều này đảm bảo voucher chỉ được tính khi user thực sự thanh toán
         // Nếu order bị cancel trước khi thanh toán, voucher không bị mất
 
@@ -269,8 +269,10 @@ public class OrderService {
         }
         orderItemRepository.saveAll(orderItems);
 
-        // 9. [REMOVED] Update product inventory - Giờ sử dụng InventoryTransactionService
-        // Inventory sẽ được trừ thông qua API /api/inventory/transactions/out-from-order
+        // 9. [REMOVED] Update product inventory - Giờ sử dụng
+        // InventoryTransactionService
+        // Inventory sẽ được trừ thông qua API
+        // /api/inventory/transactions/out-from-order
         // khi admin/hệ thống xác nhận đơn hàng
 
         // 10. Remove selected items from cart
@@ -288,9 +290,9 @@ public class OrderService {
     /**
      * Get my orders with pagination (Updated with new status filters)
      */
-    public Page<OrderResponse> getMyOrders(UUID userId, String paymentStatus, String fulfillmentStatus, 
-                                          String orderStatus, Pageable pageable) {
-        log.info("[getMyOrders] User {} requesting orders with filters: payment={}, fulfillment={}, order={}", 
+    public Page<OrderResponse> getMyOrders(UUID userId, String paymentStatus, String fulfillmentStatus,
+            String orderStatus, Pageable pageable) {
+        log.info("[getMyOrders] User {} requesting orders with filters: payment={}, fulfillment={}, order={}",
                 userId, paymentStatus, fulfillmentStatus, orderStatus);
 
         Page<Order> orders = orderRepository.findByUserIdAndStatuses(
@@ -302,9 +304,9 @@ public class OrderService {
     /**
      * Get all orders (Admin/Manager)
      */
-    public Page<OrderResponse> getAllOrders(String paymentStatus, String fulfillmentStatus, 
-                                           String orderStatus, Pageable pageable) {
-        log.info("[getAllOrders] Requesting all orders with filters: payment={}, fulfillment={}, order={}", 
+    public Page<OrderResponse> getAllOrders(String paymentStatus, String fulfillmentStatus,
+            String orderStatus, Pageable pageable) {
+        log.info("[getAllOrders] Requesting all orders with filters: payment={}, fulfillment={}, order={}",
                 paymentStatus, fulfillmentStatus, orderStatus);
 
         Page<Order> orders = orderRepository.findByStatuses(
@@ -315,7 +317,6 @@ public class OrderService {
 
     /**
      * Get order detail
-     * Admin can view all orders, regular users can only view their own
      */
     public OrderDetailResponse getOrderDetail(UUID userId, Long orderId) {
         log.info("[getOrderDetail] User {} requesting order {}", userId, orderId);
@@ -326,9 +327,9 @@ public class OrderService {
         // Check permission - Admin can view all orders
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        
+
         boolean isAdmin = user.getRole() != null && "admin".equalsIgnoreCase(user.getRole().getName());
-        
+
         if (!isAdmin && !order.getUserId().equals(userId)) {
             throw new AppException(ErrorCode.ORDER_ACCESS_DENIED);
         }
@@ -337,7 +338,7 @@ public class OrderService {
     }
 
     /**
-     * Cancel order (Updated with new status)
+     * Cancel order
      */
     public void cancelOrder(UUID userId, Long orderId, CancelOrderRequest request) {
         log.info("[cancelOrder] User {} cancelling order {} with reason: {}", userId, orderId, request.getReason());
@@ -350,7 +351,7 @@ public class OrderService {
             throw new AppException(ErrorCode.ORDER_ACCESS_DENIED);
         }
 
-        // Validate status - can only cancel if confirmed but not paid
+        // Validate status
         if (!"confirmed".equals(order.getOrderStatus())) {
             throw new AppException(ErrorCode.CANNOT_CANCEL_ORDER);
         }
@@ -360,12 +361,8 @@ public class OrderService {
 
         // Update order status
         order.setOrderStatus("cancelled");
-        order.setCancelReason(request.getReason());  // Save cancel reason
+        order.setCancelReason(request.getReason()); // Save cancel reason
         orderRepository.save(order);
-
-        // [REMOVED] Restore inventory - Giờ sử dụng InventoryTransactionService
-        // Nếu order đã được xuất kho (có OUT transaction), cần tạo IN transaction để hoàn lại
-        // Logic này nên được xử lý riêng thông qua InventoryTransactionService
 
         log.info("[cancelOrder] Order {} cancelled successfully", orderId);
     }
@@ -376,21 +373,21 @@ public class OrderService {
     public ValidatePaymentResponse validatePayment(UUID userId, Long orderId) {
         log.info("[validatePayment] User {} validating payment for order {}", userId, orderId);
 
-        // 1. Kiểm tra order tồn tại
+        // Kiểm tra order tồn tại
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
 
-        // 2. Check permission
+        // Check permission
         if (!order.getUserId().equals(userId)) {
             throw new AppException(ErrorCode.ORDER_ACCESS_DENIED);
         }
 
-        // 3. Kiểm tra paymentMethod
+        // Kiểm tra paymentMethod
         if (!"prepaid".equals(order.getPaymentMethod())) {
             throw new AppException(ErrorCode.INVALID_PAYMENT_METHOD);
         }
 
-        // 4. Nếu đã paid rồi
+        // Nếu đã paid rồi
         if ("paid".equals(order.getPaymentStatus())) {
             return ValidatePaymentResponse.builder()
                     .paymentConfirmed(true)
@@ -398,29 +395,24 @@ public class OrderService {
                     .build();
         }
 
-        // 5. Nếu order đã bị cancel
+        // Nếu order đã bị cancel
         if ("cancelled".equals(order.getOrderStatus())) {
             throw new AppException(ErrorCode.ORDER_ALREADY_CANCELLED);
         }
 
-        // 6. Tìm transaction trong database
-        // Note: Transactions should be fetched separately via POST /api/transactions/fetch-from-email
-        // to avoid timeout issues during payment validation
+        // Tìm transaction trong database
         String expectedTransferContent = "QMORD" + orderId;
-        
-        // Trừ 2 phút buffer vì transactionDate có thể bị làm tròn (mất giây)
-        // hoặc user chuyển khoản trước rồi mới tạo order
+
         LocalDateTime searchFromDate = order.getCreatedAt().minusMinutes(2);
-        
-        // Use totalPay (số tiền khách thực trả) instead of totalAmount for payment validation
+
+
         var transactionOpt = transactionRepository
                 .findByTransferContentAndAmountAndDateAfter(
                         expectedTransferContent,
-                        order.getTotalPay(),  // Changed from getTotalAmount() to getTotalPay()
-                        searchFromDate
-                );
+                        order.getTotalPay(),
+                        searchFromDate);
 
-        // 7. Nếu CHƯA tìm thấy transaction
+        // Nếu CHƯA tìm thấy transaction
         if (transactionOpt.isEmpty()) {
             log.info("[validatePayment] Transaction not found for order {}", orderId);
             return ValidatePaymentResponse.builder()
@@ -429,15 +421,15 @@ public class OrderService {
                     .build();
         }
 
-        // 8. Tìm thấy transaction - Validate và update
+        // Tìm thấy transaction - Validate và update
         Transaction transaction = transactionOpt.get();
-        
+
         log.info("[validatePayment] Found transaction {} for order {}", transaction.getId(), orderId);
 
         // Update order status
         order.setPaymentStatus("paid");
-        order.setTransactionId(transaction.getId());  // FK to transactions table
-        order.setTransferContent(expectedTransferContent);  // QMORD format for reference
+        order.setTransactionId(transaction.getId());
+        order.setTransferContent(expectedTransferContent);
         orderRepository.save(order);
 
         // Update transaction verified status
@@ -446,12 +438,12 @@ public class OrderService {
 
         // INCREMENT VOUCHER USAGE (nếu có)
         if (order.getVoucherId() != null) {
-            log.info("[validatePayment] Incrementing voucher usage for voucherId={}, userId={}, orderId={}", 
+            log.info("[validatePayment] Incrementing voucher usage for voucherId={}, userId={}, orderId={}",
                     order.getVoucherId(), userId, orderId);
-            
+
             // Increment voucher usage counter
             voucherService.incrementVoucherUsage(order.getVoucherId());
-            
+
             // Record voucher usage history
             voucherService.recordVoucherUsage(order.getVoucherId(), userId, orderId);
         }
@@ -469,21 +461,22 @@ public class OrderService {
     }
 
     /**
-     * Update order status (Admin/Manager) - Updated with 3 status axes
+     * Update order status (Admin/Manager)
      */
     public void updateOrderStatus(Long orderId, UpdateOrderStatusRequest request) {
-        log.info("[updateOrderStatus] Updating order {} with statuses: payment={}, fulfillment={}, order={}", 
+        log.info("[updateOrderStatus] Updating order {} with statuses: payment={}, fulfillment={}, order={}",
                 orderId, request.getPaymentStatus(), request.getFulfillmentStatus(), request.getOrderStatus());
 
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
-        
+
         String oldPaymentStatus = order.getPaymentStatus();
         String oldOrderStatus = order.getOrderStatus();
-        
+
         log.info("[updateOrderStatus] Old statuses - payment: '{}', order: '{}'", oldPaymentStatus, oldOrderStatus);
-        log.info("[updateOrderStatus] New statuses - payment: '{}', order: '{}'", request.getPaymentStatus(), request.getOrderStatus());
-        
+        log.info("[updateOrderStatus] New statuses - payment: '{}', order: '{}'", request.getPaymentStatus(),
+                request.getOrderStatus());
+
         // Update each status axis if provided
         if (request.getPaymentStatus() != null) {
             order.setPaymentStatus(request.getPaymentStatus());
@@ -496,49 +489,47 @@ public class OrderService {
         }
 
         // Cập nhật tổng chi tiêu khi thanh toán thành công
-        log.info("[updateOrderStatus] Checking totalPurchase update: paymentStatus={}, oldPaymentStatus={}", 
+        log.info("[updateOrderStatus] Checking totalPurchase update: paymentStatus={}, oldPaymentStatus={}",
                 request.getPaymentStatus(), oldPaymentStatus);
-        if (request.getPaymentStatus() != null && 
-            "paid".equalsIgnoreCase(request.getPaymentStatus()) && 
-            !"paid".equalsIgnoreCase(oldPaymentStatus)) {
-            
+        if (request.getPaymentStatus() != null &&
+                "paid".equalsIgnoreCase(request.getPaymentStatus()) &&
+                !"paid".equalsIgnoreCase(oldPaymentStatus)) {
+
             User user = userRepository.findById(order.getUserId())
                     .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-            
+
             BigDecimal currentTotal = user.getTotalPurchase() != null ? user.getTotalPurchase() : BigDecimal.ZERO;
             BigDecimal newTotal = currentTotal.add(order.getTotalAmount());
             user.setTotalPurchase(newTotal);
-            
+
             // Tự động nâng cấp membership level
             userService.updateMembershipLevel(user);
-            
+
             userRepository.save(user);
-            
-            log.info("[updateOrderStatus] Updated total purchase for user {}: {} -> {} and membership level: {}", 
+
+            log.info("[updateOrderStatus] Updated total purchase for user {}: {} -> {} and membership level: {}",
                     user.getId(), currentTotal, newTotal, user.getMembershipLevel());
         }
-        
+
         // Cập nhật điểm tích lũy khi đơn hàng chuyển sang "closed"
-        if (request.getOrderStatus() != null && 
-            "closed".equalsIgnoreCase(request.getOrderStatus()) && 
-            !"closed".equalsIgnoreCase(oldOrderStatus)) {
-            
+        if (request.getOrderStatus() != null &&
+                "closed".equalsIgnoreCase(request.getOrderStatus()) &&
+                !"closed".equalsIgnoreCase(oldOrderStatus)) {
+
             User user = userRepository.findById(order.getUserId())
                     .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-            
+
             // Quy đổi: 1000 VNĐ = 1 điểm (làm tròn)
             int earnedPoints = order.getTotalAmount().divide(new BigDecimal("1000"), 0, RoundingMode.DOWN).intValue();
             Integer currentPoints = user.getPoints() != null ? user.getPoints() : 0;
             Integer newPoints = currentPoints + earnedPoints;
             user.setPoints(newPoints);
             userRepository.save(user);
-            
-            log.info("[updateOrderStatus] Updated loyalty points for user {}: {} -> {} (+{} points from order amount {})", 
+
+            log.info(
+                    "[updateOrderStatus] Updated loyalty points for user {}: {} -> {} (+{} points from order amount {})",
                     user.getId(), currentPoints, newPoints, earnedPoints, order.getTotalAmount());
         }
-
-        // Note: Voucher usage is recorded immediately during checkout
-        // No need to track payment status changes - voucher is counted as used once order is created
 
         orderRepository.save(order);
         log.info("[updateOrderStatus] Order {} updated successfully", orderId);
@@ -601,8 +592,10 @@ public class OrderService {
                                 .quantity(item.getQuantity())
                                 .unitPrice(item.getUnitPrice())
                                 .lineTotal(item.getLineTotal())
-                                .thumbnail(item.getComboSnapshot() != null && !item.getComboSnapshot().getItems().isEmpty() 
-                                    ? item.getComboSnapshot().getItems().get(0).getProductName() : null)
+                                .thumbnail(
+                                        item.getComboSnapshot() != null && !item.getComboSnapshot().getItems().isEmpty()
+                                                ? item.getComboSnapshot().getItems().get(0).getProductName()
+                                                : null)
                                 .build();
                     } else {
                         // Handle product item
@@ -625,7 +618,7 @@ public class OrderService {
         OrderResponse response = orderMapper.toOrderResponse(order);
         response.setItemCount(items.size());
         response.setItems(itemResponses);
-        
+
         return response;
     }
 
@@ -644,8 +637,10 @@ public class OrderService {
                                 .quantity(item.getQuantity())
                                 .unitPrice(item.getUnitPrice())
                                 .lineTotal(item.getLineTotal())
-                                .thumbnail(item.getComboSnapshot() != null && !item.getComboSnapshot().getItems().isEmpty() 
-                                    ? item.getComboSnapshot().getItems().get(0).getProductName() : null)
+                                .thumbnail(
+                                        item.getComboSnapshot() != null && !item.getComboSnapshot().getItems().isEmpty()
+                                                ? item.getComboSnapshot().getItems().get(0).getProductName()
+                                                : null)
                                 .build();
                     } else {
                         // Handle product item

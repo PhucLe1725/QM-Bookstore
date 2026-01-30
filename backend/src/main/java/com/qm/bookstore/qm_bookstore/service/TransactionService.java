@@ -39,9 +39,6 @@ public class TransactionService {
 
         private final SystemConfigService systemConfigService;
 
-        // Removed @Value fields as they are now loaded dynamically from
-        // SystemConfigService
-
         /**
          * Fetch emails và lưu transactions
          */
